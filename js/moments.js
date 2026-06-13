@@ -2039,9 +2039,8 @@
     }
     const stickerLibraryFiltered = _stickerLib.filter(Boolean);
     if (index >= 0 && index < stickerLibraryFiltered.length) {
-      pendingCommentSticker = stickerLibraryFiltered[index];
-      showCommentStickerPreview(pendingCommentSticker);
-      closeCommentEmojiPanel();
+      // 直接发送表情包评论
+      directSendStickerComment(stickerLibraryFiltered[index]);
     }
   }
 
@@ -2055,10 +2054,35 @@
     }
     const libFiltered = _libStickers.filter(Boolean);
     if (index >= 0 && index < libFiltered.length) {
-      pendingCommentSticker = libFiltered[index];
-      showCommentStickerPreview(pendingCommentSticker);
-      closeCommentEmojiPanel();
+      // 直接发送表情包评论
+      directSendStickerComment(libFiltered[index]);
     }
+  }
+
+  // 直接发送表情包评论
+  function directSendStickerComment(stickerUrl) {
+    const container = document.getElementById('moments-container');
+    if (!container || !currentCommentMomentId) return;
+
+    const m = momentsData.find(x => x.id === currentCommentMomentId);
+    if (m) {
+      m.comments.push({
+        name: userConfig.name,
+        text: '',
+        sticker: stickerUrl,
+        replyTo: replyToName || undefined
+      });
+      saveMomentsToStorage();
+      renderMoments();
+
+      // 触发TA回复
+      setTimeout(() => {
+        triggerPartnerReply(m.id);
+      }, 1000 + Math.random() * 2000);
+    }
+
+    closeCommentEmojiPanel();
+    closeAllPanels();
   }
 
   function showCommentStickerPreview(stickerUrl) {
