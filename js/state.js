@@ -166,3 +166,7 @@
                 closeBtn: document.getElementById('close-data')
             }
         };
+
+        // 显式挂到 window，确保其他脚本能访问
+        window.DOMElements = DOMElements;
+        window.settings = settings;

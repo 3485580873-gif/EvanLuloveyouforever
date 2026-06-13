@@ -203,6 +203,21 @@ if (target.classList.contains('delete-btn')) {
                 });
             }
 
+            // 设置弹窗关闭按钮
+            if (DOMElements.settingsModal.cancel) {
+                DOMElements.settingsModal.cancel.addEventListener('click', () => {
+                    hideModal(DOMElements.settingsModal.modal);
+                });
+            }
+
+            // 高级功能弹窗关闭按钮
+            if (DOMElements.advancedModal.closeBtn) {
+                DOMElements.advancedModal.closeBtn.addEventListener('click', () => {
+                    hideModal(DOMElements.advancedModal.modal);
+                });
+            }
+
+            // 数据管理弹窗关闭按钮（ID可能不存在，容错处理）
             const closeDataBtn = document.getElementById('close-data');
             if (closeDataBtn) {
                 closeDataBtn.addEventListener('click', () => {

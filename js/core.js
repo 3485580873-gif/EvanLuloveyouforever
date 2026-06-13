@@ -2559,7 +2559,11 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             }
         }
 
-function showModal(modalElement, focusElement = null) {
+        function showModal(modalElement, focusElement = null) {
+            if (!modalElement) {
+                console.warn('[showModal] modalElement is null', new Error().stack);
+                return;
+            }
             if (modalElement._hideTimeout) {
                 clearTimeout(modalElement._hideTimeout);
                 modalElement._hideTimeout = null;
@@ -2583,6 +2587,10 @@ function showModal(modalElement, focusElement = null) {
         }
 
         function hideModal(modalElement) {
+            if (!modalElement) {
+                console.warn('[hideModal] modalElement is null', new Error().stack);
+                return;
+            }
             // 立即降低 z-index，避免遮挡其他弹窗（如从设置切换到聊天设置时）
             modalElement.style.setProperty('z-index', '0', 'important');
             const content = modalElement.querySelector('.modal-content');
