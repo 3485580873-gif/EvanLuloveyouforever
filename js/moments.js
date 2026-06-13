@@ -1182,6 +1182,7 @@
     // 自动互动使用缓存的伴侣（系统）信息
     let replierName = getPartnerName();
     let partnerAvatar = getPartnerAvatar();
+    let didComment = false;  // 跟踪TA是否评论了
 
     for (let i = 0; i < replyCount; i++) {
       // 20% 概率发送表情包（如果有表情包库）
@@ -1195,6 +1196,7 @@
           sticker: sticker
         });
         showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
+        didComment = true;
         continue;
       }
 
@@ -1230,6 +1232,7 @@
         text: replyText
       });
       showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
+      didComment = true;
     }
 
     // 自动点赞（80%概率）
@@ -1269,6 +1272,15 @@
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
     renderMomentsNotificationCard();
+
+    // ── 访客记录：TA来互动了，留下足迹 ──
+    if (didComment) {
+      generateOneVisitorRecord(Date.now(), 'comment');
+      console.log('[Moments] Partner commented - left visitor record (comment)');
+    } else if (didLike) {
+      generateOneVisitorRecord(Date.now(), 'like');
+      console.log('[Moments] Partner liked - left visitor record (like)');
+    }
   }
 
   // ========== Like ==========
@@ -1336,9 +1348,9 @@
     return visitorRecords.filter(r => getRecordDateStr(r.timestamp) === today).length;
   }
 
-  function generateOneVisitorRecord(timestamp) {
+  function generateOneVisitorRecord(timestamp, action) {
     const ts = timestamp || Date.now();
-    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts });
+    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts, action: action || 'visit' });
     visitorUnreadCount++;
     saveVisitorRecords();
     updateVisitorBadge();
@@ -1364,7 +1376,7 @@
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23,59,59,999);
       for (let j = 0; j < countForDay; j++) {
-        generateOneVisitorRecord(dayStart.getTime() + Math.random() * (dayEnd.getTime() - dayStart.getTime()));
+        generateOneVisitorRecord(dayStart.getTime() + Math.random() * (dayEnd.getTime() - dayStart.getTime()), 'visit');
       }
     }
   }
@@ -1374,7 +1386,7 @@
     localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
     visitorTimerInterval = setInterval(() => {
       if (getTodayVisitorCount() >= VISITOR_MAX_PER_DAY) return;
-      if (Math.random() < 0.20) generateOneVisitorRecord(Date.now());
+      if (Math.random() < 0.20) generateOneVisitorRecord(Date.now(), 'visit');
       localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
     }, 5 * 60 * 1000);
   }
@@ -1387,7 +1399,7 @@
     _partnerSneakTimer = setInterval(() => {
       // 3%概率偷偷看朋友圈（与拍一拍概率一致）
       if (Math.random() < 0.03) {
-        generateOneVisitorRecord(Date.now());
+        generateOneVisitorRecord(Date.now(), 'visit');
         console.log('[Moments] Partner sneak visit - left visitor record');
       }
     }, 5 * 60 * 1000); // 每5分钟检查一次
@@ -1490,13 +1502,20 @@
       const streak = calcStreakDays(record.timestamp);
       const streakTag = streak >= 2 ? `<span class="visitor-streak-tag">连续来访${streak}天</span>` : '';
       const timeStr = formatMomentTime(record.timestamp);
+      // 访客动作描述
+      const actionMap = {
+        like: '<span class="visitor-action-tag visitor-action-like">👍 赞了你的朋友圈</span>',
+        comment: '<span class="visitor-action-tag visitor-action-comment">💬 评论了你的朋友圈</span>',
+        visit: ''
+      };
+      const actionTag = actionMap[record.action] || '';
       html += `
         <div class="visitor-item" data-visitor-id="${record.id}">
           <div class="visitor-item-inner" ontouchstart="MomentsApp._visitorTouchStart(event,'${record.id}')" ontouchmove="MomentsApp._visitorTouchMove(event,'${record.id}')" ontouchend="MomentsApp._visitorTouchEnd(event,'${record.id}')">
             <img class="visitor-avatar" src="${partnerAvatar}" alt="${partnerName}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=c0aede'">
             <div class="visitor-info">
               <div class="visitor-name">${partnerName}${streakTag}</div>
-              <div class="visitor-time">${timeStr}</div>
+              <div class="visitor-time">${timeStr} ${actionTag}</div>
             </div>
           </div>
           <div class="visitor-delete-btn" onclick="MomentsApp.deleteVisitorRecord('${record.id}')">删除</div>

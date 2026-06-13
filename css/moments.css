@@ -3865,6 +3865,33 @@
     font-weight: 500;
 }
 
+/* 访客动作标签 */
+.moments-container .visitor-action-tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: 500;
+}
+.moments-container .visitor-action-like {
+    background: rgba(255, 107, 107, 0.12);
+    color: #ff6b6b;
+}
+.moments-container .visitor-action-comment {
+    background: rgba(80, 160, 255, 0.12);
+    color: #50a0ff;
+}
+.moments-container.dark-mode .visitor-action-like {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff8a8a;
+}
+.moments-container.dark-mode .visitor-action-comment {
+    background: rgba(80, 160, 255, 0.2);
+    color: #7ab8ff;
+}
+
 /* 日期分组标题 */
 .moments-container .visitor-date-group {
     padding: 8px 16px;
