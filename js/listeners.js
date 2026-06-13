@@ -476,9 +476,15 @@ fileInput.addEventListener('change', function(e) {
                 settings.isDarkMode = !settings.isDarkMode; throttledSaveData(); updateUI(); showNotification(`已切换到${settings.isDarkMode ? '夜': '昼'}模式`,
                     'success');
             });
-            DOMElements.settingsModal.settingsBtn.addEventListener('click', () => {
-                showModal(DOMElements.settingsModal.modal);
-            });
+            console.log('[listeners] settingsBtn:', DOMElements.settingsModal.settingsBtn);
+            if (DOMElements.settingsModal.settingsBtn) {
+                DOMElements.settingsModal.settingsBtn.addEventListener('click', () => {
+                    console.log('[listeners] settings-btn clicked!');
+                    showModal(DOMElements.settingsModal.modal);
+                });
+            } else {
+                console.error('[listeners] settingsBtn is null! Cannot attach click handler.');
+            }
             // 群聊设置按钮已合并到会话管理中
 
             // ===== 聊天设置卡片点击：打开聊天设置弹窗 =====

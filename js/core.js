@@ -2560,6 +2560,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
         }
 
         function showModal(modalElement, focusElement = null) {
+            console.log('[showModal] called with:', modalElement?.id, modalElement);
             if (!modalElement) {
                 console.warn('[showModal] modalElement is null', new Error().stack);
                 return;
