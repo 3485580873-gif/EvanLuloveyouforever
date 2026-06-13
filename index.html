@@ -92,6 +92,39 @@
             box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.15);
         }
     </style>
+    <script>
+        // 全局错误捕获 - 显示到页面上方便调试
+        (function() {
+            const errors = [];
+            const warnDiv = document.createElement('div');
+            warnDiv.id = 'debug-error-panel';
+            warnDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#ff4444;color:#fff;font-size:13px;padding:8px 12px;max-height:50vh;overflow:auto;display:none;';
+            document.body && document.body.appendChild(warnDiv) || document.addEventListener('DOMContentLoaded', () => document.body.appendChild(warnDiv));
+            
+            function showError(e) {
+                const msg = (e.error ? e.error.toString() : '') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
+                errors.push(msg);
+                warnDiv.style.display = 'block';
+                warnDiv.innerHTML = '<b>⚠️ JS错误:</b><br>' + errors.map(m => '<div style="border-top:1px solid rgba(255,255,255,0.3);margin-top:4px;padding-top:4px;">' + m.replace(/</g,'&lt;') + '</div>').join('');
+            }
+            window.addEventListener('error', showError);
+            window.addEventListener('unhandledrejection', (e) => showError({error: e.reason, filename: 'unhandledRejection'}));
+            
+            // 监听 setupEventListeners 是否执行
+            window._debugListeners = [];
+            const _origSetup = window.setupEventListeners;
+            window.addEventListener('DOMContentLoaded', () => {
+                console.log('[DEBUG] DOMContentLoaded fired');
+                setTimeout(() => {
+                    if (typeof setupEventListeners === 'function') {
+                        console.log('[DEBUG] setupEventListeners is defined');
+                    } else {
+                        console.error('[DEBUG] setupEventListeners is NOT defined!');
+                    }
+                }, 100);
+            });
+        })();
+    </script>
 </head>
 <body>
 <div id="splash-declaration">
