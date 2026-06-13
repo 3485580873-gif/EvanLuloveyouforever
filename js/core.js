@@ -2564,7 +2564,12 @@ function showModal(modalElement, focusElement = null) {
                 clearTimeout(modalElement._hideTimeout);
                 modalElement._hideTimeout = null;
             }
-            modalElement.style.display = 'flex';
+            // 使用 !important 覆盖 homeShowModal 可能设置的样式
+            modalElement.style.setProperty('display', 'flex', 'important');
+            // 确保弹窗在最上层（高于 homeShowModal 的 99999）
+            if (!window.__maxZIndex) window.__maxZIndex = 100000;
+            window.__maxZIndex += 1;
+            modalElement.style.setProperty('z-index', String(window.__maxZIndex), 'important');
             requestAnimationFrame(() => {
                 const content = modalElement.querySelector('.modal-content');
                 if (content) {
@@ -2578,6 +2583,8 @@ function showModal(modalElement, focusElement = null) {
         }
 
         function hideModal(modalElement) {
+            // 立即降低 z-index，避免遮挡其他弹窗（如从设置切换到聊天设置时）
+            modalElement.style.setProperty('z-index', '0', 'important');
             const content = modalElement.querySelector('.modal-content');
             if (content) {
                 content.style.opacity = '0';
