@@ -1672,7 +1672,21 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     const isRedPacket = msg.type === 'red-packet';
     let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
     if (isRedPacket) {
-        content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
+        if (typeof window.renderRedPacketMessage === 'function') {
+            try {
+                content = window.renderRedPacketMessage(msg);
+            } catch (rpErr) {
+                console.error('[red-packet] 渲染失败:', rpErr);
+                var rpMsg = msg.redPacket && msg.redPacket.message ? msg.redPacket.message : (msg.text || '红包');
+                var rpAmt = msg.redPacket && msg.redPacket.amount ? (msg.redPacket.amount / 100).toFixed(2) : '';
+                var rpStatus = msg.redPacket && msg.redPacket.status ? msg.redPacket.status : 'pending';
+                content = '<div class="red-packet-card" style="width:240px;border-radius:6px;overflow:hidden;cursor:pointer;background:linear-gradient(180deg,#c4453c 0%,#a33a32 100%);padding:14px;color:#fff;" onclick="window.showRedPacketReceiveModal && window.showRedPacketReceiveModal(\'' + (msg.redPacket && msg.redPacket.id ? msg.redPacket.id : msg.id) + '\')"><div style="font-size:13px;font-weight:600;margin-bottom:4px;">🧧 红包</div>' + (rpAmt ? '<div style="font-size:22px;font-weight:700;">&yen;' + rpAmt + '</div>' : '') + '<div style="font-size:11px;opacity:0.8;margin-top:2px;">' + rpMsg + '</div><div style="margin-top:8px;font-size:10px;opacity:0.7;">' + (rpStatus === 'received' ? '已领取' : rpStatus === 'returned' ? '已退回' : '点击领取') + '</div></div>';
+            }
+        } else {
+            var fallbackRpMsg = msg.text || '红包消息';
+            var fallbackRpAmt = (msg.redPacket && msg.redPacket.amount) ? ('¥' + (msg.redPacket.amount / 100).toFixed(2)) : '';
+            content = '<div class="red-packet-card" style="width:220px;border-radius:8px;background:linear-gradient(135deg,#c4453c,#e74c3c);padding:12px 16px;color:#fff;cursor:pointer;" onclick="window.showRedPacketSendModal && window.showRedPacketSendModal()"><div style="font-size:13px;font-weight:600;">🧧 红包</div>' + (fallbackRpAmt ? '<div style="font-size:18px;font-weight:700;margin:4px 0;">' + fallbackRpAmt + '</div>' : '') + '<div style="font-size:11px;opacity:0.85;">' + fallbackRpMsg + '</div></div>';
+        }
     } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
     } else if (msg.voice) {
         const dur = msg.voiceDuration || 0;
@@ -3101,6 +3115,8 @@ function _getStickerLibForInsert() {
     if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) return stickerLibrary;
     return [];
 }
+// 暴露给其他模块使用
+window._getStickerLibForInsert = _getStickerLibForInsert;
 
 function _renderStickerInsertGrid() {
     const grid = document.getElementById('sticker-insert-grid');

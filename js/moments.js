@@ -1908,7 +1908,7 @@
       items = kaomojiLibrary.map(k => `<div class="comment-emoji-item" onclick="MomentsApp.insertCommentEmoji('${k.replace(/'/g, "\\'")}')">${k}</div>`);
     } else if (commentEmojiTab === 'sticker') {
       body.classList.add('sticker-mode');
-      // 从 window._stickerLibrary 读取，如果不存在则尝试全局 stickerLibrary
+      // 我的表情包 - 从 window._stickerLibrary 读取
       let _stickerLib = [];
       if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
         _stickerLib = window._stickerLibrary;
@@ -1916,12 +1916,26 @@
         _stickerLib = stickerLibrary;
       }
       const stickerLibraryFiltered = _stickerLib.filter(Boolean);
-      console.log('[Moments] stickerLibrary count:', stickerLibraryFiltered.length, 'raw:', window._stickerLibrary);
       if (stickerLibraryFiltered.length === 0) {
-        body.innerHTML = '<div class="comment-emoji-empty">暂无表情包，请在表情包管理中添加</div>';
+        body.innerHTML = '<div class="comment-emoji-empty">暂无我的表情包，请在表情包管理中添加</div>';
         return;
       }
       items = stickerLibraryFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentSticker(${i})"><img src="${s}" alt="表情包"></div>`);
+    } else if (commentEmojiTab === 'sticker-lib') {
+      body.classList.add('sticker-mode');
+      // 表情包库 - 从全局 getStickerLibForInsert() 或 stickerLib 获取
+      let _libStickers = [];
+      if (typeof window._getStickerLibForInsert === 'function') {
+        _libStickers = window._getStickerLibForInsert();
+      } else if (typeof window.stickerLib !== 'undefined' && Array.isArray(window.stickerLib)) {
+        _libStickers = window.stickerLib;
+      }
+      const libFiltered = _libStickers.filter(Boolean);
+      if (libFiltered.length === 0) {
+        body.innerHTML = '<div class="comment-emoji-empty">暂无表情包库，请先在侧边栏添加</div>';
+        return;
+      }
+      items = libFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentLibSticker(${i}, this)"><img src="${s}" alt="表情包库"></div>`);
     }
 
     body.innerHTML = items.join('');
@@ -1952,9 +1966,23 @@
     const stickerLibraryFiltered = _stickerLib.filter(Boolean);
     if (index >= 0 && index < stickerLibraryFiltered.length) {
       pendingCommentSticker = stickerLibraryFiltered[index];
-      // 显示预览
       showCommentStickerPreview(pendingCommentSticker);
-      // 关闭表情面板，用户可以继续输入文字后一起发送
+      closeCommentEmojiPanel();
+    }
+  }
+
+  // 从表情包库选择表情包（用于评论）
+  function selectCommentLibSticker(index, el) {
+    let _libStickers = [];
+    if (typeof window._getStickerLibForInsert === 'function') {
+      _libStickers = window._getStickerLibForInsert();
+    } else if (typeof window.stickerLib !== 'undefined' && Array.isArray(window.stickerLib)) {
+      _libStickers = window.stickerLib;
+    }
+    const libFiltered = _libStickers.filter(Boolean);
+    if (index >= 0 && index < libFiltered.length) {
+      pendingCommentSticker = libFiltered[index];
+      showCommentStickerPreview(pendingCommentSticker);
       closeCommentEmojiPanel();
     }
   }
@@ -3607,6 +3635,7 @@
     switchCommentEmojiTab,
     insertCommentEmoji,
     selectCommentSticker,
+    selectCommentLibSticker,
     removePendingCommentSticker,
     triggerAutoReply,
     
