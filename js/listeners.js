@@ -650,13 +650,28 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
             const fontUrlInput = document.getElementById('custom-font-url');
             const applyFontBtn = document.getElementById('apply-font-btn');
             
-            if (fontUrlInput) fontUrlInput.value = settings.customFontUrl || "";
+            if (fontUrlInput) {
+                if (settings.customFontUrl && settings.customFontUrl.startsWith('data:')) {
+                    // 本地上传的字体，显示文件名而非base64
+                    fontUrlInput.value = settings.customFontFileName || '本地字体文件';
+                } else {
+                    fontUrlInput.value = settings.customFontUrl || "";
+                }
+            }
+            if (localFontFileName && settings.customFontFileName) {
+                localFontFileName.textContent = settings.customFontFileName;
+            }
 
             if (applyFontBtn) {
                 applyFontBtn.addEventListener('click', () => {
                     const url = fontUrlInput.value.trim();
                     settings.customFontUrl = url;
-                    
+                    // 清除本地字体文件名标记（如果用户手动输入URL）
+                    if (settings.customFontFileName && !url.startsWith('data:')) {
+                        delete settings.customFontFileName;
+                    }
+                    if (localFontFileName) localFontFileName.textContent = '';
+
                     showNotification('正在尝试加载字体...', 'info', 1000);
                     applyCustomFont(url).then(() => {
                         throttledSaveData();
@@ -678,6 +693,8 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                     
                     
                     settings.customFontUrl = "";
+                    delete settings.customFontFileName;
+                    if (localFontFileName) localFontFileName.textContent = "";
                     
                     
                     settings.messageFontFamily = systemFontStack;
@@ -695,7 +712,59 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                     showNotification('已应用跟随系统字体', 'success');
                 });
             }
-            
+
+            // 本地字体文件上传
+            const localFontUploadBtn = document.getElementById('local-font-upload-btn');
+            const localFontFileInput = document.getElementById('local-font-file-input');
+            const localFontFileName = document.getElementById('local-font-file-name');
+
+            if (localFontUploadBtn && localFontFileInput) {
+                localFontUploadBtn.addEventListener('click', () => {
+                    localFontFileInput.click();
+                });
+
+                localFontFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    // 检查文件类型
+                    const validExts = ['.ttf', '.woff', '.woff2', '.otf', '.eot'];
+                    const fileName = file.name.toLowerCase();
+                    const isValid = validExts.some(ext => fileName.endsWith(ext));
+                    if (!isValid) {
+                        showNotification('不支持的字体格式，请上传 TTF/WOFF/WOFF2/OTF 文件', 'error');
+                        return;
+                    }
+
+                    // 显示文件名
+                    if (localFontFileName) localFontFileName.textContent = file.name;
+
+                    // 读取文件为 base64
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        const base64Url = ev.target.result;
+                        // 更新字体URL输入框显示文件名
+                        if (fontUrlInput) fontUrlInput.value = file.name;
+                        // 保存完整的 base64 URL 到 settings
+                        settings.customFontUrl = base64Url;
+                        settings.customFontFileName = file.name;
+
+                        showNotification('正在加载本地字体...', 'info', 1500);
+                        applyCustomFont(base64Url).then(() => {
+                            throttledSaveData();
+                            showNotification('本地字体已应用: ' + file.name, 'success');
+                        }).catch(err => {
+                            console.error('本地字体加载失败:', err);
+                            showNotification('本地字体加载失败，请检查文件是否有效', 'error');
+                        });
+                    };
+                    reader.onerror = function() {
+                        showNotification('读取字体文件失败', 'error');
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
             const cssTextarea = document.getElementById('custom-bubble-css');
             const applyCssBtn = document.getElementById('apply-css-btn');
             const resetCssBtn = document.getElementById('reset-css-btn');

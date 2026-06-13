@@ -1058,6 +1058,48 @@ html[data-theme="dark"] .message-sent {
     opacity: 1;
     transform: translateY(0);
 }
+
+/* ── 语音消息 ── */
+.voice-message {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--secondary-bg);
+    border-radius: 12px;
+    cursor: pointer;
+    max-width: 220px;
+    transition: background 0.15s;
+}
+.voice-message:hover {
+    background: var(--border-color);
+}
+.voice-message i {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.voice-message span {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.voice-progress {
+    flex: 1;
+    height: 3px;
+    background: var(--border-color);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+.voice-progress div {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: var(--accent-color);
+    border-radius: 2px;
+    transition: width 0.1s;
+}
 .message-wrapper.sent .message-meta-actions {
     left: 0;
 }
@@ -1207,7 +1249,7 @@ html[data-theme="dark"] .send-btn, html[data-theme="dark"] .batch-btn.active {
     background-color: var(--send-btn-bg, var(--accent-color-dark));
 }
 
-.coin-btn, .batch-btn, .continue-btn, .attachment-btn, .poke-btn, .combo-btn, .red-packet-btn {
+.coin-btn, .batch-btn, .continue-btn, .voice-btn, .attachment-btn, .poke-btn, .combo-btn, .red-packet-btn {
     background-color: var(--toolbar-btn-bg, var(--message-received-bg));
     color: var(--toolbar-btn-color, var(--text-secondary));
 }

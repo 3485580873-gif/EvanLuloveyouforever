@@ -475,12 +475,45 @@
      * @param {object} data 原始备份 JSON
      * @param {{ selective?: boolean, selectedCategoryIds?: string[], categories?: array }} opt
      */
+    // 智能合并两个值：当两者都是对象时，递归合并（备份值优先，但保留备份中不存在的当前属性）
+    function smartMerge(currentVal, backupVal) {
+        if (backupVal === null || backupVal === undefined) return backupVal;
+        if (currentVal === null || currentVal === undefined) return backupVal;
+        if (typeof backupVal !== 'object' || typeof currentVal !== 'object') return backupVal;
+        if (Array.isArray(backupVal)) return backupVal; // 数组直接替换
+        // 两者都是普通对象 → 合并
+        var result = {};
+        // 先复制当前值的所有属性（保留新版本独有的属性）
+        for (var k in currentVal) {
+            if (Object.prototype.hasOwnProperty.call(currentVal, k)) {
+                result[k] = currentVal[k];
+            }
+        }
+        // 然后用备份值覆盖（备份中存在的属性以备份为准）
+        for (var k in backupVal) {
+            if (Object.prototype.hasOwnProperty.call(backupVal, k)) {
+                if (Object.prototype.hasOwnProperty.call(result, k) &&
+                    typeof result[k] === 'object' && typeof backupVal[k] === 'object' &&
+                    result[k] !== null && backupVal[k] !== null &&
+                    !Array.isArray(result[k]) && !Array.isArray(backupVal[k])) {
+                    result[k] = smartMerge(result[k], backupVal[k]);
+                } else {
+                    result[k] = backupVal[k];
+                }
+            }
+        }
+        return result;
+    }
+
     async function applyBackupToStorage(data, opt) {
         opt = opt || {};
         var selective = !!opt.selective;
         var mediaStore = data.mediaStore || {};
         var lfRaw = getLfSource(data);
         var lsRaw = data.localStorage || {};
+
+        // 判断是否为旧版本备份（需要智能合并以保留新功能）
+        var isOldBackup = data.formatVersion && data.formatVersion < 5;
 
         if (selective && opt.selectedCategoryIds && opt.categories) {
             lfRaw = filterLfByCategories(lfRaw, opt.selectedCategoryIds, opt.categories);
@@ -498,6 +531,13 @@
             var targetKey = needRemap ? remapLfKey(lk, backupSid, curSid, appPfx) : lk;
             var val = inlineMediaTree(lfRaw[lk], mediaStore);
             try {
+                if (isOldBackup && val && typeof val === 'object' && !Array.isArray(val)) {
+                    // 旧备份 → 智能合并，保留当前版本中存在但旧备份中不存在的属性
+                    var curVal = await localforage.getItem(targetKey);
+                    if (curVal && typeof curVal === 'object' && !Array.isArray(curVal)) {
+                        val = smartMerge(curVal, val);
+                    }
+                }
                 await localforage.setItem(targetKey, val);
             } catch (e) {
                 console.warn('[backup] 写入失败', targetKey, e);
@@ -510,6 +550,24 @@
             try {
                 var lsv = processLocalStorageValueForImport(lsRaw[k], mediaStore);
                 if (typeof lsv === 'string' && lsv.indexOf('data:image/') === 0 && lsv.length > 2000) continue;
+                // 旧备份 → 智能合并 localStorage 中的 JSON 对象
+                if (isOldBackup && typeof lsv === 'string') {
+                    try {
+                        var parsedBackup = JSON.parse(lsv);
+                        if (parsedBackup && typeof parsedBackup === 'object' && !Array.isArray(parsedBackup)) {
+                            var curLsVal = localStorage.getItem(targetLsKey);
+                            if (curLsVal) {
+                                try {
+                                    var parsedCur = JSON.parse(curLsVal);
+                                    if (parsedCur && typeof parsedCur === 'object' && !Array.isArray(parsedCur)) {
+                                        var merged = smartMerge(parsedCur, parsedBackup);
+                                        lsv = JSON.stringify(merged);
+                                    }
+                                } catch (parseCurErr) { /* 当前值不是JSON，直接用备份值 */ }
+                            }
+                        }
+                    } catch (parseErr) { /* 备份值不是JSON，直接用原始值 */ }
+                }
                 localStorage.setItem(targetLsKey, lsv);
             } catch (e2) {
                 console.warn('[backup] localStorage 恢复失败', targetLsKey, e2);

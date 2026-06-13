@@ -382,21 +382,22 @@
 
 /* ========== Moment Sticker ========== */
 .moments-container .moment-sticker {
-  margin-top: 12px;
+  margin-top: 8px;
   display: inline-block;
-  max-width: 150px;
-  border-radius: 8px;
+  max-width: 120px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  background: #f5f5f5;
+  background: transparent;
 }
 
 .moments-container .moment-sticker img {
   width: 100%;
   height: auto;
   display: block;
-  max-height: 200px;
+  max-height: 150px;
   object-fit: contain;
+  border-radius: 12px;
 }
 
 /* ========== Moment Actions ========== */
@@ -1364,11 +1365,12 @@
 .moments-container .publish-sticker-item {
   position: relative;
   display: inline-block;
-  width: 120px;
-  height: 120px;
-  border-radius: 8px;
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--secondary-bg, #f5f5f5);
+  border: 2px solid var(--border-color, #e8e8e8);
 }
 
 .moments-container .publish-sticker-item img {
@@ -1770,12 +1772,15 @@
 }
 
 .moments-container .comment-emoji-item.sticker-item {
-  width: auto;
-  height: auto;
+  width: 100%;
   aspect-ratio: 1;
-  background: #f5f5f5;
-  border-radius: 8px;
+  background: var(--secondary-bg, #f5f5f5);
+  border-radius: 12px;
+  border: 2px solid var(--border-color, #e8e8e8);
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .moments-container .comment-emoji-item.sticker-item img {

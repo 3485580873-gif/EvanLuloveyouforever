@@ -1674,6 +1674,15 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     if (isRedPacket) {
         content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
     } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+    } else if (msg.voice) {
+        const dur = msg.voiceDuration || 0;
+        const durStr = dur < 60 ? dur + '秒' : Math.floor(dur / 60) + '分' + (dur % 60) + '秒';
+        content += `<div class="voice-message" data-voice-src="${msg.voice.replace(/"/g, '&quot;')}" data-voice-id="${msg.id}" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--secondary-bg);border-radius:12px;cursor:pointer;max-width:220px;" onclick="window.playVoiceMessage(this)">
+            <i class="fas fa-play" style="color:var(--accent-color);font-size:14px;flex-shrink:0;"></i>
+            <span style="font-size:12px;color:var(--text-secondary);">🎙 ${durStr}</span>
+            <div style="flex:1;height:3px;background:var(--border-color);border-radius:2px;position:relative;"><div class="voice-progress" style="position:absolute;left:0;top:0;height:100%;width:0%;background:var(--accent-color);border-radius:2px;transition:width 0.1s;"></div></div>
+        </div>`;
+    }
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -3184,3 +3193,129 @@ function initStickerInsertFeature() {
     inputArea.insertBefore(btn, inputArea.firstChild);
 }
 
+// ========== 语音录制功能 ==========
+(function initVoiceFeature() {
+    let _voiceRecorder = null;
+    let _voiceChunks = [];
+    let _voiceTimer = null;
+    let _isVoiceRecording = false;
+    let _voiceDuration = 0;
+
+    function startRecord(e) {
+        if (e) e.preventDefault();
+        if (_isVoiceRecording) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (typeof showNotification === 'function') showNotification('当前浏览器不支持录音', 'error');
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            _voiceChunks = [];
+            const mime = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+            _voiceRecorder = new MediaRecorder(stream, { mimeType: mime });
+            _voiceRecorder.ondataavailable = (ev) => {
+                if (ev.data && ev.data.size > 0) _voiceChunks.push(ev.data);
+            };
+            _voiceRecorder.onstop = () => {
+                const blob = new Blob(_voiceChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result;
+                    if (typeof addMessage === 'function') {
+                        addMessage({
+                            id: Date.now(),
+                            sender: 'user',
+                            text: '[语音消息]',
+                            timestamp: new Date(),
+                            status: 'sent',
+                            type: 'normal',
+                            voice: base64,
+                            voiceDuration: _voiceDuration
+                        });
+                    }
+                    if (typeof renderMessages === 'function') renderMessages();
+                    if (typeof window.playSound === 'function') window.playSound('send');
+                    // 释放麦克风
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                reader.readAsDataURL(blob);
+            };
+            _voiceRecorder.start(200);
+            _isVoiceRecording = true;
+            _voiceDuration = 0;
+            _voiceTimer = setInterval(() => { _voiceDuration++; }, 1000);
+            const voiceBtn = document.getElementById('voice-btn');
+            if (voiceBtn) {
+                voiceBtn.style.background = 'rgba(255,80,80,0.2)';
+                voiceBtn.style.color = '#ff5050';
+            }
+            if (typeof showNotification === 'function') showNotification('🎙 正在录音...', 'info', 2000);
+        }).catch(err => {
+            if (typeof showNotification === 'function') showNotification('无法访问麦克风，请检查权限', 'error');
+        });
+    }
+
+    function stopRecord() {
+        if (!_isVoiceRecording || !_voiceRecorder) return;
+        clearInterval(_voiceTimer);
+        _voiceTimer = null;
+        _isVoiceRecording = false;
+        const voiceBtn = document.getElementById('voice-btn');
+        if (voiceBtn) {
+            voiceBtn.style.background = '';
+            voiceBtn.style.color = '';
+        }
+        if (_voiceRecorder.state === 'recording') {
+            _voiceRecorder.stop();
+        }
+    }
+
+    // 初始化语音按钮事件
+    function bindVoiceBtn() {
+        const voiceBtn = document.getElementById('voice-btn');
+        if (!voiceBtn || voiceBtn._voiceInited) return;
+        voiceBtn._voiceInited = true;
+
+        voiceBtn.addEventListener('mousedown', startRecord);
+        voiceBtn.addEventListener('mouseup', stopRecord);
+        voiceBtn.addEventListener('mouseleave', stopRecord);
+        voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecord(); }, { passive: false });
+        voiceBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecord(); }, { passive: false });
+        voiceBtn.addEventListener('touchcancel', stopRecord);
+    }
+
+    // 页面加载后绑定
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(bindVoiceBtn, 500));
+    } else {
+        setTimeout(bindVoiceBtn, 500);
+    }
+
+    // 播放语音消息
+    window.playVoiceMessage = function(el) {
+        const src = el.dataset.voiceSrc;
+        if (!src) return;
+        if (window._currentVoiceAudio) {
+            window._currentVoiceAudio.pause();
+            window._currentVoiceAudio = null;
+            document.querySelectorAll('.voice-progress').forEach(b => b.style.width = '0%');
+            document.querySelectorAll('.voice-message .fa-pause').forEach(i => i.className = 'fas fa-play');
+        }
+        const audio = new Audio(src);
+        window._currentVoiceAudio = audio;
+        const progressBar = el.querySelector('.voice-progress');
+        audio.addEventListener('timeupdate', () => {
+            if (progressBar && audio.duration) {
+                progressBar.style.width = (audio.currentTime / audio.duration * 100) + '%';
+            }
+        });
+        audio.addEventListener('ended', () => {
+            if (progressBar) progressBar.style.width = '100%';
+            const icon = el.querySelector('.fa-pause');
+            if (icon) icon.className = 'fas fa-play';
+            window._currentVoiceAudio = null;
+        });
+        const icon = el.querySelector('.fa-play');
+        if (icon) icon.className = 'fas fa-pause';
+        audio.play();
+    };
+})();

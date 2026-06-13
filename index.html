@@ -1348,6 +1348,7 @@
     
     <div class="input-buttons">
     <button class="continue-btn input-btn" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
+        <button class="voice-btn input-btn" id="voice-btn" title="按住说话"><i class="fas fa-microphone"></i></button>
         <button class="batch-btn input-btn collapse-hideable" id="batch-btn" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
         <button class="send-btn input-btn" id="send-btn" title="发送消息"><i class="fas fa-paper-plane"></i></button>
         
@@ -1764,14 +1765,22 @@
                 <span class="font-size-value" id="font-size-value">16px</span>
             </div>
             <div style="margin-top: 10px;">
-                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:5px;">字体链接 (CSS/TTF):</label>
+                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:5px;">字体链接 (CSS/TTF/WOFF/WOFF2):</label>
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="custom-font-url" class="modal-input" style="margin-bottom:0; font-size:12px;" placeholder="https://example.com/font.woff2">
                     <button id="apply-font-btn" class="modal-btn modal-btn-primary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">应用</button>
                     <button id="follow-system-font-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap; margin-left: 5px;">跟随系统</button>
                 </div>
+                <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
+                    <label style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">本地上传:</label>
+                    <input type="file" id="local-font-file-input" accept=".ttf,.woff,.woff2,.otf,.eot" style="display:none;">
+                    <button id="local-font-upload-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">
+                        <i class="fas fa-upload"></i> 选择字体文件
+                    </button>
+                    <span id="local-font-file-name" style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;"></span>
+                </div>
                 <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; opacity: 0.7;">
-                    提示: 应用后将覆盖默认字体。留空并应用可恢复默认。
+                    提示: 支持输入字体链接或上传本地字体文件(TTF/WOFF/WOFF2)。留空并应用可恢复默认。
                 </div>
             </div>
         </div>
