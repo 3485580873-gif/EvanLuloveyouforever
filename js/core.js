@@ -1673,7 +1673,7 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
     if (isRedPacket) {
         content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
-    } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+    } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -2142,9 +2142,19 @@ if (!isBatchMode && type === 'normal') {
 
             if (imageFile) {
                 showNotification('正在优化图片...', 'info', 1500);
-                optimizeImage(imageFile).then(createMessage).catch(() => showNotification('图片处理失败', 'error'));
+                const pendingSticker = window._pendingSticker || null;
+                optimizeImage(imageFile).then(imgSrc => {
+                    createMessage(imgSrc || pendingSticker);
+                    clearPendingSticker();
+                }).catch(() => {
+                    showNotification('图片处理失败', 'error');
+                    createMessage(pendingSticker);
+                    clearPendingSticker();
+                });
             } else {
-                createMessage();
+                const pendingSticker = window._pendingSticker || null;
+                createMessage(pendingSticker);
+                clearPendingSticker();
             }
             DOMElements.imageInput.value = '';
 
@@ -3060,8 +3070,83 @@ document.addEventListener('DOMContentLoaded', function() {
             threshold: 0.01
         });
         observer.observe(historyLoader);
+    // 初始化表情包插入功能
+    if (typeof initStickerInsertFeature === 'function') setTimeout(initStickerInsertFeature, 800);
+
     }
 });
 
 
+
+
+
+// ═── 表情包插入功能 ───
+window._pendingSticker = null;
+
+window.showStickerInsertPicker = function() {
+    let picker = document.getElementById('sticker-insert-picker');
+    if (!picker) {
+        picker = document.createElement('div');
+        picker.id = 'sticker-insert-picker';
+        picker.className = 'sticker-insert-picker';
+        picker.innerHTML = '<div class="sticker-insert-header"><span>选择表情包</span><button class="sticker-insert-close" type="button">×</button></div><div class="sticker-insert-grid" id="sticker-insert-grid"></div>';
+        document.body.appendChild(picker);
+        picker.querySelector('.sticker-insert-close').addEventListener('click', () => { picker.classList.remove('active'); });
+    }
+    const grid = document.getElementById('sticker-insert-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    if (!stickerLibrary || stickerLibrary.length === 0) {
+        grid.innerHTML = '<div class="sticker-insert-empty">暂无表情包<br><small>请先在侧边栏表情库中添加</small></div>';
+    } else {
+        stickerLibrary.forEach(url => {
+            const img = document.createElement('img');
+            img.className = 'sticker-item';
+            img.src = url;
+            img.addEventListener('click', () => { window.selectStickerForInsert(url); });
+            grid.appendChild(img);
+        });
+    }
+    picker.classList.add('active');
+};
+
+window.selectStickerForInsert = function(url) {
+    window._pendingSticker = url;
+    window.showStickerPreview();
+    const picker = document.getElementById('sticker-insert-picker');
+    if (picker) picker.classList.remove('active');
+};
+
+window.showStickerPreview = function() {
+    let preview = document.getElementById('sticker-insert-preview');
+    if (!preview) {
+        preview = document.createElement('div');
+        preview.id = 'sticker-insert-preview';
+        const input = document.getElementById('message-input');
+        if (input && input.parentNode) input.parentNode.insertBefore(preview, input);
+    }
+    preview.innerHTML = '<img src="' + window._pendingSticker + '" alt="表情包"><button class="remove-btn" type="button" onclick="clearPendingSticker()">×</button>';
+    preview.style.display = 'block';
+};
+
+window.clearPendingSticker = function() {
+    window._pendingSticker = null;
+    const preview = document.getElementById('sticker-insert-preview');
+    if (preview) preview.style.display = 'none';
+};
+
+function initStickerInsertFeature() {
+    // 在输入框旁边加按钮
+    if (document.getElementById('sticker-insert-btn')) return;
+    const inputArea = document.querySelector('.input-area');
+    if (!inputArea) return;
+    const btn = document.createElement('button');
+    btn.id = 'sticker-insert-btn';
+    btn.className = 'sticker-insert-btn';
+    btn.type = 'button';
+    btn.innerHTML = '😊';
+    btn.title = '插入表情包（将随文字一起发送）';
+    btn.addEventListener('click', (e) => { e.preventDefault(); window.showStickerInsertPicker(); });
+    inputArea.insertBefore(btn, inputArea.firstChild);
+}
 

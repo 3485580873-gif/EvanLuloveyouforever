@@ -539,6 +539,28 @@
         if (typeof APP_PREFIX !== 'undefined' && typeof SESSION_ID !== 'undefined') {
             try { await localforage.setItem(APP_PREFIX + 'lastSessionId', SESSION_ID); } catch (e3) {}
         }
+
+        // 修复导入后 home_app_order / home_app_icons 可能缺少新增应用（如 ta-phone）的问题
+        try {
+            var _validApps = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'ta-phone'];
+            var _savedOrder = localStorage.getItem('home_app_order');
+            if (_savedOrder) {
+                var _order = JSON.parse(_savedOrder);
+                _order = _order.filter(function(a) { return _validApps.indexOf(a) !== -1; });
+                _validApps.forEach(function(a) { if (_order.indexOf(a) === -1) _order.push(a); });
+                localStorage.setItem('home_app_order', JSON.stringify(_order));
+            }
+            var _savedIcons = localStorage.getItem('home_app_icons');
+            if (_savedIcons) {
+                var _icons = JSON.parse(_savedIcons);
+                var _cleanedIcons = {};
+                _validApps.forEach(function(a) { if (_icons[a]) _cleanedIcons[a] = _icons[a]; });
+                localStorage.setItem('home_app_icons', JSON.stringify(_cleanedIcons));
+            }
+            // 触发 UI 更新
+            if (typeof window.renderIconGrid === 'function') window.renderIconGrid();
+            if (typeof window.reorderAppItems === 'function') window.reorderAppItems();
+        } catch (_fixE) { console.warn('[backup] 导入后修复 home 配置失败:', _fixE); }
     }
 
     function isFullBackupShape(d) {
