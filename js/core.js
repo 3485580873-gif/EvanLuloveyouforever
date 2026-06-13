@@ -3196,18 +3196,8 @@ window.clearPendingSticker = function() {
 };
 
 function initStickerInsertFeature() {
-    // 在输入框旁边加按钮
-    if (document.getElementById('sticker-insert-btn')) return;
-    const inputArea = document.querySelector('.input-area');
-    if (!inputArea) return;
-    const btn = document.createElement('button');
-    btn.id = 'sticker-insert-btn';
-    btn.className = 'sticker-insert-btn';
-    btn.type = 'button';
-    btn.innerHTML = '😊';
-    btn.title = '插入表情包（将随文字一起发送）';
-    btn.addEventListener('click', (e) => { e.preventDefault(); window.showStickerInsertPicker(); });
-    inputArea.insertBefore(btn, inputArea.firstChild);
+    // 表情包插入功能已收纳至"+"更多菜单（more-sticker-insert），不再注入独立按钮
+    return;
 }
 
 // ========== 语音录制功能 ==========
