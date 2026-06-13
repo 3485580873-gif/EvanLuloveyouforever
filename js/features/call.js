@@ -479,9 +479,8 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         document.body.appendChild(root);
     }
 
-    // 视频通话按钮已收纳至"+"更多菜单中，不再注入工具栏
+    // 视频通话按钮已收纳至收纳面板（collapsed-call-btn），不再注入工具栏
     function injectToolbarBtn() {
-        // 不再注入按钮到 input-area，功能通过 more-menu-popup 中的 more-video-call 访问
         return;
     }
 

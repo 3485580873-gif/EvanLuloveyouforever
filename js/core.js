@@ -3196,7 +3196,8 @@ window.clearPendingSticker = function() {
 };
 
 function initStickerInsertFeature() {
-    // 表情包插入功能已收纳至"+"更多菜单（more-sticker-insert），不再注入独立按钮
+    // 表情包插入功能已收纳至收纳面板（collapsed-sticker-insert-btn），不再注入输入框按钮
+    // showStickerInsertPicker 函数仍可正常调用
     return;
 }
 
@@ -3348,41 +3349,3 @@ function initStickerInsertFeature() {
     };
 })();
 
-// ========== 更多功能菜单 ==========
-(function initMoreMenu() {
-    const toggleBtn = document.getElementById('more-toggle-btn');
-    const popup = document.getElementById('more-menu-popup');
-    if (!toggleBtn || !popup) return;
-
-    function toggleMenu(show) {
-        if (show === undefined) show = !popup.classList.contains('show');
-        if (show) {
-            popup.classList.add('show');
-            toggleBtn.classList.add('active');
-        } else {
-            popup.classList.remove('show');
-            toggleBtn.classList.remove('active');
-        }
-    }
-
-    toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleMenu();
-    });
-
-    // 点击外部关闭
-    document.addEventListener('click', (e) => {
-        if (!popup.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
-            toggleMenu(false);
-        }
-    });
-
-    // 各菜单项点击
-    document.getElementById('more-attachment').addEventListener('click', () => { toggleMenu(false); document.getElementById('image-input').click(); });
-    document.getElementById('more-combo').addEventListener('click', () => { toggleMenu(false); const cb = document.getElementById('combo-btn'); if(cb) cb.click(); });
-    document.getElementById('more-red-packet').addEventListener('click', () => { toggleMenu(false); if(window.showRedPacketSendModal) window.showRedPacketSendModal(); });
-    document.getElementById('more-batch').addEventListener('click', () => { toggleMenu(false); const bb = document.getElementById('batch-btn'); if(bb) bb.click(); });
-    document.getElementById('more-continue').addEventListener('click', () => { toggleMenu(false); const cb2 = document.getElementById('continue-btn'); if(cb2) cb2.click(); });
-    document.getElementById('more-sticker-insert').addEventListener('click', () => { toggleMenu(false); if(window.showStickerInsertPicker) window.showStickerInsertPicker(); });
-    document.getElementById('more-video-call').addEventListener('click', () => { toggleMenu(false); if(window.callFeature && typeof window.callFeature.startCall === 'function') window.callFeature.startCall(false); });
-})();
