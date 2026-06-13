@@ -1,23 +1,18 @@
 function setupEventListeners() {
-    try {
-        initCoreListeners();
-        initModalListeners();
-        initChatActionListeners();
-        initHeaderAndSettingsListeners();
-        initDataManagementListeners();
-        initNewFeatureListeners();
-        setupTutorialListeners();
-        initMoodListeners();
-        initDecisionModule(); 
-        initThemeEditor(); 
-        initThemeSchemes();
-        if (typeof window.initMoyu === 'function') window.initMoyu();
-        
-        initComboMenu(); 
-        
-    } catch (e) {
-        console.error("事件绑定过程中发生错误:", e);
-    }
+    const safe = (fn, name) => { try { fn(); } catch(e) { console.error(`[listeners] ${name} 失败:`, e); } };
+    safe(initCoreListeners, 'initCoreListeners');
+    safe(initModalListeners, 'initModalListeners');
+    safe(initChatActionListeners, 'initChatActionListeners');
+    safe(initHeaderAndSettingsListeners, 'initHeaderAndSettingsListeners');
+    safe(initDataManagementListeners, 'initDataManagementListeners');
+    safe(initNewFeatureListeners, 'initNewFeatureListeners');
+    safe(setupTutorialListeners, 'setupTutorialListeners');
+    safe(initMoodListeners, 'initMoodListeners');
+    safe(initDecisionModule, 'initDecisionModule');
+    safe(initThemeEditor, 'initThemeEditor');
+    safe(initThemeSchemes, 'initThemeSchemes');
+    if (typeof window.initMoyu === 'function') safe(window.initMoyu, 'initMoyu');
+    safe(initComboMenu, 'initComboMenu');
 }
 
 function initChatActionListeners() {
