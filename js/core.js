@@ -3394,4 +3394,5 @@ function initStickerInsertFeature() {
     document.getElementById('more-batch').addEventListener('click', () => { toggleMenu(false); const bb = document.getElementById('batch-btn'); if(bb) bb.click(); });
     document.getElementById('more-continue').addEventListener('click', () => { toggleMenu(false); const cb2 = document.getElementById('continue-btn'); if(cb2) cb2.click(); });
     document.getElementById('more-sticker-insert').addEventListener('click', () => { toggleMenu(false); if(window.showStickerInsertPicker) window.showStickerInsertPicker(); });
+    document.getElementById('more-video-call').addEventListener('click', () => { toggleMenu(false); if(window.callFeature && typeof window.callFeature.startCall === 'function') window.callFeature.startCall(false); });
 })();

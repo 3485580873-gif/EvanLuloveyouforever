@@ -479,22 +479,10 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         document.body.appendChild(root);
     }
 
+    // 视频通话按钮已收纳至"+"更多菜单中，不再注入工具栏
     function injectToolbarBtn() {
-        if (document.getElementById('call-toolbar-btn')) return;
-        const anchor = document.getElementById('attachment-btn');
-        if (!anchor) return;
-        const btn = document.createElement('button');
-        btn.id = 'call-toolbar-btn';
-        btn.title = '视频通话';
-        btn.className = 'input-btn collapse-hideable';
-        btn.style.display = S.enabled ? '' : 'none';
-        btn.innerHTML = '<i class="fas fa-video"></i>';
-        btn.addEventListener('click', () => {
-            if (!S.enabled) return;
-            if (S.active) { restoreWindow(); return; }
-            startCall(false);
-        });
-        anchor.parentNode.insertBefore(btn, anchor);
+        // 不再注入按钮到 input-area，功能通过 more-menu-popup 中的 more-video-call 访问
+        return;
     }
 
     function fmt(ms) {
