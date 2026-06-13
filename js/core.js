@@ -1687,8 +1687,9 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
             var fallbackRpAmt = (msg.redPacket && msg.redPacket.amount) ? ('¥' + (msg.redPacket.amount / 100).toFixed(2)) : '';
             content = '<div class="red-packet-card" style="width:220px;border-radius:8px;background:linear-gradient(135deg,#c4453c,#e74c3c);padding:12px 16px;color:#fff;cursor:pointer;" onclick="window.showRedPacketSendModal && window.showRedPacketSendModal()"><div style="font-size:13px;font-weight:600;">🧧 红包</div>' + (fallbackRpAmt ? '<div style="font-size:18px;font-weight:700;margin:4px 0;">' + fallbackRpAmt + '</div>' : '') + '<div style="font-size:11px;opacity:0.85;">' + fallbackRpMsg + '</div></div>';
         }
-    } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
-    } else if (msg.voice) {
+    }
+    if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+    if (msg.voice) {
         const dur = msg.voiceDuration || 0;
         const durStr = dur < 60 ? dur + '秒' : Math.floor(dur / 60) + '分' + (dur % 60) + '秒';
         content += `<div class="voice-message" data-voice-src="${msg.voice.replace(/"/g, '&quot;')}" data-voice-id="${msg.id}" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--secondary-bg);border-radius:12px;cursor:pointer;max-width:220px;" onclick="window.playVoiceMessage(this)">
@@ -3295,26 +3296,37 @@ function initStickerInsertFeature() {
         }
     }
 
-    // 初始化语音按钮事件
+    // 初始化语音按钮事件（使用 MutationObserver 确保DOM就绪）
     function bindVoiceBtn() {
         const voiceBtn = document.getElementById('voice-btn');
         if (!voiceBtn || voiceBtn._voiceInited) return;
         voiceBtn._voiceInited = true;
 
-        voiceBtn.addEventListener('mousedown', startRecord);
-        voiceBtn.addEventListener('mouseup', stopRecord);
-        voiceBtn.addEventListener('mouseleave', stopRecord);
-        voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecord(); }, { passive: false });
-        voiceBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecord(); }, { passive: false });
-        voiceBtn.addEventListener('touchcancel', stopRecord);
+        // 防止在更多菜单内触发
+        voiceBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); startRecord(e); });
+        voiceBtn.addEventListener('mouseup', (e) => { e.stopPropagation(); stopRecord(); });
+        voiceBtn.addEventListener('mouseleave', (e) => { stopRecord(); });
+        voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); startRecord(); }, { passive: false });
+        voiceBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); stopRecord(); }, { passive: false });
+        voiceBtn.addEventListener('touchcancel', (e) => { e.stopPropagation(); stopRecord(); });
+
+        console.log('[voice] 语音按钮事件已绑定');
     }
 
-    // 页面加载后绑定
+    // 多种策略确保绑定成功
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(bindVoiceBtn, 500));
+        document.addEventListener('DOMContentLoaded', () => setTimeout(bindVoiceBtn, 100));
     } else {
-        setTimeout(bindVoiceBtn, 500);
+        setTimeout(bindVoiceBtn, 100);
     }
+    // 备用：用 MutationObserver 监听 DOM 变化
+    const voiceObserver = new MutationObserver(() => {
+        const vb = document.getElementById('voice-btn');
+        if (vb && !vb._voiceInited) bindVoiceBtn();
+    });
+    voiceObserver.observe(document.body, { childList: true, subtree: true });
+    // 5秒后断开观察器
+    setTimeout(() => voiceObserver.disconnect(), 5000);
 
     // 播放语音消息
     window.playVoiceMessage = function(el) {
@@ -3344,4 +3356,42 @@ function initStickerInsertFeature() {
         if (icon) icon.className = 'fas fa-pause';
         audio.play();
     };
+})();
+
+// ========== 更多功能菜单 ==========
+(function initMoreMenu() {
+    const toggleBtn = document.getElementById('more-toggle-btn');
+    const popup = document.getElementById('more-menu-popup');
+    if (!toggleBtn || !popup) return;
+
+    function toggleMenu(show) {
+        if (show === undefined) show = !popup.classList.contains('show');
+        if (show) {
+            popup.classList.add('show');
+            toggleBtn.classList.add('active');
+        } else {
+            popup.classList.remove('show');
+            toggleBtn.classList.remove('active');
+        }
+    }
+
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+
+    // 点击外部关闭
+    document.addEventListener('click', (e) => {
+        if (!popup.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+            toggleMenu(false);
+        }
+    });
+
+    // 各菜单项点击
+    document.getElementById('more-attachment').addEventListener('click', () => { toggleMenu(false); document.getElementById('image-input').click(); });
+    document.getElementById('more-combo').addEventListener('click', () => { toggleMenu(false); const cb = document.getElementById('combo-btn'); if(cb) cb.click(); });
+    document.getElementById('more-red-packet').addEventListener('click', () => { toggleMenu(false); if(window.showRedPacketSendModal) window.showRedPacketSendModal(); });
+    document.getElementById('more-batch').addEventListener('click', () => { toggleMenu(false); const bb = document.getElementById('batch-btn'); if(bb) bb.click(); });
+    document.getElementById('more-continue').addEventListener('click', () => { toggleMenu(false); const cb2 = document.getElementById('continue-btn'); if(cb2) cb2.click(); });
+    document.getElementById('more-sticker-insert').addEventListener('click', () => { toggleMenu(false); if(window.showStickerInsertPicker) window.showStickerInsertPicker(); });
 })();
