@@ -248,12 +248,16 @@
     // 显示TA的手机弹窗
     function showTaPhone() {
         const container = document.getElementById('ta-phone-container');
-        if (!container) return;
+        if (!container) {
+            console.error('[TaPhone] ta-phone-container not found');
+            return;
+        }
         // 确保容器在 body 下
         if (container.parentElement !== document.body) {
             document.body.appendChild(container);
         }
-        container.style.display = 'flex';
+        // 强制设置可见样式（确保覆盖所有可能的隐藏状态）
+        container.style.cssText = 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 100000 !important; align-items: center !important; justify-content: center !important; background: rgba(0,0,0,0.5) !important;';
         showDesktop();
     }
 
@@ -261,9 +265,8 @@
     function hideTaPhone() {
         const container = document.getElementById('ta-phone-container');
         if (container) {
-            container.style.display = 'none';
+            container.style.cssText = 'display: none !important;';
         }
-        showDesktop();
     }
 
     // 显示桌面

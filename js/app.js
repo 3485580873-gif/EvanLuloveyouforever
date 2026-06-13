@@ -85,6 +85,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLoader('连接成功，欢迎回来。', '100%');
         setTimeout(hideWelcomeScreen, 3500);
 
+        // 安全保底：无论如何 8 秒后强制隐藏加载动画，防止卡死
+        setTimeout(() => {
+            const ws = document.getElementById('welcome-animation');
+            if (ws && ws.style.display !== 'none') {
+                console.warn('[boot] 加载动画超时，强制隐藏');
+                ws.style.display = 'none';
+                if (typeof window.showHomePage === 'function') window.showHomePage();
+            }
+        }, 8000);
+
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 try {

@@ -148,7 +148,7 @@
         'ta-phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg>'
     };
 
-    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'map'];
+    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'ta-phone'];
     let appOrder = [...defaultAppOrder];
     let isEditMode = false;
 
@@ -1965,8 +1965,17 @@
         if (savedOrder) {
             try {
                 appOrder = JSON.parse(savedOrder);
+                // 清理已废弃的应用（如 map）并补充新增应用（如 ta-phone）
+                const validApps = Object.keys(defaultAppIcons);
+                appOrder = appOrder.filter(app => validApps.includes(app));
+                validApps.forEach(app => {
+                    if (!appOrder.includes(app)) appOrder.push(app);
+                });
                 reorderAppItems();
-            } catch(e) {}
+            } catch(e) {
+                appOrder = [...defaultAppOrder];
+                reorderAppItems();
+            }
         } else {
             // 首次加载：按默认顺序重新分页（每页8个）并保存
             reorderAppItems();
@@ -2599,8 +2608,9 @@
     } else {
         updateTime();
         setInterval(updateTime, 1000);
-        initPartnerMomentSettings();
-        initPartnerCardSpliceSettings();
+        // 初始化伴侣朋友圈和拼字卡设置（加容错，防止异常阻断后续代码）
+        try { initPartnerMomentSettings(); } catch(e) { console.warn('[Home] initPartnerMomentSettings 异常:', e); }
+        try { initPartnerCardSpliceSettings(); } catch(e) { console.warn('[Home] initPartnerCardSpliceSettings 异常:', e); }
     }
 
     // 主题预设点击 - 直接绑定到 document 确保一定能触发
