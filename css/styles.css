@@ -7318,6 +7318,7 @@ html[data-theme="dark"] .modal-btn-secondary:hover {
 .tour-popover.visible {
     opacity: 1;
     transform: translateY(0);
+    pointer-events: all;
 }
 .tour-popover-header {
     display: flex;
