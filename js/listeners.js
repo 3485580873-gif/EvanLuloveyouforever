@@ -466,6 +466,108 @@ fileInput.addEventListener('change', function(e) {
             });
             // 群聊设置按钮已合并到会话管理中
 
+            // ===== 聊天设置卡片点击：打开聊天设置弹窗 =====
+            const _chatSettingsEl = document.getElementById('chat-settings');
+            if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
+                hideModal(DOMElements.settingsModal.modal);
+                
+                const toggleSyncMap = {
+                    '#reply-toggle': { prop: 'replyEnabled', name: '引用回复' },
+                    '#sound-toggle': { prop: 'soundEnabled', name: '音效' },
+                    '#read-receipts-toggle': { prop: 'readReceiptsEnabled', name: '已读回执' },
+                    '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
+                    '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
+                    '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
+                    '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入' },
+                    '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
+                };
+                for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
+                    const el = document.querySelector(selector);
+                    const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
+                    if (el) el.classList.toggle('active', val);
+                }
+                const svSlider = document.getElementById('sound-volume-slider');
+                const svVal = document.getElementById('sound-volume-value');
+                if (svSlider) { svSlider.value = Math.round((settings.soundVolume || 0.15) * 100); if (svVal) svVal.textContent = svSlider.value + '%'; }
+                const legacyCustom = (settings.customSoundUrl || '').trim();
+                
+                const setSelect = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val || 'tone_low';
+                };
+                const setInput = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val || '';
+                };
+                const setSoundUrlInput = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (val && val.startsWith('data:audio')) {
+                        el.value = '[本地文件（已上传）]';
+                    } else {
+                        el.value = val || '';
+                    }
+                };
+                
+                setSelect('sound-my-send-preset', settings.mySendSoundPreset || 'tone_low');
+                setSoundUrlInput('sound-my-send-custom-url', (settings.mySendCustomSoundUrl || '').trim() || legacyCustom);
+                
+                setSelect('sound-partner-message-preset', settings.partnerMessageSoundPreset || 'tone_low');
+                setSoundUrlInput('sound-partner-message-custom-url', (settings.partnerMessageCustomSoundUrl || '').trim() || legacyCustom);
+                
+                setSelect('sound-my-poke-preset', settings.myPokeSoundPreset || 'tone_low');
+                setSoundUrlInput('sound-my-poke-custom-url', (settings.myPokeCustomSoundUrl || '').trim() || legacyCustom);
+                
+                setSelect('sound-partner-poke-preset', settings.partnerPokeSoundPreset || 'tone_low');
+                setSoundUrlInput('sound-partner-poke-custom-url', (settings.partnerPokeCustomSoundUrl || '').trim() || legacyCustom);
+                
+                document.querySelectorAll('.time-fmt-opt').forEach(opt => {
+                    opt.classList.toggle('active', opt.dataset.fmt === (settings.timeFormat || 'HH:mm'));
+                });
+                
+                const autoToggle = document.getElementById('auto-send-toggle');
+                if (autoToggle) autoToggle.classList.toggle('active', !!settings.autoSendEnabled);
+                if (typeof updateAutoSendUI === 'function') updateAutoSendUI();
+                if (typeof updateDelayUI === 'function') updateDelayUI();
+                const immToggle = document.getElementById('immersive-toggle');
+                if (immToggle) immToggle.classList.toggle('active', document.body.classList.contains('immersive-mode'));
+                
+                // 同步信封相关开关
+                const envAutoToggle = document.getElementById('envelope-auto-send-toggle');
+                if (envAutoToggle) envAutoToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
+                const envCustomToggle = document.getElementById('envelope-custom-rule-toggle');
+                if (envCustomToggle) envCustomToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
+                if (typeof updateEnvelopeSettingsUI === 'function') updateEnvelopeSettingsUI();
+                
+                // 同步摸鱼显示详情开关
+                const moyuDetailToggle = document.getElementById('moyu-show-detail-toggle');
+                if (moyuDetailToggle) moyuDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
+                
+                // 同步底部栏收纳开关
+                const collapseToggle = document.getElementById('bottom-collapse-cs-toggle');
+                if (collapseToggle) collapseToggle.classList.toggle('active', !!settings.bottomCollapseMode);
+                
+                // 同步摸鱼自动生成开关
+                const moyuAutoToggle = document.getElementById('moyu-auto-generate-toggle');
+                if (moyuAutoToggle) moyuAutoToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
+                if (typeof updateMoyuAutoGenerateUI === 'function') updateMoyuAutoGenerateUI();
+                
+                const rrStyle = settings.readReceiptStyle || 'icon';
+                const rrIconBtn = document.getElementById('rr-style-icon');
+                const rrTextBtn = document.getElementById('rr-style-text');
+                if (rrIconBtn) { rrIconBtn.className = rrStyle === 'icon' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrIconBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
+                if (rrTextBtn) { rrTextBtn.className = rrStyle === 'text' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrTextBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
+                
+                showModal(DOMElements.chatModal.modal);
+                if (typeof setupAvatarFrameSettings === 'function') setupAvatarFrameSettings();
+            });
+
+            // ===== 高级功能卡片点击：打开高级功能弹窗 =====
+            const _advancedEl = document.getElementById('advanced-settings');
+            if (_advancedEl) _advancedEl.addEventListener('click', () => {
+                hideModal(DOMElements.settingsModal.modal);
+                showModal(DOMElements.advancedModal.modal);
+            });
 
 window.setReadReceiptStyle = function(style) {
     settings.readReceiptStyle = style;
@@ -478,99 +580,6 @@ window.setReadReceiptStyle = function(style) {
     showNotification('已读回执样式已更新', 'success');
 };
 
-const _chatSettingsEl = document.getElementById('chat-settings');
-if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
-    hideModal(DOMElements.settingsModal.modal);
-    
-    const toggleSyncMap = {
-        '#reply-toggle': { prop: 'replyEnabled', name: '引用回复' },
-        '#sound-toggle': { prop: 'soundEnabled', name: '音效' },
-        '#read-receipts-toggle': { prop: 'readReceiptsEnabled', name: '已读回执' },
-        '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
-        '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
-        '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
-        '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入' },
-        '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
-    };
-    for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
-        const el = document.querySelector(selector);
-        const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
-        if (el) el.classList.toggle('active', val);
-    }
-    const svSlider = document.getElementById('sound-volume-slider');
-    const svVal = document.getElementById('sound-volume-value');
-    if (svSlider) { svSlider.value = Math.round((settings.soundVolume || 0.15) * 100); if (svVal) svVal.textContent = svSlider.value + '%'; }
-    const legacyCustom = (settings.customSoundUrl || '').trim();
-
-    const setSelect = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || 'tone_low';
-    };
-    const setInput = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-    };
-    // 音频自定义值显示：base64 数据只显示友好文字
-    const setSoundUrlInput = (id, val) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (val && val.startsWith('data:audio')) {
-            el.value = '[本地文件（已上传）]';
-        } else {
-            el.value = val || '';
-        }
-    };
-
-    setSelect('sound-my-send-preset', settings.mySendSoundPreset || 'tone_low');
-    setSoundUrlInput('sound-my-send-custom-url', (settings.mySendCustomSoundUrl || '').trim() || legacyCustom);
-
-    setSelect('sound-partner-message-preset', settings.partnerMessageSoundPreset || 'tone_low');
-    setSoundUrlInput('sound-partner-message-custom-url', (settings.partnerMessageCustomSoundUrl || '').trim() || legacyCustom);
-
-    setSelect('sound-my-poke-preset', settings.myPokeSoundPreset || 'tone_low');
-    setSoundUrlInput('sound-my-poke-custom-url', (settings.myPokeCustomSoundUrl || '').trim() || legacyCustom);
-
-    setSelect('sound-partner-poke-preset', settings.partnerPokeSoundPreset || 'tone_low');
-    setSoundUrlInput('sound-partner-poke-custom-url', (settings.partnerPokeCustomSoundUrl || '').trim() || legacyCustom);
-    document.querySelectorAll('.time-fmt-opt').forEach(opt => {
-        opt.classList.toggle('active', opt.dataset.fmt === (settings.timeFormat || 'HH:mm'));
-    });
-    const autoToggle = document.getElementById('auto-send-toggle');
-    if (autoToggle) autoToggle.classList.toggle('active', !!settings.autoSendEnabled);
-    updateAutoSendUI();
-    updateDelayUI();
-    const immToggle = document.getElementById('immersive-toggle');
-    if (immToggle) immToggle.classList.toggle('active', document.body.classList.contains('immersive-mode'));
-    // 同步信封相关开关
-    const envAutoToggle = document.getElementById('envelope-auto-send-toggle');
-    if (envAutoToggle) envAutoToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
-    const envCustomToggle = document.getElementById('envelope-custom-rule-toggle');
-    if (envCustomToggle) envCustomToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
-    if (typeof updateEnvelopeSettingsUI === 'function') updateEnvelopeSettingsUI();
-    // 同步摸鱼显示详情开关
-    const moyuDetailToggle = document.getElementById('moyu-show-detail-toggle');
-    if (moyuDetailToggle) moyuDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
-    // 同步底部栏收纳开关
-    const collapseToggle = document.getElementById('bottom-collapse-cs-toggle');
-    if (collapseToggle) collapseToggle.classList.toggle('active', !!settings.bottomCollapseMode);
-    // 同步摸鱼自动生成开关
-    const moyuAutoToggle = document.getElementById('moyu-auto-generate-toggle');
-    if (moyuAutoToggle) moyuAutoToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
-    if (typeof updateMoyuAutoGenerateUI === 'function') updateMoyuAutoGenerateUI();
-    const rrStyle = settings.readReceiptStyle || 'icon';
-    const rrIconBtn = document.getElementById('rr-style-icon');
-    const rrTextBtn = document.getElementById('rr-style-text');
-    if (rrIconBtn) { rrIconBtn.className = rrStyle === 'icon' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrIconBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
-    if (rrTextBtn) { rrTextBtn.className = rrStyle === 'text' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrTextBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
-    
-    showModal(DOMElements.chatModal.modal);
-    setupAvatarFrameSettings();
-});
-            const _advancedEl = document.getElementById('advanced-settings');
-            if (_advancedEl) _advancedEl.addEventListener('click', () => {
-                hideModal(DOMElements.settingsModal.modal);
-                showModal(DOMElements.advancedModal.modal);
-            });
 
             const _dataSettingsEl = document.getElementById('data-settings');
             if (_dataSettingsEl) _dataSettingsEl.addEventListener('click', () => {
