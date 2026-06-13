@@ -492,9 +492,37 @@
         document.head.appendChild(style);
     }
 
+    // 确保容器存在（动态创建，因为 HTML 里没有）
+    function ensureContainer() {
+        if (document.getElementById('ta-phone-container')) return;
+        var container = document.createElement('div');
+        container.id = 'ta-phone-container';
+        container.style.display = 'none';
+        container.innerHTML = ''
+            + '<div class="ta-phone-modal">'
+            + '  <div class="ta-phone-header">'
+            + '    <button class="ta-phone-back" onclick="window.TaPhoneApp.goBack()">← 返回</button>'
+            + '    <span class="ta-phone-title" id="ta-phone-header-title">TA的手机</span>'
+            + '    <div style="width:40px;"></div>'
+            + '  </div>'
+            + '  <div class="ta-phone-desktop" style="flex:1;overflow-y:auto;padding:16px;text-align:center;color:var(--text-secondary);font-size:13px;">正在加载桌面...</div>'
+            + '  <div id="ta-phone-content" style="display:none;flex-direction:column;flex:1;overflow:hidden;">'
+            + '    <div id="ta-phone-sort-bar" style="display:none;padding:8px 16px;border-bottom:1px solid var(--border-color);"></div>'
+            + '    <div id="ta-phone-list" style="flex:1;overflow-y:auto;padding:16px;"></div>'
+            + '  </div>'
+            + '  <div class="ta-phone-tab-bar" style="display:flex;border-top:1px solid var(--border-color);">'
+            + '    <div class="ta-phone-tab active" data-tab="chat" onclick="window.TaPhoneApp.showTaPhoneTab(\'chat\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">聊天</div>'
+            + '    <div class="ta-phone-tab" data-tab="moments" onclick="window.TaPhoneApp.showTaPhoneTab(\'moments\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">朋友圈</div>'
+            + '    <div class="ta-phone-tab" data-tab="gifts" onclick="window.TaPhoneApp.showTaPhoneTab(\'gifts\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">礼物柜</div>'
+            + '  </div>'
+            + '</div>';
+        document.body.appendChild(container);
+    }
+
     // 初始化
     function init() {
         injectStyles();
+        ensureContainer();
         loadCollections();
         setTimeout(scanHistory, 2000);
     }

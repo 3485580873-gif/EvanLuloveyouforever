@@ -2585,6 +2585,8 @@ function showModal(modalElement, focusElement = null) {
             }
             if (modalElement._hideTimeout) clearTimeout(modalElement._hideTimeout);
             modalElement._hideTimeout = setTimeout(() => {
+                // 清除 homeShowModal 设置的 !important 行内样式，确保弹窗能正确隐藏
+                modalElement.style.cssText = '';
                 modalElement.style.display = 'none';
             }, 300);
         }
