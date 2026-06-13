@@ -912,6 +912,12 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     window.addEventListener('beforeunload', function () {
         saveCallInterrupted();
     });
+    // 页面可见性变化时（如切换标签页导致浏览器回收），也保存通话状态
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden' && S.active && S.startTime) {
+            saveCallInterrupted();
+        }
+    });
     // 页面恢复时检查是否有中断的通话，插入聊天记录
     function checkCallInterrupted() {
         var raw = localStorage.getItem('callInterrupted');

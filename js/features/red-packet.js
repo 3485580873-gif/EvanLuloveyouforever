@@ -244,7 +244,7 @@
 
             overlay.remove();
 
-            // 系统自动处理用户发出的红包
+            // 系统自动处理：TA总是领取我发的红包（不再随机退回）
             // 获取回复延迟设置范围
             var delayMin = (typeof settings !== 'undefined' && settings.replyDelayMin) ? settings.replyDelayMin : 3000;
             var delayMax = (typeof settings !== 'undefined' && settings.replyDelayMax) ? settings.replyDelayMax : 7000;
@@ -255,32 +255,7 @@
                 var rpRecord = transferData.records.find(function (r) { return r.id === record.id; });
                 if (!rpRecord || rpRecord.status !== 'pending') return;
 
-                // 独立判定退回：20%概率退回（TA领我发的红包可以随机退回）
-                if (Math.random() < 0.2) {
-                    rpRecord.status = 'returned';
-                    rpRecord.returnedAt = Date.now();
-                    transferData.myBalance += rpRecord.amount;
-
-                    if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
-
-                    setTimeout(function () {
-                        if (typeof addMessage === 'function') {
-                            addMessage({
-                                id: 'rp_sys_ret_' + Date.now(),
-                                sender: 'system',
-                                text: '红包已被退回',
-                                timestamp: new Date(),
-                                status: 'sent',
-                                type: 'system'
-                            });
-                        }
-                        if (typeof renderMessages === 'function') renderMessages();
-                        if (typeof window.playSound === 'function') window.playSound('message');
-                    }, delayMin + Math.random() * (delayMax - delayMin));
-                    return;
-                }
-
-                // 剩余80%：立即收取
+                // TA自动领取
                 rpRecord.status = 'received';
                 rpRecord.receivedAt = Date.now();
                 transferData.systemBalance += rpRecord.amount;
