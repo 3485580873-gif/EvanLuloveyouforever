@@ -477,10 +477,13 @@
      */
     // 智能合并两个值：当两者都是对象时，递归合并（备份值优先，但保留备份中不存在的当前属性）
     function smartMerge(currentVal, backupVal) {
+        // null 检查：如果任一值为 null，直接用备份值（null 表示删除该属性）
         if (backupVal === null || backupVal === undefined) return backupVal;
         if (currentVal === null || currentVal === undefined) return backupVal;
+        // 类型检查：如果类型不同，直接用备份值
         if (typeof backupVal !== 'object' || typeof currentVal !== 'object') return backupVal;
-        if (Array.isArray(backupVal)) return backupVal; // 数组直接替换
+        // 数组直接替换
+        if (Array.isArray(backupVal) || Array.isArray(currentVal)) return backupVal;
         // 两者都是普通对象 → 合并
         var result = {};
         // 先复制当前值的所有属性（保留新版本独有的属性）
@@ -493,8 +496,8 @@
         for (var k in backupVal) {
             if (Object.prototype.hasOwnProperty.call(backupVal, k)) {
                 if (Object.prototype.hasOwnProperty.call(result, k) &&
-                    typeof result[k] === 'object' && typeof backupVal[k] === 'object' &&
                     result[k] !== null && backupVal[k] !== null &&
+                    typeof result[k] === 'object' && typeof backupVal[k] === 'object' &&
                     !Array.isArray(result[k]) && !Array.isArray(backupVal[k])) {
                     result[k] = smartMerge(result[k], backupVal[k]);
                 } else {

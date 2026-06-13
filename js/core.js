@@ -3202,7 +3202,6 @@ function initStickerInsertFeature() {
     let _voiceDuration = 0;
 
     function startRecord(e) {
-        if (e) e.preventDefault();
         if (_isVoiceRecording) return;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             if (typeof showNotification === 'function') showNotification('当前浏览器不支持录音', 'error');
@@ -3222,7 +3221,7 @@ function initStickerInsertFeature() {
                     const base64 = reader.result;
                     if (typeof addMessage === 'function') {
                         addMessage({
-                            id: 'voice_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                            id: 'voice_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
                             sender: 'user',
                             text: '[语音消息]',
                             timestamp: new Date(),
