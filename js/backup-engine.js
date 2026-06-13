@@ -234,8 +234,8 @@
             lsOut[k2] = processLocalStorageValueForExport(lsData[k2], state);
         }
         return {
-            type: 'chatapp-backup-v4',
-            formatVersion: 4,
+            type: 'chatapp-backup-v5',
+            formatVersion: 5,
             appName: 'ChatApp',
             timestamp: new Date().toISOString(),
             sessionId: typeof SESSION_ID !== 'undefined' ? SESSION_ID : null,

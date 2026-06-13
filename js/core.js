@@ -3222,7 +3222,7 @@ function initStickerInsertFeature() {
                     const base64 = reader.result;
                     if (typeof addMessage === 'function') {
                         addMessage({
-                            id: Date.now(),
+                            id: 'voice_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                             sender: 'user',
                             text: '[语音消息]',
                             timestamp: new Date(),
@@ -3242,13 +3242,17 @@ function initStickerInsertFeature() {
             _voiceRecorder.start(200);
             _isVoiceRecording = true;
             _voiceDuration = 0;
-            _voiceTimer = setInterval(() => { _voiceDuration++; }, 1000);
+            _voiceTimer = setInterval(() => {
+                _voiceDuration++;
+                // 最长60秒自动停止
+                if (_voiceDuration >= 60) stopRecord();
+            }, 1000);
             const voiceBtn = document.getElementById('voice-btn');
             if (voiceBtn) {
                 voiceBtn.style.background = 'rgba(255,80,80,0.2)';
                 voiceBtn.style.color = '#ff5050';
             }
-            if (typeof showNotification === 'function') showNotification('🎙 正在录音...', 'info', 2000);
+            if (typeof showNotification === 'function') showNotification('🎙 正在录音...（最长60秒）', 'info', 2000);
         }).catch(err => {
             if (typeof showNotification === 'function') showNotification('无法访问麦克风，请检查权限', 'error');
         });
@@ -3263,6 +3267,13 @@ function initStickerInsertFeature() {
         if (voiceBtn) {
             voiceBtn.style.background = '';
             voiceBtn.style.color = '';
+        }
+        // 最短1秒，否则不发送
+        if (_voiceDuration < 1) {
+            if (typeof showNotification === 'function') showNotification('录音时间太短', 'info');
+            _voiceChunks = [];
+            if (_voiceRecorder && _voiceRecorder.state === 'recording') _voiceRecorder.stop();
+            return;
         }
         if (_voiceRecorder.state === 'recording') {
             _voiceRecorder.stop();
