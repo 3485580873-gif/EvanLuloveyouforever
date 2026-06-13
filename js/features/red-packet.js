@@ -488,7 +488,7 @@
                 if (typeof renderMessages === 'function') renderMessages();
             };
         }
-    };;
+    };
 
     // ========== 系统随机发红包 ==========
 
