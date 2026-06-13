@@ -2044,7 +2044,7 @@ const addMessage = (message) => {
         function sendMessage(textOverride = null, type = 'normal') {
             const text = textOverride || DOMElements.messageInput.value.trim();
             const imageFile = DOMElements.imageInput.files[0];
-            if (!text && !imageFile && type === 'normal') return;
+            if (!text && !imageFile && !window._pendingSticker && type === 'normal') return;
 
             // ── 斜杠指令拦截 ──
             if (text && text.startsWith('/') && type === 'normal') {
@@ -3082,6 +3082,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ═── 表情包插入功能 ───
 window._pendingSticker = null;
+window._stickerInsertTab = 'main'; // 'main' = 表情包库, 'my' = 我的表情包
+
+function _getStickerLibForInsert() {
+    if (window._stickerInsertTab === 'my') {
+        if (typeof myStickerLibrary !== 'undefined' && Array.isArray(myStickerLibrary)) return myStickerLibrary;
+        return [];
+    }
+    if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) return stickerLibrary;
+    return [];
+}
+
+function _renderStickerInsertGrid() {
+    const grid = document.getElementById('sticker-insert-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const library = _getStickerLibForInsert();
+    const label = window._stickerInsertTab === 'my' ? '我的表情包' : '表情包库';
+    if (library.length === 0) {
+        grid.innerHTML = '<div class="sticker-insert-empty">暂无' + label + '<br><small>请先在侧边栏添加</small></div>';
+        return;
+    }
+    library.forEach(url => {
+        const img = document.createElement('img');
+        img.className = 'sticker-item';
+        img.src = url;
+        img.addEventListener('click', () => { window.selectStickerForInsert(url); });
+        grid.appendChild(img);
+    });
+}
 
 window.showStickerInsertPicker = function() {
     let picker = document.getElementById('sticker-insert-picker');
@@ -3089,24 +3118,29 @@ window.showStickerInsertPicker = function() {
         picker = document.createElement('div');
         picker.id = 'sticker-insert-picker';
         picker.className = 'sticker-insert-picker';
-        picker.innerHTML = '<div class="sticker-insert-header"><span>选择表情包</span><button class="sticker-insert-close" type="button">×</button></div><div class="sticker-insert-grid" id="sticker-insert-grid"></div>';
+        picker.innerHTML =
+            '<div class="sticker-insert-header">' +
+                '<div class="sticker-insert-tabs">' +
+                    '<button class="sticker-insert-tab active" data-tab="main">表情包库</button>' +
+                    '<button class="sticker-insert-tab" data-tab="my">我的表情包</button>' +
+                '</div>' +
+                '<button class="sticker-insert-close" type="button">×</button>' +
+            '</div>' +
+            '<div class="sticker-insert-grid" id="sticker-insert-grid"></div>';
         document.body.appendChild(picker);
-        picker.querySelector('.sticker-insert-close').addEventListener('click', () => { picker.classList.remove('active'); });
-    }
-    const grid = document.getElementById('sticker-insert-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    if (!stickerLibrary || stickerLibrary.length === 0) {
-        grid.innerHTML = '<div class="sticker-insert-empty">暂无表情包<br><small>请先在侧边栏表情库中添加</small></div>';
-    } else {
-        stickerLibrary.forEach(url => {
-            const img = document.createElement('img');
-            img.className = 'sticker-item';
-            img.src = url;
-            img.addEventListener('click', () => { window.selectStickerForInsert(url); });
-            grid.appendChild(img);
+
+        picker.querySelectorAll('.sticker-insert-tab').forEach(function(tab) {
+            tab.addEventListener('click', function(e) {
+                window._stickerInsertTab = e.target.dataset.tab;
+                picker.querySelectorAll('.sticker-insert-tab').forEach(function(t) { t.classList.remove('active'); });
+                e.target.classList.add('active');
+                _renderStickerInsertGrid();
+            });
         });
+
+        picker.querySelector('.sticker-insert-close').addEventListener('click', function() { picker.classList.remove('active'); });
     }
+    _renderStickerInsertGrid();
     picker.classList.add('active');
 };
 

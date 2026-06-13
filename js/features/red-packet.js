@@ -255,33 +255,33 @@
                 var rpRecord = transferData.records.find(function (r) { return r.id === record.id; });
                 if (!rpRecord || rpRecord.status !== 'pending') return;
 
-                // 独立判定退回：20%概率退回
-                if (Math.random() < 0.2) {
-                    rpRecord.status = 'returned';
-                    rpRecord.returnedAt = Date.now();
-                    transferData.myBalance += rpRecord.amount;
+                // 系统处理：不再随机退回，改为 80% 立即领取，20% 保持 pending 供后续收取
+                if (Math.random() < 0.8) {
+                    // 80%：立即收取
+                    rpRecord.status = 'received';
+                    rpRecord.receivedAt = Date.now();
+                    transferData.systemBalance += rpRecord.amount;
 
                     if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
 
                     setTimeout(function () {
+                        // 收取方发送已领取样式的红包卡片
                         if (typeof addMessage === 'function') {
                             addMessage({
-                                id: 'rp_sys_ret_' + Date.now(),
-                                sender: 'system',
-                                text: '红包已被退回',
+                                id: 'rp_recv_card_' + Date.now(),
+                                sender: 'partner',
+                                text: rpRecord.message || '恭喜发财',
                                 timestamp: new Date(),
-                                status: 'sent',
-                                type: 'system'
+                                status: 'received',
+                                type: 'red-packet',
+                                redPacket: rpRecord
                             });
                         }
                         if (typeof renderMessages === 'function') renderMessages();
                         if (typeof window.playSound === 'function') window.playSound('message');
                     }, delayMin + Math.random() * (delayMax - delayMin));
-                    return;
                 }
-
-                // 剩余80%：70%立即收取，10%后续随机收取
-                if (Math.random() < 0.7 / 0.8) {
+                // 20%：保持 pending，后续聊天中随机收取（由 tryCollectPendingRedPacket 处理）
                     // 70%：立即收取
                     rpRecord.status = 'received';
                     rpRecord.receivedAt = Date.now();
@@ -347,13 +347,18 @@
             ? 'background:linear-gradient(180deg,#e0d8d8 0%,#ccc 100%);'
             : 'background:#c4453c;';
 
-        var btnBg = isOpened
-            ? 'background:#ddd;color:#999;box-shadow:none;cursor:default;'
-            : 'background:#ffd700;color:#c4453c;box-shadow:0 2px 10px rgba(255,215,0,0.5);cursor:pointer;';
-
-        var btnText = isPending ? '開' : (isReceived ? '已领取' : '已退回');
         var titleColor = isPending ? 'color:#ffd700;' : (isReturned ? 'color:#999;' : 'color:#ffd700;');
         var titleText = isReturned ? '已过期' : record.message;
+
+        // 底部按钮区域：待领取时显示"领取"和"退回"两个按钮
+        var bottomHtml;
+        if (isPending) {
+            bottomHtml = '<button id="rp-receive-btn" style="width:60px;height:60px;border-radius:50%;background:#ffd700;color:#c4453c;box-shadow:0 2px 10px rgba(255,215,0,0.5);cursor:pointer;font-size:16px;font-weight:700;border:none;margin-right:12px;transition:all 0.15s;">领取</button>'
+                      + '<button id="rp-return-btn" style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.15);color:#fff;cursor:pointer;font-size:13px;font-weight:600;border:1.5px solid rgba(255,255,255,0.3);transition:all 0.15s;">退回</button>';
+        } else {
+            var statusText = isReceived ? '已领取' : '已退回';
+            bottomHtml = '<button style="width:60px;height:60px;border-radius:50%;background:#ddd;color:#999;font-size:22px;font-weight:700;border:none;box-shadow:none;cursor:default;">' + statusText + '</button>';
+        }
 
         var html =
             '<div id="rp-receive-panel" style="text-align:center;position:relative;overflow:hidden;border-radius:16px;width:260px;min-height:380px;' + panelBg + 'display:flex;flex-direction:column;">' +
@@ -368,63 +373,23 @@
                     '<div style="font-size:18px;font-weight:700;' + titleColor + '">' + titleText + '</div>' +
                 '</div>' +
                 // 底部按钮区域
-                '<div style="padding:30px 20px 40px;display:flex;justify-content:center;' + (isOpened ? 'background:#ccc;' : 'background:#c4453c;') + '">' +
-                    '<button id="rp-open-btn" style="width:60px;height:60px;border-radius:50%;' + btnBg + 'font-size:22px;font-weight:700;border:none;transition:all 0.15s;">' + btnText + '</button>' +
+                '<div id="rp-btn-area" style="padding:30px 20px 40px;display:flex;justify-content:center;align-items:center;' + (isOpened ? 'background:#ccc;' : 'background:#c4453c;') + '">' +
+                    bottomHtml +
                 '</div>' +
             '</div>';
 
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
 
-        // 点击開按钮
-        var openBtn = overlay.querySelector('#rp-open-btn');
-        if (openBtn && isPending) {
-            openBtn.onmouseenter = function () { this.style.transform = 'scale(1.1)'; this.style.boxShadow = '0 4px 16px rgba(255,215,0,0.6)'; };
-            openBtn.onmouseleave = function () { this.style.transform = 'scale(1)'; this.style.boxShadow = '0 2px 10px rgba(255,215,0,0.5)'; };
-            openBtn.onmousedown = function () { this.style.transform = 'scale(0.95)'; };
-            openBtn.onmouseup = function () { this.style.transform = 'scale(1.1)'; };
+        // 领取按钮逻辑
+        var receiveBtn = overlay.querySelector('#rp-receive-btn');
+        if (receiveBtn) {
+            receiveBtn.onmouseenter = function () { this.style.transform = 'scale(1.1)'; this.style.boxShadow = '0 4px 16px rgba(255,215,0,0.6)'; };
+            receiveBtn.onmouseleave = function () { this.style.transform = 'scale(1)'; this.style.boxShadow = '0 2px 10px rgba(255,215,0,0.5)'; };
+            receiveBtn.onmousedown = function () { this.style.transform = 'scale(0.95)'; };
+            receiveBtn.onmouseup = function () { this.style.transform = 'scale(1.1)'; };
 
-            openBtn.onclick = function () {
-                // 20%概率退回红包
-                if (Math.random() < 0.2) {
-                    // 退回红包：金额返还发送方
-                    if (record.from === 'system') {
-                        transferData.systemBalance += record.amount;
-                    }
-                    // 更新记录状态为已退回
-                    record.status = 'returned';
-                    record.returnedAt = Date.now();
-
-                    // 保存
-                    if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
-
-                    // 更新弹窗为已退回状态
-                    var panel = overlay.querySelector('#rp-receive-panel');
-                    panel.style.background = 'linear-gradient(180deg,#e0d8d8 0%,#ccc 100%)';
-                    panel.innerHTML =
-                        '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#999 20%,#999 80%,transparent);"></div>' +
-                        '<div style="padding:30px 16px 20px;display:flex;flex-direction:column;align-items:center;flex:1;justify-content:center;">' +
-                            '<div style="width:48px;height:48px;border-radius:50%;background:var(--accent-color,#b8a9c9);border:2px solid rgba(153,153,153,0.5);margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;">' +
-                                '<i class="fas fa-undo"></i>' +
-                            '</div>' +
-                            '<div style="font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:6px;">' + senderName + ' 发来的红包</div>' +
-                            '<div style="font-size:18px;font-weight:700;color:#999;">红包已退回</div>' +
-                        '</div>' +
-                        '<div style="padding:30px 20px 40px;display:flex;justify-content:center;background:#ccc;">' +
-                            '<button style="width:60px;height:60px;border-radius:50%;background:#ddd;color:#999;font-size:22px;font-weight:700;border:none;box-shadow:none;cursor:default;">已退回</button>' +
-                        '</div>';
-
-                    // 播放声音
-                    if (typeof window.playSound === 'function') window.playSound('message');
-
-                    // 通知
-                    if (typeof window.showNotification === 'function') window.showNotification('红包已被系统退回', 'info');
-
-                    // 刷新聊天消息列表
-                    if (typeof renderMessages === 'function') renderMessages();
-                    return;
-                }
-
+            receiveBtn.onclick = function () {
                 // 正常领取：更新余额
                 if (record.from === 'system') {
                     transferData.myBalance += record.amount;
@@ -472,11 +437,58 @@
                     });
                 }
 
-                // 刷新聊天消息列表（触发重新渲染以更新卡片状态）
+                // 刷新聊天消息列表
                 if (typeof renderMessages === 'function') renderMessages();
             };
         }
-    };
+
+        // 退回按钮逻辑
+        var returnBtn = overlay.querySelector('#rp-return-btn');
+        if (returnBtn) {
+            returnBtn.onmouseenter = function () { this.style.transform = 'scale(1.05)'; this.style.background = 'rgba(255,255,255,0.25)'; };
+            returnBtn.onmouseleave = function () { this.style.transform = 'scale(1)'; this.style.background = 'rgba(255,255,255,0.15)'; };
+            returnBtn.onmousedown = function () { this.style.transform = 'scale(0.95)'; };
+            returnBtn.onmouseup = function () { this.style.transform = 'scale(1.05)'; };
+
+            returnBtn.onclick = function () {
+                // 退回红包：金额返还发送方
+                if (record.from === 'system') {
+                    transferData.systemBalance += record.amount;
+                }
+                // 更新记录状态为已退回
+                record.status = 'returned';
+                record.returnedAt = Date.now();
+
+                // 保存
+                if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
+
+                // 更新弹窗为已退回状态
+                var panel = overlay.querySelector('#rp-receive-panel');
+                panel.style.background = 'linear-gradient(180deg,#e0d8d8 0%,#ccc 100%)';
+                panel.innerHTML =
+                    '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#999 20%,#999 80%,transparent);"></div>' +
+                    '<div style="padding:30px 16px 20px;display:flex;flex-direction:column;align-items:center;flex:1;justify-content:center;">' +
+                        '<div style="width:48px;height:48px;border-radius:50%;background:var(--accent-color,#b8a9c9);border:2px solid rgba(153,153,153,0.5);margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;">' +
+                            '<i class="fas fa-undo"></i>' +
+                        '</div>' +
+                        '<div style="font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:6px;">' + senderName + ' 发来的红包</div>' +
+                        '<div style="font-size:18px;font-weight:700;color:#999;">红包已退回</div>' +
+                    '</div>' +
+                    '<div style="padding:30px 20px 40px;display:flex;justify-content:center;background:#ccc;">' +
+                        '<button style="width:60px;height:60px;border-radius:50%;background:#ddd;color:#999;font-size:22px;font-weight:700;border:none;box-shadow:none;cursor:default;">已退回</button>' +
+                    '</div>';
+
+                // 播放声音
+                if (typeof window.playSound === 'function') window.playSound('message');
+
+                // 通知
+                if (typeof window.showNotification === 'function') window.showNotification('红包已退回', 'info');
+
+                // 刷新聊天消息列表
+                if (typeof renderMessages === 'function') renderMessages();
+            };
+        }
+    };;
 
     // ========== 系统随机发红包 ==========
 

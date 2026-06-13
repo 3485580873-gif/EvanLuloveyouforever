@@ -895,6 +895,48 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
 
     window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow };
 
+    // ========== 页面刷新/闪退时自动挂断并留记录 ==========
+    function saveCallInterrupted() {
+        if (S.active && S.startTime) {
+            var dur = Date.now() - S.startTime;
+            var partnerName = getName();
+            var myName = (typeof settings !== 'undefined' && settings.myName) || '我';
+            localStorage.setItem('callInterrupted', JSON.stringify({
+                duration: dur,
+                timestamp: Date.now(),
+                partnerName: partnerName,
+                myName: myName
+            }));
+        }
+    }
+    window.addEventListener('beforeunload', function () {
+        saveCallInterrupted();
+    });
+    // 页面恢复时检查是否有中断的通话，插入聊天记录
+    function checkCallInterrupted() {
+        var raw = localStorage.getItem('callInterrupted');
+        if (!raw) return;
+        localStorage.removeItem('callInterrupted');
+        try {
+            var data = JSON.parse(raw);
+            var dur = data.duration;
+            if (!dur || dur < 1000) return;
+            var timeStr = (typeof fmt === 'function') ? fmt(dur) : Math.floor(dur / 1000) + '秒';
+            var text = data.myName + ' 与 ' + data.partnerName + ' 的视频通话已中断 · ' + timeStr;
+            if (typeof addMessage === 'function') {
+                addMessage({
+                    id: 'call_interrupted_' + Date.now(),
+                    sender: 'system',
+                    text: text,
+                    timestamp: new Date(data.timestamp || Date.now()),
+                    status: 'sent',
+                    type: 'system'
+                });
+            }
+            if (typeof renderMessages === 'function') renderMessages();
+        } catch (e) { /* ignore */ }
+    }
+
     function init() {
         injectCSS();
         injectHTML();
@@ -921,6 +963,8 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                     }
                 }).observe(chatModal, { attributes: true, attributeFilter: ['style'] });
             }
+            // 页面恢复后检查是否有中断的通话记录
+            setTimeout(checkCallInterrupted, 1200);
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(late, 800));
         else setTimeout(late, 800);

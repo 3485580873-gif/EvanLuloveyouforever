@@ -7161,9 +7161,28 @@ html[data-theme="dark"] .modal-btn-secondary:hover {
     align-items: center;
     padding: 10px 14px;
     border-bottom: 1px solid var(--border-color, #444);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary, #e0e0e0);
+}
+.sticker-insert-tabs {
+    display: flex;
+    gap: 4px;
+}
+.sticker-insert-tab {
+    background: none;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    transition: background 0.15s, color 0.15s;
+}
+.sticker-insert-tab.active {
+    background: var(--accent-color, #6c5ce7);
+    color: #fff;
+    border-color: var(--accent-color, #6c5ce7);
+}
+.sticker-insert-tab:hover:not(.active) {
+    background: rgba(255,255,255,0.05);
 }
 .sticker-insert-close {
     background: none;
