@@ -1344,6 +1344,14 @@
     updateVisitorBadge();
   }
 
+  // 测试函数：手动生成一条访客记录
+  function generateTestVisitor() {
+    generateOneVisitorRecord(Date.now());
+    renderVisitorList();
+    console.log('[访客记录] 已手动生成一条测试记录');
+    alert('已生成一条访客记录！');
+  }
+
   function generateOfflineVisitors() {
     const now = Date.now();
     const lastOnline = parseInt(localStorage.getItem(VISITOR_LAST_ONLINE_KEY)) || now;
@@ -1372,11 +1380,12 @@
   function startOnlineVisitorTimer() {
     if (visitorTimerInterval) clearInterval(visitorTimerInterval);
     localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
+    // 优化：每1分钟检查一次，60%概率生成（让用户更快看到访客记录）
     visitorTimerInterval = setInterval(() => {
       if (getTodayVisitorCount() >= VISITOR_MAX_PER_DAY) return;
-      if (Math.random() < 0.20) generateOneVisitorRecord(Date.now());
+      if (Math.random() < 0.60) generateOneVisitorRecord(Date.now());
       localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
-    }, 5 * 60 * 1000);
+    }, 1 * 60 * 1000);
   }
 
   // ========== 伴侣偷偷看朋友圈 ==========
@@ -3531,6 +3540,12 @@
       startPartnerSneakVisit();
       startPartnerMomentTimer();
       updateVisitorBadge();
+      
+      // 优化：如果当前没有访客记录，立即生成一条（让用户第一次打开就能看到）
+      if (visitorRecords.length === 0) {
+        generateOneVisitorRecord(Date.now() - Math.random() * 3600000); // 随机生成在过去1小时内的记录
+        console.log('[访客记录] 首次打开朋友圈，自动生成一条访客记录');
+      }
     } catch (e) {
       console.error('MomentsApp init error:', e);
     }
@@ -3764,6 +3779,7 @@
     closeVisitorPanel,
     deleteVisitorRecord,
     clearAllVisitors,
+    generateTestVisitor,
     updateVisitorBadge,
     clearVisitorBadge,
     stopOnlineVisitorTimer,
