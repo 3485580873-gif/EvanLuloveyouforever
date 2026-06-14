@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="light" data-color-theme="black-white">
 <head>
@@ -42,29 +40,6 @@
             gap: 8px;
             padding: 8px 12px;
         }
-        .input-area .input-buttons {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-        }
-        /* 收纳开关按钮 — 始终可见 */
-        #collapse-expand-btn {
-            width: 36px; height: 36px;
-            border: none; border-radius: 50%;
-            background: rgba(var(--accent-color-rgb),0.12);
-            color: var(--accent-color);
-            font-size: 14px; cursor: pointer;
-            display: flex !important;
-            align-items: center; justify-content: center;
-            transition: all 0.2s; flex-shrink: 0;
-        }
-        #collapse-expand-btn:hover { background: rgba(var(--accent-color-rgb),0.22); }
-        #collapse-expand-btn.open {
-            background: var(--accent-color); color: #fff;
-        }
-        #collapse-expand-btn i { transition: transform 0.25s; }
-        #collapse-expand-btn.open i { transform: rotate(180deg); }
         .message-input {
             flex: 1;
             min-width: 0;
@@ -93,39 +68,6 @@
             box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.15);
         }
     </style>
-    <script>
-        // 全局错误捕获 - 显示到页面上方便调试
-        (function() {
-            const errors = [];
-            const warnDiv = document.createElement('div');
-            warnDiv.id = 'debug-error-panel';
-            warnDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#ff4444;color:#fff;font-size:13px;padding:8px 12px;max-height:50vh;overflow:auto;display:none;';
-            document.body && document.body.appendChild(warnDiv) || document.addEventListener('DOMContentLoaded', () => document.body.appendChild(warnDiv));
-            
-            function showError(e) {
-                const msg = (e.error ? e.error.toString() : '') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
-                errors.push(msg);
-                warnDiv.style.display = 'block';
-                warnDiv.innerHTML = '<b>⚠️ JS错误:</b><br>' + errors.map(m => '<div style="border-top:1px solid rgba(255,255,255,0.3);margin-top:4px;padding-top:4px;">' + m.replace(/</g,'&lt;') + '</div>').join('');
-            }
-            window.addEventListener('error', showError);
-            window.addEventListener('unhandledrejection', (e) => showError({error: e.reason, filename: 'unhandledRejection'}));
-            
-            // 监听 setupEventListeners 是否执行
-            window._debugListeners = [];
-            const _origSetup = window.setupEventListeners;
-            window.addEventListener('DOMContentLoaded', () => {
-                console.log('[DEBUG] DOMContentLoaded fired');
-                setTimeout(() => {
-                    if (typeof setupEventListeners === 'function') {
-                        console.log('[DEBUG] setupEventListeners is defined');
-                    } else {
-                        console.error('[DEBUG] setupEventListeners is NOT defined!');
-                    }
-                }, 100);
-            });
-        })();
-    </script>
 </head>
 <body>
 <div id="splash-declaration">
@@ -380,10 +322,6 @@
                     <div class="app-item" onclick="openApp('accounting')">
                         <div class="app-icon" data-app="accounting"><i class="fas fa-coins"></i></div>
                         <span class="app-name">同心记账</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('ta-phone')">
-                        <div class="app-icon" data-app="ta-phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg></div>
-                        <span class="app-name">他的手机</span>
                     </div>
                 </div>
             </div>
@@ -705,10 +643,11 @@
                         <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
                         <span class="tooltip">提醒谁看</span>
                     </button>
-                    <button class="tool-btn" onclick="MomentsApp.togglePublishStickerPanel()">
+                    <!-- 我发布朋友圈时不显示表情包按钮，对方(系统自动)仍可发表情包 -->
+                    <!-- <button class="tool-btn" id="my-publish-sticker-btn" onclick="MomentsApp.togglePublishStickerPanel()" style="display:none;">
                         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-3.22 7.52 3.22zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>
                         <span class="tooltip">添加表情包</span>
-                    </button>
+                    </button> -->
                 </div>
                 <span class="publish-footer-note">朋友圈权限</span>
             </div>
@@ -745,8 +684,7 @@
             <div class="comment-emoji-tabs">
                 <button class="emoji-tab active" data-tab="emoji" onclick="MomentsApp.switchCommentEmojiTab('emoji')">表情</button>
                 <button class="emoji-tab" data-tab="kaomoji" onclick="MomentsApp.switchCommentEmojiTab('kaomoji')">颜文字</button>
-                <button class="emoji-tab" data-tab="sticker" onclick="MomentsApp.switchCommentEmojiTab('sticker')">我的表情包</button>
-                <button class="emoji-tab" data-tab="sticker-lib" onclick="MomentsApp.switchCommentEmojiTab('sticker-lib')">表情包库</button>
+                <button class="emoji-tab" data-tab="sticker" onclick="MomentsApp.switchCommentEmojiTab('sticker')">表情包</button>
             </div>
             <div class="comment-emoji-body" id="commentEmojiBody"></div>
         </div>
@@ -1235,10 +1173,11 @@
                 <div id="partner-name" class="username">
                     梦角
                 </div>
-                <div id="partner-avatar-container" class="avatar-container">
+                <div id="partner-avatar-container" class="avatar-container" style="position:relative;">
                     <div class="avatar" id="partner-avatar">
                         <i class="fas fa-user"></i>
                     </div>
+                    <span id="partner-badge-icon" style="position:absolute;bottom:-2px;right:-4px;font-size:12px;line-height:1;pointer-events:none;">🌸</span>
                 </div>
                 <div class="status" id="partner-status">
                     <span>在线</span>
@@ -1380,15 +1319,6 @@
                     <button class="collapsed-extra-btn" id="collapsed-call-btn" title="视频通话" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');if(window.callFeature&&typeof window.callFeature.startCall==='function')window.callFeature.startCall(false);})();">
                         <i class="fas fa-video"></i>
                     </button>
-                    <button class="collapsed-extra-btn" id="collapsed-red-packet-btn" title="发红包" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');if(window.showRedPacketSendModal)window.showRedPacketSendModal();})();">
-                        <svg width="18" height="20" viewBox="0 0 20 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="16" height="18" rx="2"/><path d="M2 8l8 6 8-6"/><circle cx="10" cy="14" r="2" fill="currentColor" stroke="none"/></svg>
-                    </button>
-                    <button class="collapsed-extra-btn" id="collapsed-continue-btn" title="让对方继续说" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');var b=document.getElementById('continue-btn');if(b)b.click();})();">
-                        <i class="fas fa-comment-dots"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" id="collapsed-sticker-insert-btn" title="插入表情包" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');if(window.showStickerInsertPicker)window.showStickerInsertPicker();})();">
-                        <span style="font-size:16px;">😊</span>
-                    </button>
                     <button class="collapsed-extra-btn" title="退出收纳" onclick="window.exitCollapseMode && window.exitCollapseMode()" style="color:#ff5050; background:rgba(255,80,80,0.1);">
                         <i class="fas fa-times"></i>
                     </button>
@@ -1396,22 +1326,28 @@
             </div>
         </div>
         <div class="input-area">
-    <!-- 左侧：语音按钮（按住说话） -->
-    <button class="voice-btn input-btn" id="voice-btn" title="按住说话"><i class="fas fa-microphone"></i></button>
+    <button id="collapse-expand-btn" title="展开更多" style="display:none;width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;background:rgba(var(--accent-color-rgb),0.12);color:var(--accent-color);font-size:14px;transition:all 0.25s;flex-shrink:0;align-items:center;justify-content:center;" onclick="window.toggleCollapsedExtras && window.toggleCollapsedExtras()"><i class="fas fa-chevron-up"></i></button>
+    <button class="attachment-btn input-btn collapse-hideable" id="attachment-btn" title="发送图片"><i class="fas fa-image"></i></button>
+    
+    <button class="combo-btn input-btn collapse-hideable" id="combo-btn" title="表情 & 拍一拍">
+        <i class="fas fa-laugh-beam"></i>
+    </button>
 
-    <!-- 中间：输入框 -->
+    <button class="red-packet-btn input-btn collapse-hideable" id="red-packet-btn" title="发红包" onclick="window.showRedPacketSendModal && window.showRedPacketSendModal()">
+        <svg width="20" height="24" viewBox="0 0 20 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="16" height="18" rx="2"/>
+            <path d="M2 8l8 6 8-6"/>
+            <circle cx="10" cy="14" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+    </button>
+
     <textarea class="message-input" id="message-input" placeholder="" wrap="soft" rows="1"></textarea>
-
-        <!-- 右侧按钮组 -->
-        <div class="input-buttons">
-            <!-- 收纳开关（展开/收起更多功能面板） -->
-            <button class="input-btn" id="collapse-expand-btn" title="更多功能" onclick="window.toggleCollapsedExtras()">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-            <button class="send-btn input-btn" id="send-btn" title="发送消息"><i class="fas fa-paper-plane"></i></button>
-        </div>
-
-        <!-- 表情选择器弹窗（保留原有） -->
+    
+    <div class="input-buttons">
+    <button class="continue-btn input-btn" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
+        <button class="batch-btn input-btn collapse-hideable" id="batch-btn" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
+        <button class="send-btn input-btn" id="send-btn" title="发送消息"><i class="fas fa-paper-plane"></i></button>
+        
         <div class="sticker-picker-popover" id="user-sticker-picker">
             <div class="combo-tabs-header">
                 <button class="combo-tab-btn active" data-tab="my-sticker"><i class="fas fa-user" style="font-size:10px;"></i> 我</button>
@@ -1426,21 +1362,6 @@
             </div>
         </div>
     </div>
-    <!-- 隐藏的原有按钮（保留ID供JS引用） -->
-    <button class="attachment-btn input-btn" id="attachment-btn" style="display:none;" title="发送图片"><i class="fas fa-image"></i></button>
-    <button class="combo-btn input-btn" id="combo-btn" style="display:none;" title="表情 & 拍一拍">
-        <i class="fas fa-laugh-beam"></i>
-    </button>
-    <button class="red-packet-btn input-btn" id="red-packet-btn" style="display:none;" title="发红包" onclick="window.showRedPacketSendModal && window.showRedPacketSendModal()">
-        <svg width="20" height="24" viewBox="0 0 20 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="6" width="16" height="18" rx="2"/>
-            <path d="M2 8l8 6 8-6"/>
-            <circle cx="10" cy="14" r="2" fill="currentColor" stroke="none"/>
-        </svg>
-    </button>
-    <button class="continue-btn input-btn" id="continue-btn" style="display:none;" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
-    <button class="batch-btn input-btn" id="batch-btn" style="display:none;" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
-
     <input type="file" id="image-input" class="file-input" accept="image/*">
     <input type="file" id="my-sticker-quick-upload" class="file-input" accept="image/*" multiple>
 </div>
@@ -1840,22 +1761,14 @@
                 <span class="font-size-value" id="font-size-value">16px</span>
             </div>
             <div style="margin-top: 10px;">
-                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:5px;">字体链接 (CSS/TTF/WOFF/WOFF2):</label>
+                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:5px;">字体链接 (CSS/TTF):</label>
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="custom-font-url" class="modal-input" style="margin-bottom:0; font-size:12px;" placeholder="https://example.com/font.woff2">
                     <button id="apply-font-btn" class="modal-btn modal-btn-primary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">应用</button>
                     <button id="follow-system-font-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap; margin-left: 5px;">跟随系统</button>
                 </div>
-                <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
-                    <label style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">本地上传:</label>
-                    <input type="file" id="local-font-file-input" accept=".ttf,.woff,.woff2,.otf,.eot" style="display:none;">
-                    <button id="local-font-upload-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">
-                        <i class="fas fa-upload"></i> 选择字体文件
-                    </button>
-                    <span id="local-font-file-name" style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;"></span>
-                </div>
                 <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; opacity: 0.7;">
-                    提示: 支持输入字体链接或上传本地字体文件(TTF/WOFF/WOFF2)。留空并应用可恢复默认。
+                    提示: 应用后将覆盖默认字体。留空并应用可恢复默认。
                 </div>
             </div>
         </div>
@@ -3781,5 +3694,563 @@
     <script src="js/listeners.js"></script>
     <script src="js/moments.js"></script>
     <script src="js/app.js"></script>
+    <!-- === 综合补丁：表情直接发出 + 红包逻辑 + 本地字体 + 电话挂断记录 === -->
+    <script>
+(function() {
+    'use strict';
+
+    // ========== 初始化 stickerLibrary 和 myStickerLibrary（如果外部脚本未定义） ==========
+    if (typeof stickerLibrary === 'undefined') window.stickerLibrary = [];
+    if (typeof myStickerLibrary === 'undefined') window.myStickerLibrary = [];
+    if (typeof customPokes === 'undefined') window.customPokes = [];
+
+    // ========== 1. 表情选择器交互 ==========
+    var comboBtn = document.getElementById('combo-btn');
+    var comboBtnExtra = document.getElementById('combo-btn-extra');
+    var stickerPicker = document.getElementById('user-sticker-picker');
+    var comboContentArea = document.getElementById('combo-content-area');
+    var currentStickerTab = 'my-sticker';
+
+    // 切换表情选择器显示
+    function toggleStickerPicker() {
+        if (!stickerPicker) return;
+        var isActive = stickerPicker.classList.contains('active');
+        if (isActive) {
+            stickerPicker.classList.remove('active');
+        } else {
+            stickerPicker.classList.add('active');
+            renderStickerContent(currentStickerTab);
+        }
+    }
+
+    if (comboBtn) {
+        comboBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleStickerPicker();
+        });
+    }
+    if (comboBtnExtra) {
+        comboBtnExtra.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleStickerPicker();
+        });
+    }
+
+    // 点击选择器外部关闭
+    document.addEventListener('click', function(e) {
+        if (!stickerPicker || !stickerPicker.classList.contains('active')) return;
+        if (!stickerPicker.contains(e.target) && e.target !== comboBtn && e.target !== comboBtnExtra
+            && !(comboBtn && comboBtn.contains(e.target)) && !(comboBtnExtra && comboBtnExtra.contains(e.target))) {
+            stickerPicker.classList.remove('active');
+        }
+    });
+
+    // Tab 切换
+    if (stickerPicker) {
+        var tabBtns = stickerPicker.querySelectorAll('.combo-tab-btn');
+        tabBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                tabBtns.forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                currentStickerTab = btn.dataset.tab;
+                renderStickerContent(currentStickerTab);
+            });
+        });
+    }
+
+    // 渲染表情内容
+    function renderStickerContent(tab) {
+        if (!comboContentArea) return;
+        var html = '';
+        var items = [];
+
+        if (tab === 'my-sticker') {
+            items = window.myStickerLibrary || [];
+            if (items.length === 0) {
+                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
+                    + '<i class="fas fa-image" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
+                    + '还没有表情包<br><span style="font-size:11px;opacity:0.7;">点击上方 "添加" 按钮上传</span></div>';
+            }
+        } else if (tab === 'partner-sticker') {
+            items = window.stickerLibrary || [];
+            if (items.length === 0) {
+                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
+                    + '<i class="fas fa-heart" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
+                    + '对方还没有表情包</div>';
+            }
+        } else if (tab === 'poke') {
+            items = window.customPokes || [];
+            if (items.length === 0) {
+                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
+                    + '<i class="fas fa-hand-sparkles" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
+                    + '还没有拍一拍</div>';
+            } else {
+                // 拍一拍用文字按钮
+                html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px;">';
+                items.forEach(function(item, idx) {
+                    var label = typeof item === 'string' ? item : (item.text || item.label || item);
+                    html += '<div class="sticker-item poke-item" data-poke="' + idx + '" '
+                        + 'style="padding:8px 12px;background:var(--primary-bg);border:1px solid var(--border-color);'
+                        + 'border-radius:12px;cursor:pointer;font-size:13px;color:var(--text-primary);'
+                        + 'transition:all 0.2s;max-width:100%;word-break:break-all;"'
+                        + 'onmouseover="this.style.borderColor=\'var(--accent-color)\';this.style.background=\'rgba(var(--accent-color-rgb),0.08)\'"'
+                        + 'onmouseout="this.style.borderColor=\'var(--border-color)\';this.style.background=\'var(--primary-bg)\'"'
+                        + '>' + label + '</div>';
+                });
+                html += '</div>';
+                comboContentArea.innerHTML = html;
+                // 绑定拍一拍点击
+                setTimeout(function() {
+                    comboContentArea.querySelectorAll('.poke-item').forEach(function(el) {
+                        el.addEventListener('click', function() {
+                            var idx = parseInt(el.dataset.poke);
+                            var pokeText = items[idx];
+                            if (typeof pokeText === 'object') pokeText = pokeText.text || pokeText.label || '';
+                            sendStickerOrPoke(null, pokeText);
+                        });
+                    });
+                }, 0);
+                return;
+            }
+        }
+
+        if (tab !== 'poke' && items.length > 0) {
+            html = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;max-height:280px;overflow-y:auto;">';
+            items.forEach(function(item, idx) {
+                var src = typeof item === 'string' ? item : (item.url || item.src || item);
+                var thumbStyle = 'width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;';
+                html += '<img src="' + src + '" class="sticker-thumb" data-idx="' + idx + '" data-tab="' + tab + '" '
+                    + 'style="' + thumbStyle + '" '
+                    + 'onmouseover="this.style.borderColor=\'var(--accent-color)\';this.style.transform=\'scale(1.08)\'" '
+                    + 'onmouseout="this.style.borderColor=\'transparent\';this.style.transform=\'scale(1)\'" '
+                    + 'onerror="this.style.display=\'none\'" '
+                    + '/>';
+            });
+            html += '</div>';
+        }
+
+        comboContentArea.innerHTML = html;
+
+        // 绑定表情点击事件 → 直接发送
+        if (tab !== 'poke') {
+            setTimeout(function() {
+                comboContentArea.querySelectorAll('.sticker-thumb').forEach(function(img) {
+                    img.addEventListener('click', function() {
+                        var idx = parseInt(img.dataset.idx);
+                        var tabSrc = img.dataset.tab;
+                        var itemsArr = tabSrc === 'my-sticker' ? (window.myStickerLibrary || []) : (window.stickerLibrary || []);
+                        var src = typeof itemsArr[idx] === 'string' ? itemsArr[idx] : (itemsArr[idx].url || itemsArr[idx].src || itemsArr[idx]);
+                        if (src) {
+                            sendStickerOrPoke(src, null);
+                            // 关闭选择器
+                            if (stickerPicker) stickerPicker.classList.remove('active');
+                        }
+                    });
+                });
+            }, 0);
+        }
+    }
+
+    // 发送表情或拍一拍
+    function sendStickerOrPoke(imgSrc, pokeText) {
+        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
+        if (!addMessageFn) {
+            console.warn('[补丁] addMessage 函数不可用');
+            return;
+        }
+        if (imgSrc) {
+            // 发送表情图片
+            addMessageFn({
+                id: Date.now(),
+                sender: 'user',
+                text: '',
+                timestamp: new Date(),
+                image: imgSrc,
+                status: 'sent',
+                favorited: false,
+                note: null,
+                type: 'normal'
+            });
+            // 播放音效
+            if (typeof playSound === 'function') playSound('send');
+            // 触发回复
+            if (typeof window.simulateReply === 'function') {
+                var delayRange = (typeof settings !== 'undefined' && settings.replyDelayMax - settings.replyDelayMin) || 4000;
+                var randomDelay = ((typeof settings !== 'undefined' && settings.replyDelayMin) || 3000) + Math.random() * delayRange;
+                setTimeout(function() { window.simulateReply(); }, randomDelay);
+            }
+        } else if (pokeText) {
+            // 发送拍一拍
+            addMessageFn({
+                id: Date.now(),
+                sender: 'user',
+                text: pokeText,
+                timestamp: new Date(),
+                status: 'sent',
+                favorited: false,
+                note: null,
+                type: 'poke'
+            });
+            if (typeof playSound === 'function') playSound('send');
+            if (typeof window.simulateReply === 'function') {
+                setTimeout(function() { window.simulateReply(); }, 2000 + Math.random() * 3000);
+            }
+        }
+    }
+
+    // 快捷上传表情处理
+    var quickUploadInput = document.getElementById('my-sticker-quick-upload');
+    if (quickUploadInput) {
+        quickUploadInput.addEventListener('change', function(e) {
+            var files = e.target.files;
+            if (!files || files.length === 0) return;
+            Array.from(files).forEach(function(file) {
+                if (!file.type.match(/^image\//)) return;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var dataUrl = ev.target.result;
+                    if (!window.myStickerLibrary) window.myStickerLibrary = [];
+                    window.myStickerLibrary.push(dataUrl);
+                    // 保存到 localforage
+                    if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
+                        localforage.setItem(getStorageKey('myStickerLibrary'), window.myStickerLibrary).catch(function(){});
+                    }
+                    // 刷新当前tab
+                    if (currentStickerTab === 'my-sticker') renderStickerContent('my-sticker');
+                    if (typeof showNotification === 'function') showNotification('表情已添加', 'success');
+                };
+                reader.readAsDataURL(file);
+            });
+            quickUploadInput.value = '';
+        });
+    }
+
+    // 暴露渲染函数供其他模块使用
+    window._refreshStickerPicker = function() {
+        renderStickerContent(currentStickerTab);
+    };
+
+    // ========== 2. 红包逻辑 ==========
+    // 记录红包发送者和金额
+    window._redPacketLedger = window._redPacketLedger || [];
+
+    // 系统随机发红包
+    window.trySystemRedPacket = window.trySystemRedPacket || function() {
+        // 仅当对方发过消息后才有概率发红包
+        if (!window.messages || window.messages.length === 0) return;
+        var recentPartnerMsg = false;
+        for (var i = window.messages.length - 1; i >= Math.max(0, window.messages.length - 10); i--) {
+            if (window.messages[i].sender !== 'user' && window.messages[i].sender !== null) {
+                recentPartnerMsg = true;
+                break;
+            }
+        }
+        if (!recentPartnerMsg) return;
+        if (Math.random() > 0.08) return; // 8% 概率
+
+        var amounts = [0.52, 1.68, 5.20, 6.66, 8.88, 9.99, 13.14, 18.88, 52.0, 66.6, 88.8, 99.9, 131.4, 520];
+        var amount = amounts[Math.floor(Math.random() * amounts.length)];
+        var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
+
+        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
+        if (addMessageFn) {
+            addMessageFn({
+                id: Date.now(),
+                sender: partnerName,
+                text: '',
+                timestamp: new Date(),
+                status: 'received',
+                favorited: false,
+                note: null,
+                type: 'red-packet',
+                redPacketAmount: amount,
+                redPacketFrom: partnerName
+            });
+        }
+        if (typeof showNotification === 'function') {
+            showNotification(partnerName + ' 发来一个红包 ' + amount + ' 元', 'info', 3000);
+        }
+    };
+
+    // 我领取红包 → 不退回
+    window._collectRedPacketAsMe = function(amount, fromSender) {
+        var myName = (typeof settings !== 'undefined' && settings.myName) || '我';
+        if (typeof showNotification === 'function') {
+            showNotification('你领取了 ' + fromSender + ' 的红包 ' + amount + ' 元', 'success', 2500);
+        }
+        // 不退回
+    };
+
+    // 对方领取我的红包 → 随机退回
+    window._collectRedPacketAsPartner = function(amount, myName) {
+        var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
+        if (typeof showNotification === 'function') {
+            showNotification(partnerName + ' 领取了你的红包 ' + amount + ' 元', 'info', 2500);
+        }
+        // 随机退回：40% 概率退回
+        if (Math.random() < 0.4) {
+            var returnAmounts = [0.01, 0.52, 1.68, 5.20, 6.66, 8.88];
+            var returnAmt = returnAmounts[Math.floor(Math.random() * returnAmounts.length)];
+            setTimeout(function() {
+                var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
+                if (addMessageFn) {
+                    addMessageFn({
+                        id: Date.now(),
+                        sender: partnerName,
+                        text: '',
+                        timestamp: new Date(),
+                        status: 'received',
+                        favorited: false,
+                        note: null,
+                        type: 'red-packet',
+                        redPacketAmount: returnAmt,
+                        redPacketFrom: partnerName
+                    });
+                }
+                if (typeof showNotification === 'function') {
+                    showNotification(partnerName + ' 退回了红包 ' + returnAmt + ' 元', 'info', 3000);
+                }
+            }, 2000 + Math.random() * 4000);
+        }
+    };
+
+    // 核心函数：暴露到 window
+    window.tryCollectPendingRedPacket = window.tryCollectPendingRedPacket || function() {};
+    window.checkRedPacketExpiry = window.checkRedPacketExpiry || function() {};
+
+    // 覆盖默认的领取处理
+    var origTryCollect = window.tryCollectPendingRedPacket;
+    window.tryCollectPendingRedPacket = function() {
+        // 保留原始逻辑
+        if (typeof origTryCollect === 'function' && origTryCollect !== window.tryCollectPendingRedPacket) {
+            origTryCollect();
+        }
+    };
+
+    // ========== 3. 刷新/闪退时挂断电话并保留通话记录 ==========
+    window._callActive = false;
+    window._callStartTime = null;
+    window._callType = 'voice'; // 'voice' or 'video'
+
+    // 拦截 callFeature
+    var _callCheckInterval = setInterval(function() {
+        if (window.callFeature && typeof window.callFeature.startCall === 'function') {
+            clearInterval(_callCheckInterval);
+            var origStartCall = window.callFeature.startCall;
+            window.callFeature.startCall = function(isVideo) {
+                window._callActive = true;
+                window._callStartTime = Date.now();
+                window._callType = isVideo ? 'video' : 'voice';
+                if (typeof origStartCall === 'function') origStartCall.apply(this, arguments);
+            };
+            var origEndCall = window.callFeature.endCall;
+            if (typeof origEndCall === 'function') {
+                window.callFeature.endCall = function() {
+                    window._callActive = false;
+                    window._callStartTime = null;
+                    if (typeof origEndCall === 'function') origEndCall.apply(this, arguments);
+                };
+            }
+        }
+    }, 500);
+
+    // beforeunload 处理
+    window.addEventListener('beforeunload', function() {
+        if (window._callActive && window._callStartTime) {
+            var duration = Math.floor((Date.now() - window._callStartTime) / 1000);
+            var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
+            var callTypeLabel = window._callType === 'video' ? '视频通话' : '语音通话';
+            var callRecord = {
+                id: Date.now(),
+                activeCallRecord: true,
+                duration: duration,
+                callType: window._callType,
+                partnerName: partnerName,
+                timestamp: new Date().toISOString()
+            };
+            // 保存到 sessionStorage（跨刷新可用）
+            try {
+                sessionStorage.setItem('_lastCallRecord', JSON.stringify(callRecord));
+            } catch(e) {}
+            window._callActive = false;
+            window._callStartTime = null;
+        }
+    });
+
+    // 页面加载时恢复通话记录
+    window.addEventListener('load', function() {
+        try {
+            var raw = sessionStorage.getItem('_lastCallRecord');
+            if (raw) {
+                var record = JSON.parse(raw);
+                sessionStorage.removeItem('_lastCallRecord');
+                if (record && record.activeCallRecord && record.duration > 0) {
+                    var mins = Math.floor(record.duration / 60);
+                    var secs = record.duration % 60;
+                    var durStr = mins > 0 ? (mins + '分' + secs + '秒') : (secs + '秒');
+                    var callTypeLabel = record.callType === 'video' ? '视频通话' : '语音通话';
+                    var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
+                    if (addMessageFn) {
+                        addMessageFn({
+                            id: Date.now() - 1,
+                            sender: null,
+                            text: callTypeLabel + '已挂断（刷新/闪退），通话时长 ' + durStr,
+                            timestamp: new Date(),
+                            status: 'received',
+                            favorited: false,
+                            note: null,
+                            type: 'system'
+                        });
+                    }
+                }
+            }
+        } catch(e) {}
+    });
+
+    // ========== 4. 本地字体文件上传支持 ==========
+    var fontUrlInput = document.getElementById('custom-font-url');
+    if (fontUrlInput) {
+        // 在字体链接旁边添加上传按钮
+        var fontBtnContainer = fontUrlInput.parentElement;
+        if (fontBtnContainer) {
+            var uploadFontBtn = document.createElement('button');
+            uploadFontBtn.id = 'upload-local-font-btn';
+            uploadFontBtn.className = 'modal-btn modal-btn-secondary';
+            uploadFontBtn.style.cssText = 'padding:5px 10px;font-size:12px;white-space:nowrap;';
+            uploadFontBtn.innerHTML = '<i class="fas fa-upload"></i> 本地上传';
+            uploadFontBtn.title = '上传本地字体文件 (ttf/otf/woff/woff2)';
+            fontBtnContainer.appendChild(uploadFontBtn);
+
+            var fontFileInput = document.createElement('input');
+            fontFileInput.type = 'file';
+            fontFileInput.id = 'local-font-file-input';
+            fontFileInput.accept = '.ttf,.otf,.woff,.woff2';
+            fontFileInput.style.display = 'none';
+            document.body.appendChild(fontFileInput);
+
+            uploadFontBtn.addEventListener('click', function() {
+                fontFileInput.click();
+            });
+
+            fontFileInput.addEventListener('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 10 * 1024 * 1024) {
+                    if (typeof showNotification === 'function') showNotification('字体文件不能超过10MB', 'error');
+                    fontFileInput.value = '';
+                    return;
+                }
+                if (typeof showNotification === 'function') showNotification('正在读取字体文件...', 'info');
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    var dataUrl = ev.target.result;
+                    // 生成唯一的字体名称
+                    var fontName = 'CustomFont_' + Date.now();
+                    var fontFaceCSS = '@font-face { font-family: "' + fontName + '"; src: url(' + dataUrl + ') format("' + (file.name.endsWith('.woff2') ? 'woff2' : file.name.endsWith('.woff') ? 'woff' : file.name.endsWith('.otf') ? 'opentype' : 'truetype') + '"); font-weight: normal; font-style: normal; }';
+                    
+                    // 注入字体样式
+                    var styleEl = document.getElementById('custom-font-face-style');
+                    if (!styleEl) {
+                        styleEl = document.createElement('style');
+                        styleEl.id = 'custom-font-face-style';
+                        document.head.appendChild(styleEl);
+                    }
+                    styleEl.textContent = fontFaceCSS;
+
+                    // 设置字体
+                    if (typeof settings !== 'undefined') {
+                        settings.messageFontFamily = '"' + fontName + '", "Noto Serif SC", serif';
+                        settings.customFontUrl = dataUrl;
+                        // 保存
+                        if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
+                            localforage.setItem(getStorageKey('chatSettings'), settings).catch(function(){});
+                        }
+                    }
+
+                    // 应用到页面
+                    var chatContainer = document.querySelector('.chat-container');
+                    if (chatContainer) {
+                        chatContainer.style.fontFamily = '"' + fontName + '", "Noto Serif SC", serif';
+                    }
+
+                    if (fontUrlInput) fontUrlInput.value = file.name + ' (本地)';
+
+                    if (typeof showNotification === 'function') showNotification('字体 "' + file.name + '" 已应用', 'success');
+
+                    // 应用全局字体设置
+                    document.documentElement.style.setProperty('--font-family', '"' + fontName + '", "Noto Serif SC", serif');
+                };
+                reader.onerror = function() {
+                    if (typeof showNotification === 'function') showNotification('字体文件读取失败', 'error');
+                };
+                reader.readAsDataURL(file);
+                fontFileInput.value = '';
+            });
+        }
+
+        // 拓展 apply-font-btn 功能
+        var applyFontBtn = document.getElementById('apply-font-btn');
+        if (applyFontBtn) {
+            var origApplyClick = applyFontBtn.onclick;
+            applyFontBtn.addEventListener('click', function() {
+                var url = fontUrlInput.value.trim();
+                if (url && typeof settings !== 'undefined') {
+                    settings.customFontUrl = url;
+                    if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
+                        localforage.setItem(getStorageKey('chatSettings'), settings).catch(function(){});
+                    }
+                    // 如果是 URL（非本地），尝试加载
+                    if (url.startsWith('http') || url.startsWith('//')) {
+                        var fontName = 'RemoteFont_' + Date.now();
+                        var fontFaceCSS = '@font-face { font-family: "' + fontName + '"; src: url(' + url + '); font-weight: normal; font-style: normal; }';
+                        var styleEl = document.getElementById('custom-font-face-style');
+                        if (!styleEl) {
+                            styleEl = document.createElement('style');
+                            styleEl.id = 'custom-font-face-style';
+                            document.head.appendChild(styleEl);
+                        }
+                        styleEl.textContent = fontFaceCSS;
+                        settings.messageFontFamily = '"' + fontName + '", "Noto Serif SC", serif';
+                        document.documentElement.style.setProperty('--font-family', '"' + fontName + '", "Noto Serif SC", serif');
+                    }
+                }
+            });
+        }
+    }
+
+    // ========== 5. 实时同步：劫持 saveData 在保存后刷新表情选择器 ==========
+    var _origSaveData = window.saveData;
+    if (typeof _origSaveData === 'function') {
+        window.saveData = function() {
+            var result = _origSaveData.apply(this, arguments);
+            // 保存完成后，如果表情选择器打开，刷新显示
+            if (stickerPicker && stickerPicker.classList.contains('active')) {
+                setTimeout(function() { renderStickerContent(currentStickerTab); }, 300);
+            }
+            return result;
+        };
+    }
+
+    // ========== 6. 监控 stickerLibrary/myStickerLibrary 变化 ==========
+    // 通过轮询检查 + 保存后刷新实现实时同步
+    var _lastStickerLen = (window.stickerLibrary || []).length;
+    var _lastMyStickerLen = (window.myStickerLibrary || []).length;
+    setInterval(function() {
+        var curStickerLen = (window.stickerLibrary || []).length;
+        var curMyStickerLen = (window.myStickerLibrary || []).length;
+        if (curStickerLen !== _lastStickerLen || curMyStickerLen !== _lastMyStickerLen) {
+            _lastStickerLen = curStickerLen;
+            _lastMyStickerLen = curMyStickerLen;
+            if (stickerPicker && stickerPicker.classList.contains('active')) {
+                renderStickerContent(currentStickerTab);
+            }
+        }
+    }, 2000);
+
+    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 本地字体上传 | 电话挂断记录');
+})();
+</script>
 </body>
 </html>

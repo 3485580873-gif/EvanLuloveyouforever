@@ -248,16 +248,12 @@
     // 显示TA的手机弹窗
     function showTaPhone() {
         const container = document.getElementById('ta-phone-container');
-        if (!container) {
-            console.error('[TaPhone] ta-phone-container not found');
-            return;
-        }
+        if (!container) return;
         // 确保容器在 body 下
         if (container.parentElement !== document.body) {
             document.body.appendChild(container);
         }
-        // 强制设置可见样式（确保覆盖所有可能的隐藏状态）
-        container.style.cssText = 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 100000 !important; align-items: center !important; justify-content: center !important; background: rgba(0,0,0,0.5) !important;';
+        container.style.display = 'flex';
         showDesktop();
     }
 
@@ -265,8 +261,9 @@
     function hideTaPhone() {
         const container = document.getElementById('ta-phone-container');
         if (container) {
-            container.style.cssText = 'display: none !important;';
+            container.style.display = 'none';
         }
+        showDesktop();
     }
 
     // 显示桌面
@@ -492,37 +489,9 @@
         document.head.appendChild(style);
     }
 
-    // 确保容器存在（动态创建，因为 HTML 里没有）
-    function ensureContainer() {
-        if (document.getElementById('ta-phone-container')) return;
-        var container = document.createElement('div');
-        container.id = 'ta-phone-container';
-        container.style.display = 'none';
-        container.innerHTML = ''
-            + '<div class="ta-phone-modal">'
-            + '  <div class="ta-phone-header">'
-            + '    <button class="ta-phone-back" onclick="window.TaPhoneApp.goBack()">← 返回</button>'
-            + '    <span class="ta-phone-title" id="ta-phone-header-title">TA的手机</span>'
-            + '    <div style="width:40px;"></div>'
-            + '  </div>'
-            + '  <div class="ta-phone-desktop" style="flex:1;overflow-y:auto;padding:16px;text-align:center;color:var(--text-secondary);font-size:13px;">正在加载桌面...</div>'
-            + '  <div id="ta-phone-content" style="display:none;flex-direction:column;flex:1;overflow:hidden;">'
-            + '    <div id="ta-phone-sort-bar" style="display:none;padding:8px 16px;border-bottom:1px solid var(--border-color);"></div>'
-            + '    <div id="ta-phone-list" style="flex:1;overflow-y:auto;padding:16px;"></div>'
-            + '  </div>'
-            + '  <div class="ta-phone-tab-bar" style="display:flex;border-top:1px solid var(--border-color);">'
-            + '    <div class="ta-phone-tab active" data-tab="chat" onclick="window.TaPhoneApp.showTaPhoneTab(\'chat\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">聊天</div>'
-            + '    <div class="ta-phone-tab" data-tab="moments" onclick="window.TaPhoneApp.showTaPhoneTab(\'moments\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">朋友圈</div>'
-            + '    <div class="ta-phone-tab" data-tab="gifts" onclick="window.TaPhoneApp.showTaPhoneTab(\'gifts\')" style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;">礼物柜</div>'
-            + '  </div>'
-            + '</div>';
-        document.body.appendChild(container);
-    }
-
     // 初始化
     function init() {
         injectStyles();
-        ensureContainer();
         loadCollections();
         setTimeout(scanHistory, 2000);
     }

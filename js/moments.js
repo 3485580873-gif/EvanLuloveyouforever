@@ -1182,7 +1182,6 @@
     // 自动互动使用缓存的伴侣（系统）信息
     let replierName = getPartnerName();
     let partnerAvatar = getPartnerAvatar();
-    let didComment = false;  // 跟踪TA是否评论了
 
     for (let i = 0; i < replyCount; i++) {
       // 20% 概率发送表情包（如果有表情包库）
@@ -1190,17 +1189,12 @@
 
       if (sendSticker) {
         const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-        // 如果最新评论是用户发的，60%概率嵌套回复
-        const lastComment = m.comments.length > 0 ? m.comments[m.comments.length - 1] : null;
-        const replyToName = lastComment && lastComment.name === userConfig.name && Math.random() < 0.6 ? userConfig.name : null;
         m.comments.push({
           name: replierName,
           text: '',
-          sticker: sticker,
-          replyTo: replyToName || undefined
+          sticker: sticker
         });
         showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
-        didComment = true;
         continue;
       }
 
@@ -1231,16 +1225,11 @@
         replyText = Math.random() < 0.5 ? kaomoji + ' ' + replyText : replyText + ' ' + kaomoji;
       }
 
-      // 如果最新评论是用户发的，60%概率嵌套回复
-      const lastComment = m.comments.length > 0 ? m.comments[m.comments.length - 1] : null;
-      const replyToName = lastComment && lastComment.name === userConfig.name && Math.random() < 0.6 ? userConfig.name : null;
       m.comments.push({
         name: replierName,
-        text: replyText,
-        replyTo: replyToName || undefined
+        text: replyText
       });
       showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
-      didComment = true;
     }
 
     // 自动点赞（80%概率）
@@ -1280,81 +1269,6 @@
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
     renderMomentsNotificationCard();
-
-    // ── 访客记录：TA来互动了，留下足迹 ──
-    if (didComment) {
-      generateOneVisitorRecord(Date.now(), 'comment');
-      console.log('[Moments] Partner commented - left visitor record (comment)');
-    } else if (didLike) {
-      generateOneVisitorRecord(Date.now(), 'like');
-      console.log('[Moments] Partner liked - left visitor record (like)');
-    }
-  }
-
-  // ========== 用户评论后TA自动回复（嵌套回复） ==========
-  async function triggerPartnerReply(momentId) {
-    const m = momentsData.find(x => x.id === momentId);
-    if (!m) return;
-
-    await loadPartnerInfo();
-
-    const customReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
-    const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean);
-    const customEmojis = (window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean);
-    let _stickerLib = [];
-    if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
-      _stickerLib = window._stickerLibrary;
-    } else if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) {
-      _stickerLib = stickerLibrary;
-    }
-    const stickerLibraryFiltered = _stickerLib.filter(Boolean);
-
-    const hasTextContent = customReplies.length > 0 || kaomojiLibrary.length > 0 || customEmojis.length > 0;
-    const hasStickers = stickerLibraryFiltered.length > 0;
-
-    if (!hasTextContent && !hasStickers) return;
-
-    const replierName = getPartnerName();
-    const partnerAvatar = getPartnerAvatar();
-
-    // 20%概率发表情包
-    const sendSticker = hasStickers && Math.random() < 0.2;
-
-    if (sendSticker) {
-      const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-      m.comments.push({
-        name: replierName,
-        text: '',
-        sticker: sticker,
-        replyTo: userConfig.name
-      });
-      showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
-    } else {
-      if (!hasTextContent) return;
-      let replyText = '';
-      const useKaomoji = customReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
-      if (useKaomoji && kaomojiLibrary.length > 0) {
-        replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-      } else if (customReplies.length > 0) {
-        replyText = customReplies[Math.floor(Math.random() * customReplies.length)];
-      }
-      if (!replyText) return;
-
-      if (customEmojis.length > 0 && Math.random() < 0.2) {
-        const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
-        replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
-      }
-
-      m.comments.push({
-        name: replierName,
-        text: replyText,
-        replyTo: userConfig.name
-      });
-      showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
-    }
-
-    saveMomentsToStorage();
-    renderMoments();
   }
 
   // ========== Like ==========
@@ -1422,9 +1336,9 @@
     return visitorRecords.filter(r => getRecordDateStr(r.timestamp) === today).length;
   }
 
-  function generateOneVisitorRecord(timestamp, action) {
+  function generateOneVisitorRecord(timestamp) {
     const ts = timestamp || Date.now();
-    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts, action: action || 'visit' });
+    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts });
     visitorUnreadCount++;
     saveVisitorRecords();
     updateVisitorBadge();
@@ -1450,7 +1364,7 @@
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23,59,59,999);
       for (let j = 0; j < countForDay; j++) {
-        generateOneVisitorRecord(dayStart.getTime() + Math.random() * (dayEnd.getTime() - dayStart.getTime()), 'visit');
+        generateOneVisitorRecord(dayStart.getTime() + Math.random() * (dayEnd.getTime() - dayStart.getTime()));
       }
     }
   }
@@ -1460,7 +1374,7 @@
     localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
     visitorTimerInterval = setInterval(() => {
       if (getTodayVisitorCount() >= VISITOR_MAX_PER_DAY) return;
-      if (Math.random() < 0.20) generateOneVisitorRecord(Date.now(), 'visit');
+      if (Math.random() < 0.20) generateOneVisitorRecord(Date.now());
       localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
     }, 5 * 60 * 1000);
   }
@@ -1473,7 +1387,7 @@
     _partnerSneakTimer = setInterval(() => {
       // 3%概率偷偷看朋友圈（与拍一拍概率一致）
       if (Math.random() < 0.03) {
-        generateOneVisitorRecord(Date.now(), 'visit');
+        generateOneVisitorRecord(Date.now());
         console.log('[Moments] Partner sneak visit - left visitor record');
       }
     }, 5 * 60 * 1000); // 每5分钟检查一次
@@ -1576,20 +1490,13 @@
       const streak = calcStreakDays(record.timestamp);
       const streakTag = streak >= 2 ? `<span class="visitor-streak-tag">连续来访${streak}天</span>` : '';
       const timeStr = formatMomentTime(record.timestamp);
-      // 访客动作描述
-      const actionMap = {
-        like: '<span class="visitor-action-tag visitor-action-like">👍 赞了你的朋友圈</span>',
-        comment: '<span class="visitor-action-tag visitor-action-comment">💬 评论了你的朋友圈</span>',
-        visit: ''
-      };
-      const actionTag = actionMap[record.action] || '';
       html += `
         <div class="visitor-item" data-visitor-id="${record.id}">
           <div class="visitor-item-inner" ontouchstart="MomentsApp._visitorTouchStart(event,'${record.id}')" ontouchmove="MomentsApp._visitorTouchMove(event,'${record.id}')" ontouchend="MomentsApp._visitorTouchEnd(event,'${record.id}')">
             <img class="visitor-avatar" src="${partnerAvatar}" alt="${partnerName}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=c0aede'">
             <div class="visitor-info">
               <div class="visitor-name">${partnerName}${streakTag}</div>
-              <div class="visitor-time">${timeStr} ${actionTag}</div>
+              <div class="visitor-time">${timeStr}</div>
             </div>
           </div>
           <div class="visitor-delete-btn" onclick="MomentsApp.deleteVisitorRecord('${record.id}')">删除</div>
@@ -1982,7 +1889,7 @@
       items = kaomojiLibrary.map(k => `<div class="comment-emoji-item" onclick="MomentsApp.insertCommentEmoji('${k.replace(/'/g, "\\'")}')">${k}</div>`);
     } else if (commentEmojiTab === 'sticker') {
       body.classList.add('sticker-mode');
-      // 我的表情包 - 从 window._stickerLibrary 读取
+      // 从 window._stickerLibrary 读取，如果不存在则尝试全局 stickerLibrary
       let _stickerLib = [];
       if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
         _stickerLib = window._stickerLibrary;
@@ -1990,26 +1897,12 @@
         _stickerLib = stickerLibrary;
       }
       const stickerLibraryFiltered = _stickerLib.filter(Boolean);
+      console.log('[Moments] stickerLibrary count:', stickerLibraryFiltered.length, 'raw:', window._stickerLibrary);
       if (stickerLibraryFiltered.length === 0) {
-        body.innerHTML = '<div class="comment-emoji-empty">暂无我的表情包，请在表情包管理中添加</div>';
+        body.innerHTML = '<div class="comment-emoji-empty">暂无表情包，请在表情包管理中添加</div>';
         return;
       }
       items = stickerLibraryFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentSticker(${i})"><img src="${s}" alt="表情包"></div>`);
-    } else if (commentEmojiTab === 'sticker-lib') {
-      body.classList.add('sticker-mode');
-      // 表情包库 - 从全局 getStickerLibForInsert() 或 stickerLib 获取
-      let _libStickers = [];
-      if (typeof window._getStickerLibForInsert === 'function') {
-        _libStickers = window._getStickerLibForInsert();
-      } else if (typeof window.stickerLib !== 'undefined' && Array.isArray(window.stickerLib)) {
-        _libStickers = window.stickerLib;
-      }
-      const libFiltered = _libStickers.filter(Boolean);
-      if (libFiltered.length === 0) {
-        body.innerHTML = '<div class="comment-emoji-empty">暂无表情包库，请先在侧边栏添加</div>';
-        return;
-      }
-      items = libFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentLibSticker(${i}, this)"><img src="${s}" alt="表情包库"></div>`);
     }
 
     body.innerHTML = items.join('');
@@ -2039,50 +1932,12 @@
     }
     const stickerLibraryFiltered = _stickerLib.filter(Boolean);
     if (index >= 0 && index < stickerLibraryFiltered.length) {
-      // 直接发送表情包评论
-      directSendStickerComment(stickerLibraryFiltered[index]);
+      pendingCommentSticker = stickerLibraryFiltered[index];
+      // 显示预览
+      showCommentStickerPreview(pendingCommentSticker);
+      // 关闭表情面板，用户可以继续输入文字后一起发送
+      closeCommentEmojiPanel();
     }
-  }
-
-  // 从表情包库选择表情包（用于评论）
-  function selectCommentLibSticker(index, el) {
-    let _libStickers = [];
-    if (typeof window._getStickerLibForInsert === 'function') {
-      _libStickers = window._getStickerLibForInsert();
-    } else if (typeof window.stickerLib !== 'undefined' && Array.isArray(window.stickerLib)) {
-      _libStickers = window.stickerLib;
-    }
-    const libFiltered = _libStickers.filter(Boolean);
-    if (index >= 0 && index < libFiltered.length) {
-      // 直接发送表情包评论
-      directSendStickerComment(libFiltered[index]);
-    }
-  }
-
-  // 直接发送表情包评论
-  function directSendStickerComment(stickerUrl) {
-    const container = document.getElementById('moments-container');
-    if (!container || !currentCommentMomentId) return;
-
-    const m = momentsData.find(x => x.id === currentCommentMomentId);
-    if (m) {
-      m.comments.push({
-        name: userConfig.name,
-        text: '',
-        sticker: stickerUrl,
-        replyTo: replyToName || undefined
-      });
-      saveMomentsToStorage();
-      renderMoments();
-
-      // 触发TA回复
-      setTimeout(() => {
-        triggerPartnerReply(m.id);
-      }, 1000 + Math.random() * 2000);
-    }
-
-    closeCommentEmojiPanel();
-    closeAllPanels();
   }
 
   function showCommentStickerPreview(stickerUrl) {
@@ -2183,9 +2038,10 @@
 
     const m = momentsData.find(x => x.id === currentCommentMomentId);
     if (m) {
+      const myName = userConfig.name;
       // 支持文字+表情包同时发送
       m.comments.push({
-        name: userConfig.name,
+        name: myName,
         text: text,
         sticker: pendingCommentSticker || undefined,
         replyTo: replyToName || undefined
@@ -2194,10 +2050,60 @@
       saveMomentsToStorage();
       renderMoments();
 
-      // 触发TA回复（延迟1-3秒）
-      setTimeout(() => {
-        triggerPartnerReply(m.id);
-      }, 1000 + Math.random() * 2000);
+      // ── 对方收到我的评论后，有概率会继续回复我 ──
+      const momentId = currentCommentMomentId;
+      const myCommentText = text;
+      const targetName = myName;
+      // 70% 概率对方会回复我的评论
+      if (Math.random() < 0.7) {
+        var baseSpeed = getReplySpeed ? getReplySpeed() : 5;
+        var replyDelay = (1 + Math.random() * baseSpeed) * 1000;
+        setTimeout(async function() {
+          try {
+            const moment = momentsData.find(x => x.id === momentId);
+            if (!moment) return;
+            await loadPartnerInfo();
+            const replierName = getPartnerName();
+            const partnerAvatar = getPartnerAvatar();
+            const customReplies = (window._customReplies || []).map(r => String(r||'').trim()).filter(Boolean);
+            const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k||'').trim()).filter(Boolean);
+            const customEmojis = (window._customEmojis || []).map(e => String(e||'').trim()).filter(Boolean);
+            let _stickerLib = [];
+            if (window._stickerLibrary && Array.isArray(window._stickerLibrary)) _stickerLib = window._stickerLibrary;
+            else if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) _stickerLib = stickerLibrary;
+            const stickerLibraryFiltered = _stickerLib.filter(Boolean);
+            const hasTextContent = customReplies.length > 0 || kaomojiLibrary.length > 0 || customEmojis.length > 0;
+            const hasStickers = stickerLibraryFiltered.length > 0;
+            if (!hasTextContent && !hasStickers) return;
+
+            // 发送表情包或文字
+            const sendSticker = hasStickers && Math.random() < 0.25;
+            if (sendSticker) {
+              const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
+              moment.comments.push({ name: replierName, text: '', sticker: sticker, replyTo: targetName });
+              showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, '[表情包]', getMomentPreviewImage(moment));
+            } else if (hasTextContent) {
+              const useKaomoji = customReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
+              let replyText = '';
+              if (useKaomoji && kaomojiLibrary.length > 0) {
+                replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+              } else if (customReplies.length > 0) {
+                replyText = customReplies[Math.floor(Math.random() * customReplies.length)];
+              }
+              if (!replyText) return;
+              if (customEmojis.length > 0 && Math.random() < 0.2) {
+                const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
+                replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
+              }
+              moment.comments.push({ name: replierName, text: replyText, replyTo: targetName });
+              showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, replyText, getMomentPreviewImage(moment));
+            }
+            saveMomentsToStorage();
+            renderMoments();
+            renderMomentsNotificationCard();
+          } catch(e) { console.warn('[submitComment autoReply]', e); }
+        }, replyDelay);
+      }
     }
     closeCommentEmojiPanel();
     closeAllPanels();
@@ -3738,10 +3644,8 @@
     switchCommentEmojiTab,
     insertCommentEmoji,
     selectCommentSticker,
-    selectCommentLibSticker,
     removePendingCommentSticker,
     triggerAutoReply,
-    triggerPartnerReply,
     
     // 通知
     updateMomentsBadge,

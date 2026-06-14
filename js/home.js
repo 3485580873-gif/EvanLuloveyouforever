@@ -148,7 +148,7 @@
         'ta-phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg>'
     };
 
-    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'ta-phone'];
+    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'map'];
     let appOrder = [...defaultAppOrder];
     let isEditMode = false;
 
@@ -425,6 +425,8 @@
     window.openCustomizePanel = function() {
         const overlay = document.getElementById('customize-overlay');
         if (overlay) overlay.classList.add('active');
+        // 每次打开面板都刷新图标格子，确保图标不会消失
+        renderIconGrid();
         // 更新主页绑定会话开关UI
         window.updateHomeSessionBindUI && window.updateHomeSessionBindUI();
     };
@@ -1160,7 +1162,7 @@
         if (!grid) return;
 
         grid.innerHTML = '';
-        const nameMap = { chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', stats:'统计', accounting:'记账' };
+        const nameMap = { chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', stats:'统计', accounting:'记账', pet:'萌宠屋', 'ta-phone':'TA的手机', shop:'商城', map:'地图', moments:'朋友圈', music:'音乐', todolist:'待办', dream:'梦境', game:'小游戏' };
 
         Object.keys(defaultAppIcons).forEach(app => {
             const item = document.createElement('div');
@@ -1567,17 +1569,38 @@
                     window.TaPhoneApp.showTaPhone();
                 } else {
                     (window.showNotification || function(){})('TA的手机加载中...', 'info');
+                    // 先确保容器已注入
+                    if (!document.getElementById('ta-phone-container')) {
+                        window._pendingTaPhoneShow = true;
+                    }
                     const script = document.createElement('script');
+                    // 多路径尝试：支持根目录和 js/ 子目录两种部署方式
                     var basePath = window.location.pathname.replace(/\/[^\/]*$/, '/') || '/';
-                    script.src = basePath + 'js/ta-phone.js';
-                    script.onload = function() {
-                        if (typeof window.TaPhoneApp !== 'undefined') window.TaPhoneApp.showTaPhone();
-                        else (window.showNotification || function(){})('TA的手机加载失败', 'error');
-                    };
-                    script.onerror = function() {
-                        (window.showNotification || function(){})('TA的手机加载失败', 'error');
-                    };
-                    document.head.appendChild(script);
+                    var tryPaths = [
+                        basePath + 'ta-phone.js',
+                        basePath + 'js/ta-phone.js',
+                        './ta-phone.js',
+                        './js/ta-phone.js'
+                    ];
+                    var pathIndex = 0;
+                    function tryNextPath() {
+                        if (pathIndex >= tryPaths.length) {
+                            (window.showNotification || function(){})('TA的手机加载失败，请检查文件是否存在', 'error');
+                            return;
+                        }
+                        var s = document.createElement('script');
+                        s.src = tryPaths[pathIndex++];
+                        s.onload = function() {
+                            if (typeof window.TaPhoneApp !== 'undefined') {
+                                window.TaPhoneApp.showTaPhone();
+                            } else {
+                                tryNextPath();
+                            }
+                        };
+                        s.onerror = function() { tryNextPath(); };
+                        document.head.appendChild(s);
+                    }
+                    tryNextPath();
                 }
             },
             'shop': () => {
@@ -1965,17 +1988,8 @@
         if (savedOrder) {
             try {
                 appOrder = JSON.parse(savedOrder);
-                // 清理已废弃的应用（如 map）并补充新增应用（如 ta-phone）
-                const validApps = Object.keys(defaultAppIcons);
-                appOrder = appOrder.filter(app => validApps.includes(app));
-                validApps.forEach(app => {
-                    if (!appOrder.includes(app)) appOrder.push(app);
-                });
                 reorderAppItems();
-            } catch(e) {
-                appOrder = [...defaultAppOrder];
-                reorderAppItems();
-            }
+            } catch(e) {}
         } else {
             // 首次加载：按默认顺序重新分页（每页8个）并保存
             reorderAppItems();
@@ -2608,9 +2622,8 @@
     } else {
         updateTime();
         setInterval(updateTime, 1000);
-        // 初始化伴侣朋友圈和拼字卡设置（加容错，防止异常阻断后续代码）
-        try { initPartnerMomentSettings(); } catch(e) { console.warn('[Home] initPartnerMomentSettings 异常:', e); }
-        try { initPartnerCardSpliceSettings(); } catch(e) { console.warn('[Home] initPartnerCardSpliceSettings 异常:', e); }
+        initPartnerMomentSettings();
+        initPartnerCardSpliceSettings();
     }
 
     // 主题预设点击 - 直接绑定到 document 确保一定能触发

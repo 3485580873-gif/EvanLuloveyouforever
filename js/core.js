@@ -1672,32 +1672,8 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     const isRedPacket = msg.type === 'red-packet';
     let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
     if (isRedPacket) {
-        if (typeof window.renderRedPacketMessage === 'function') {
-            try {
-                content = window.renderRedPacketMessage(msg);
-            } catch (rpErr) {
-                console.error('[red-packet] 渲染失败:', rpErr);
-                var rpMsg = msg.redPacket && msg.redPacket.message ? msg.redPacket.message : (msg.text || '红包');
-                var rpAmt = msg.redPacket && msg.redPacket.amount ? (msg.redPacket.amount / 100).toFixed(2) : '';
-                var rpStatus = msg.redPacket && msg.redPacket.status ? msg.redPacket.status : 'pending';
-                content = '<div class="red-packet-card" style="width:240px;border-radius:6px;overflow:hidden;cursor:pointer;background:linear-gradient(180deg,#c4453c 0%,#a33a32 100%);padding:14px;color:#fff;" onclick="window.showRedPacketReceiveModal && window.showRedPacketReceiveModal(\'' + (msg.redPacket && msg.redPacket.id ? msg.redPacket.id : msg.id) + '\')"><div style="font-size:13px;font-weight:600;margin-bottom:4px;">🧧 红包</div>' + (rpAmt ? '<div style="font-size:22px;font-weight:700;">&yen;' + rpAmt + '</div>' : '') + '<div style="font-size:11px;opacity:0.8;margin-top:2px;">' + rpMsg + '</div><div style="margin-top:8px;font-size:10px;opacity:0.7;">' + (rpStatus === 'received' ? '已领取' : rpStatus === 'returned' ? '已退回' : '点击领取') + '</div></div>';
-            }
-        } else {
-            var fallbackRpMsg = msg.text || '红包消息';
-            var fallbackRpAmt = (msg.redPacket && msg.redPacket.amount) ? ('¥' + (msg.redPacket.amount / 100).toFixed(2)) : '';
-            content = '<div class="red-packet-card" style="width:220px;border-radius:8px;background:linear-gradient(135deg,#c4453c,#e74c3c);padding:12px 16px;color:#fff;cursor:pointer;" onclick="window.showRedPacketSendModal && window.showRedPacketSendModal()"><div style="font-size:13px;font-weight:600;">🧧 红包</div>' + (fallbackRpAmt ? '<div style="font-size:18px;font-weight:700;margin:4px 0;">' + fallbackRpAmt + '</div>' : '') + '<div style="font-size:11px;opacity:0.85;">' + fallbackRpMsg + '</div></div>';
-        }
-    }
-    if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '80px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
-    if (msg.voice) {
-        const dur = msg.voiceDuration || 0;
-        const durStr = dur < 60 ? dur + '秒' : Math.floor(dur / 60) + '分' + (dur % 60) + '秒';
-        content += `<div class="voice-message" data-voice-src="${msg.voice.replace(/"/g, '&quot;')}" data-voice-id="${msg.id}" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--secondary-bg);border-radius:12px;cursor:pointer;max-width:220px;" onclick="window.playVoiceMessage(this)">
-            <i class="fas fa-play" style="color:var(--accent-color);font-size:14px;flex-shrink:0;"></i>
-            <span style="font-size:12px;color:var(--text-secondary);">🎙 ${durStr}</span>
-            <div style="flex:1;height:3px;background:var(--border-color);border-radius:2px;position:relative;"><div class="voice-progress" style="position:absolute;left:0;top:0;height:100%;width:0%;background:var(--accent-color);border-radius:2px;transition:width 0.1s;"></div></div>
-        </div>`;
-    }
+        content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
+    } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -2068,7 +2044,7 @@ const addMessage = (message) => {
         function sendMessage(textOverride = null, type = 'normal') {
             const text = textOverride || DOMElements.messageInput.value.trim();
             const imageFile = DOMElements.imageInput.files[0];
-            if (!text && !imageFile && !window._pendingSticker && type === 'normal') return;
+            if (!text && !imageFile && type === 'normal') return;
 
             // ── 斜杠指令拦截 ──
             if (text && text.startsWith('/') && type === 'normal') {
@@ -2166,19 +2142,9 @@ if (!isBatchMode && type === 'normal') {
 
             if (imageFile) {
                 showNotification('正在优化图片...', 'info', 1500);
-                const pendingSticker = window._pendingSticker || null;
-                optimizeImage(imageFile).then(imgSrc => {
-                    createMessage(imgSrc || pendingSticker);
-                    clearPendingSticker();
-                }).catch(() => {
-                    showNotification('图片处理失败', 'error');
-                    createMessage(pendingSticker);
-                    clearPendingSticker();
-                });
+                optimizeImage(imageFile).then(createMessage).catch(() => showNotification('图片处理失败', 'error'));
             } else {
-                const pendingSticker = window._pendingSticker || null;
-                createMessage(pendingSticker);
-                clearPendingSticker();
+                createMessage();
             }
             DOMElements.imageInput.value = '';
 
@@ -2374,65 +2340,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             if (!replyPoolOnce.length) {
                 showNotification('回复库可用内容为空（可能被分组禁用或屏蔽），请到「自定义回复」中调整', 'info', 4000);
                 return;
-
-            // ── 拼字卡逻辑：有概率将多条字卡拼接成一条消息 ──
-            const partnerCardSpliceEnabled = localStorage.getItem('partner_card_splice_enabled') === 'true';
-            const spliceProbability = parseInt(localStorage.getItem('partner_card_splice_probability')) || 30;
-            const spliceMin = parseInt(localStorage.getItem('partner_card_splice_min')) || 2;
-            const spliceMax = parseInt(localStorage.getItem('partner_card_splice_max')) || 4;
-
-            if (partnerCardSpliceEnabled && replyPoolOnce.length >= spliceMin && Math.random() < spliceProbability / 100) {
-                const actualMax = Math.min(spliceMax, replyPoolOnce.length);
-                const actualMin = Math.min(spliceMin, replyPoolOnce.length);
-                const spliceCount = actualMin + Math.floor(Math.random() * (actualMax - actualMin + 1));
-                const poolCopy = [...replyPoolOnce];
-                const selectedCards = [];
-                for (let s = 0; s < spliceCount && poolCopy.length > 0; s++) {
-                    const idx2 = Math.floor(Math.random() * poolCopy.length);
-                    selectedCards.push(poolCopy.splice(idx2, 1)[0]);
-                }
-                const splicedText = selectedCards.join('\n');
-
-                showTypingIndicator();
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                const delay = settings.replyDelayMin + Math.random() * delayRange;
-                setTimeout(() => {
-                    try {
-                        addMessage({
-                            id: Date.now(),
-                            sender: settings.partnerName || '对方',
-                            text: splicedText,
-                            timestamp: new Date(),
-                            status: 'received',
-                            favorited: false,
-                            note: null,
-                            replyTo: null,
-                            type: 'normal'
-                        });
-                        if (typeof window._sendPartnerNotification === 'function') {
-                            window._sendPartnerNotification(settings.partnerName || '对方', splicedText);
-                        }
-                        playSound('message');
-                    } catch(e) { console.warn('拼字卡发送失败:', e); }
-
-                    try {
-                        if (window._typingIndicatorAutoHideTimer) {
-                            clearTimeout(window._typingIndicatorAutoHideTimer);
-                            window._typingIndicatorAutoHideTimer = null;
-                        }
-                    } catch(e) {}
-                    var _tiW = document.getElementById('typing-indicator-wrapper');
-                    if (_tiW) {
-                        var _tiInner = _tiW.querySelector('.typing-indicator');
-                        if (_tiInner) {
-                            _tiInner.classList.add('hiding');
-                            setTimeout(function() { _tiW.style.display = 'none'; _tiInner.classList.remove('hiding'); }, 400);
-                        }
-                    }
-                }, delay);
-                return; // 拼字卡后直接返回，不再走正常回复流程
-            }
-
             }
 
             // 确认有可用回复后再展示“正在输入中”，避免空转
@@ -2618,22 +2525,12 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             }
         }
 
-        function showModal(modalElement, focusElement = null) {
-            console.log('[showModal] called with:', modalElement?.id, modalElement);
-            if (!modalElement) {
-                console.warn('[showModal] modalElement is null', new Error().stack);
-                return;
-            }
+function showModal(modalElement, focusElement = null) {
             if (modalElement._hideTimeout) {
                 clearTimeout(modalElement._hideTimeout);
                 modalElement._hideTimeout = null;
             }
-            // 使用 !important 覆盖 homeShowModal 可能设置的样式
-            modalElement.style.setProperty('display', 'flex', 'important');
-            // 确保弹窗在最上层（高于 homeShowModal 的 99999）
-            if (!window.__maxZIndex) window.__maxZIndex = 100000;
-            window.__maxZIndex += 1;
-            modalElement.style.setProperty('z-index', String(window.__maxZIndex), 'important');
+            modalElement.style.display = 'flex';
             requestAnimationFrame(() => {
                 const content = modalElement.querySelector('.modal-content');
                 if (content) {
@@ -2647,12 +2544,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
         }
 
         function hideModal(modalElement) {
-            if (!modalElement) {
-                console.warn('[hideModal] modalElement is null', new Error().stack);
-                return;
-            }
-            // 立即降低 z-index，避免遮挡其他弹窗（如从设置切换到聊天设置时）
-            modalElement.style.setProperty('z-index', '0', 'important');
             const content = modalElement.querySelector('.modal-content');
             if (content) {
                 content.style.opacity = '0';
@@ -2660,8 +2551,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             }
             if (modalElement._hideTimeout) clearTimeout(modalElement._hideTimeout);
             modalElement._hideTimeout = setTimeout(() => {
-                // 清除 homeShowModal 设置的 !important 行内样式，确保弹窗能正确隐藏
-                modalElement.style.cssText = '';
                 modalElement.style.display = 'none';
             }, 300);
         }
@@ -2993,7 +2882,23 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         }
                         if (doSettings) {
                             if (importedData.settings) {
+                                // 智能合并：保护新功能设置不被旧备份覆盖
+                                // 保存当前 settings 中所有不在导入数据中的键（即新功能专属设置）
+                                var protectedKeys = {};
+                                var defaults = typeof getDefaultSettings === 'function' ? getDefaultSettings() : {};
+                                for (var sk in settings) {
+                                    if (settings.hasOwnProperty(sk) && !(sk in (importedData.settings || {}))) {
+                                        protectedKeys[sk] = settings[sk];
+                                    }
+                                }
+                                // 合并导入的设置（只覆盖旧版已有的设置项）
                                 Object.assign(settings, importedData.settings);
+                                // 恢复被保护的新功能设置
+                                for (var pk in protectedKeys) {
+                                    if (protectedKeys.hasOwnProperty(pk)) {
+                                        settings[pk] = protectedKeys[pk];
+                                    }
+                                }
                                 try {
                                     if (settings.customFontUrl) applyCustomFont(settings.customFontUrl);
                                     if (settings.customBubbleCss) applyCustomBubbleCss(settings.customBubbleCss);
@@ -3015,7 +2920,23 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                             }
                         }
                         if (doThemes   && importedData.customThemes)    customThemes   = importedData.customThemes;
-                        if (doThemes   && importedData.stickerLibrary)  stickerLibrary = importedData.stickerLibrary;
+                        if (doThemes   && importedData.stickerLibrary) {
+                            // 合并表情库：导入旧表情同时保留新表情（去重）
+                            var existingStickerUrls = new Set();
+                            if (Array.isArray(stickerLibrary)) {
+                                stickerLibrary.forEach(function(s) {
+                                    var u = typeof s === 'string' ? s : (s && (s.url || s.src || ''));
+                                    if (u) existingStickerUrls.add(u);
+                                });
+                            }
+                            (Array.isArray(importedData.stickerLibrary) ? importedData.stickerLibrary : []).forEach(function(s) {
+                                var u = typeof s === 'string' ? s : (s && (s.url || s.src || ''));
+                                if (u && !existingStickerUrls.has(u)) {
+                                    if (!Array.isArray(stickerLibrary)) stickerLibrary = [];
+                                    stickerLibrary.push(s);
+                                }
+                            });
+                        }
 
                         saveData();
                         if (doMsgs && typeof renderMessages === 'function') renderMessages();
@@ -3171,258 +3092,8 @@ document.addEventListener('DOMContentLoaded', function() {
             threshold: 0.01
         });
         observer.observe(historyLoader);
-    // 初始化表情包插入功能
-    if (typeof initStickerInsertFeature === 'function') setTimeout(initStickerInsertFeature, 800);
-
     }
 });
 
 
-
-
-
-// ═── 表情包插入功能 ───
-window._pendingSticker = null;
-window._stickerInsertTab = 'main'; // 'main' = 表情包库, 'my' = 我的表情包
-
-function _getStickerLibForInsert() {
-    if (window._stickerInsertTab === 'my') {
-        if (typeof myStickerLibrary !== 'undefined' && Array.isArray(myStickerLibrary)) return myStickerLibrary;
-        return [];
-    }
-    if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) return stickerLibrary;
-    return [];
-}
-// 暴露给其他模块使用
-window._getStickerLibForInsert = _getStickerLibForInsert;
-
-function _renderStickerInsertGrid() {
-    const grid = document.getElementById('sticker-insert-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    const library = _getStickerLibForInsert();
-    const label = window._stickerInsertTab === 'my' ? '我的表情包' : '表情包库';
-    if (library.length === 0) {
-        grid.innerHTML = '<div class="sticker-insert-empty">暂无' + label + '<br><small>请先在侧边栏添加</small></div>';
-        return;
-    }
-    library.forEach(url => {
-        const img = document.createElement('img');
-        img.className = 'sticker-item';
-        img.src = url;
-        img.addEventListener('click', () => { window.selectStickerForInsert(url); });
-        grid.appendChild(img);
-    });
-}
-
-window.showStickerInsertPicker = function() {
-    let picker = document.getElementById('sticker-insert-picker');
-    if (!picker) {
-        picker = document.createElement('div');
-        picker.id = 'sticker-insert-picker';
-        picker.className = 'sticker-insert-picker';
-        picker.innerHTML =
-            '<div class="sticker-insert-header">' +
-                '<div class="sticker-insert-tabs">' +
-                    '<button class="sticker-insert-tab active" data-tab="main">表情包库</button>' +
-                    '<button class="sticker-insert-tab" data-tab="my">我的表情包</button>' +
-                '</div>' +
-                '<button class="sticker-insert-close" type="button">×</button>' +
-            '</div>' +
-            '<div class="sticker-insert-grid" id="sticker-insert-grid"></div>';
-        document.body.appendChild(picker);
-
-        picker.querySelectorAll('.sticker-insert-tab').forEach(function(tab) {
-            tab.addEventListener('click', function(e) {
-                window._stickerInsertTab = e.target.dataset.tab;
-                picker.querySelectorAll('.sticker-insert-tab').forEach(function(t) { t.classList.remove('active'); });
-                e.target.classList.add('active');
-                _renderStickerInsertGrid();
-            });
-        });
-
-        picker.querySelector('.sticker-insert-close').addEventListener('click', function() { picker.classList.remove('active'); });
-    }
-    _renderStickerInsertGrid();
-    picker.classList.add('active');
-};
-
-window.selectStickerForInsert = function(url) {
-    window._pendingSticker = url;
-    window.showStickerPreview();
-    const picker = document.getElementById('sticker-insert-picker');
-    if (picker) picker.classList.remove('active');
-};
-
-window.showStickerPreview = function() {
-    let preview = document.getElementById('sticker-insert-preview');
-    if (!preview) {
-        preview = document.createElement('div');
-        preview.id = 'sticker-insert-preview';
-        const input = document.getElementById('message-input');
-        if (input && input.parentNode) input.parentNode.insertBefore(preview, input);
-    }
-    preview.innerHTML = '<img src="' + window._pendingSticker + '" alt="表情包"><button class="remove-btn" type="button" onclick="clearPendingSticker()">×</button>';
-    preview.style.display = 'block';
-};
-
-window.clearPendingSticker = function() {
-    window._pendingSticker = null;
-    const preview = document.getElementById('sticker-insert-preview');
-    if (preview) preview.style.display = 'none';
-};
-
-function initStickerInsertFeature() {
-    // 表情包插入功能已收纳至收纳面板（collapsed-sticker-insert-btn），不再注入输入框按钮
-    // showStickerInsertPicker 函数仍可正常调用
-    return;
-}
-
-// ========== 语音录制功能 ==========
-(function initVoiceFeature() {
-    let _voiceRecorder = null;
-    let _voiceChunks = [];
-    let _voiceTimer = null;
-    let _isVoiceRecording = false;
-    let _voiceDuration = 0;
-
-    function startRecord(e) {
-        if (_isVoiceRecording) return;
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            if (typeof showNotification === 'function') showNotification('当前浏览器不支持录音', 'error');
-            return;
-        }
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-            _voiceChunks = [];
-            const mime = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-            _voiceRecorder = new MediaRecorder(stream, { mimeType: mime });
-            _voiceRecorder.ondataavailable = (ev) => {
-                if (ev.data && ev.data.size > 0) _voiceChunks.push(ev.data);
-            };
-            _voiceRecorder.onstop = () => {
-                const blob = new Blob(_voiceChunks, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const base64 = reader.result;
-                    if (typeof addMessage === 'function') {
-                        addMessage({
-                            id: 'voice_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-                            sender: 'user',
-                            text: '[语音消息]',
-                            timestamp: new Date(),
-                            status: 'sent',
-                            type: 'normal',
-                            voice: base64,
-                            voiceDuration: _voiceDuration
-                        });
-                    }
-                    if (typeof renderMessages === 'function') renderMessages();
-                    if (typeof window.playSound === 'function') window.playSound('send');
-                    // 释放麦克风
-                    stream.getTracks().forEach(t => t.stop());
-                };
-                reader.readAsDataURL(blob);
-            };
-            _voiceRecorder.start(200);
-            _isVoiceRecording = true;
-            _voiceDuration = 0;
-            _voiceTimer = setInterval(() => {
-                _voiceDuration++;
-                // 最长60秒自动停止
-                if (_voiceDuration >= 60) stopRecord();
-            }, 1000);
-            const voiceBtn = document.getElementById('voice-btn');
-            if (voiceBtn) {
-                voiceBtn.style.background = 'rgba(255,80,80,0.2)';
-                voiceBtn.style.color = '#ff5050';
-            }
-            if (typeof showNotification === 'function') showNotification('🎙 正在录音...（最长60秒）', 'info', 2000);
-        }).catch(err => {
-            if (typeof showNotification === 'function') showNotification('无法访问麦克风，请检查权限', 'error');
-        });
-    }
-
-    function stopRecord() {
-        if (!_isVoiceRecording || !_voiceRecorder) return;
-        clearInterval(_voiceTimer);
-        _voiceTimer = null;
-        _isVoiceRecording = false;
-        const voiceBtn = document.getElementById('voice-btn');
-        if (voiceBtn) {
-            voiceBtn.style.background = '';
-            voiceBtn.style.color = '';
-        }
-        // 最短1秒，否则不发送
-        if (_voiceDuration < 1) {
-            if (typeof showNotification === 'function') showNotification('录音时间太短', 'info');
-            _voiceChunks = [];
-            if (_voiceRecorder && _voiceRecorder.state === 'recording') _voiceRecorder.stop();
-            return;
-        }
-        if (_voiceRecorder.state === 'recording') {
-            _voiceRecorder.stop();
-        }
-    }
-
-    // 初始化语音按钮事件（使用 MutationObserver 确保DOM就绪）
-    function bindVoiceBtn() {
-        const voiceBtn = document.getElementById('voice-btn');
-        if (!voiceBtn || voiceBtn._voiceInited) return;
-        voiceBtn._voiceInited = true;
-
-        // 防止在更多菜单内触发
-        voiceBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); startRecord(e); });
-        voiceBtn.addEventListener('mouseup', (e) => { e.stopPropagation(); stopRecord(); });
-        voiceBtn.addEventListener('mouseleave', (e) => { stopRecord(); });
-        voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); startRecord(); }, { passive: false });
-        voiceBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); stopRecord(); }, { passive: false });
-        voiceBtn.addEventListener('touchcancel', (e) => { e.stopPropagation(); stopRecord(); });
-
-        console.log('[voice] 语音按钮事件已绑定');
-    }
-
-    // 多种策略确保绑定成功
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(bindVoiceBtn, 100));
-    } else {
-        setTimeout(bindVoiceBtn, 100);
-    }
-    // 备用：用 MutationObserver 监听 DOM 变化
-    const voiceObserver = new MutationObserver(() => {
-        const vb = document.getElementById('voice-btn');
-        if (vb && !vb._voiceInited) bindVoiceBtn();
-    });
-    voiceObserver.observe(document.body, { childList: true, subtree: true });
-    // 5秒后断开观察器
-    setTimeout(() => voiceObserver.disconnect(), 5000);
-
-    // 播放语音消息
-    window.playVoiceMessage = function(el) {
-        const src = el.dataset.voiceSrc;
-        if (!src) return;
-        if (window._currentVoiceAudio) {
-            window._currentVoiceAudio.pause();
-            window._currentVoiceAudio = null;
-            document.querySelectorAll('.voice-progress').forEach(b => b.style.width = '0%');
-            document.querySelectorAll('.voice-message .fa-pause').forEach(i => i.className = 'fas fa-play');
-        }
-        const audio = new Audio(src);
-        window._currentVoiceAudio = audio;
-        const progressBar = el.querySelector('.voice-progress');
-        audio.addEventListener('timeupdate', () => {
-            if (progressBar && audio.duration) {
-                progressBar.style.width = (audio.currentTime / audio.duration * 100) + '%';
-            }
-        });
-        audio.addEventListener('ended', () => {
-            if (progressBar) progressBar.style.width = '100%';
-            const icon = el.querySelector('.fa-pause');
-            if (icon) icon.className = 'fas fa-play';
-            window._currentVoiceAudio = null;
-        });
-        const icon = el.querySelector('.fa-play');
-        if (icon) icon.className = 'fas fa-pause';
-        audio.play();
-    };
-})();
 
