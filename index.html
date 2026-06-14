@@ -4249,7 +4249,73 @@
         }
     }, 2000);
 
-    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 本地字体上传 | 电话挂断记录');
+    // ========== 7. 聊天设置修复：Tab切换 + 开关事件绑定 ==========
+    
+    // 7a. Tab 切换函数（功能/节奏/音效/显示/昵称）
+    window.switchCsTab = function(tabEl) {
+        if (!tabEl) return;
+        var panelId = tabEl.getAttribute('data-panel');
+        if (!panelId) return;
+        
+        // 更新 tab 样式
+        document.querySelectorAll('.cs-tab').forEach(function(t) { t.classList.remove('active'); });
+        tabEl.classList.add('active');
+        
+        // 切换面板显示
+        document.querySelectorAll('.cs-panel').forEach(function(p) { p.classList.remove('active'); });
+        var target = document.getElementById(panelId);
+        if (target) target.classList.add('active');
+    };
+    
+    // 7b. 开关点击事件绑定 - 给所有 setting-pill-row 绑定点击切换
+    setTimeout(function() {
+        var _pillMap = {
+            'reply-toggle': 'replyEnabled',
+            'read-receipts-toggle': 'readReceiptsEnabled',
+            'read-no-reply-toggle': 'allowReadNoReply',
+            'typing-indicator-toggle': 'typingIndicatorEnabled',
+            'enter-key-send-toggle': 'enterKeySendEnabled',
+            'sound-toggle': 'soundEnabled',
+            'emoji-mix-toggle': 'emojiMixEnabled',
+            'kaomoji-mix-toggle': 'kaomojiMixEnabled',
+            'auto-send-toggle': 'autoSendEnabled',
+            'moyu-auto-generate-toggle': 'moyuAutoGenerateEnabled',
+            'moyu-show-detail-toggle': 'moyuShowDetail',
+            'envelope-auto-send-toggle': 'envelopeAutoSendEnabled',
+            'envelope-custom-rule-toggle': 'envelopeCustomRuleEnabled',
+            'partner-moment-toggle': 'partnerMomentEnabled',
+            'partner-card-splice-toggle': 'partnerCardSpliceEnabled'
+        };
+        
+        document.querySelectorAll('#chat-modal .setting-pill-row').forEach(function(row) {
+            var id = row.id;
+            if (!id || _pillMap[id] === undefined) return;
+            
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var prop = _pillMap[id];
+                if (!window.settings || prop === undefined) return;
+                
+                // 切换值
+                var newVal = !window.settings[prop];
+                window.settings[prop] = newVal;
+                
+                // 更新 UI
+                this.classList.toggle('active', newVal);
+                
+                // 保存
+                if (typeof window.saveData === 'function') window.saveData();
+                if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
+                
+                console.log('[聊天设置] ' + id + ' → ' + newVal);
+            });
+        });
+        
+        console.log('[聊天设置修复] Tab切换 + 开关事件已绑定');
+    }, 500);
+
+    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 本地字体上传 | 电话挂断记录 | 聊天设置修复');
 })();
 </script>
 </body>
