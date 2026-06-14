@@ -1642,11 +1642,11 @@
             </div>
 
             <div class="settings-grid">
-                <div class="settings-card" id="appearance-settings">
+                <div class="settings-card" id="appearance-settings" onclick="(function(){hideModal(document.getElementById('settings-modal'));showModal(document.getElementById('appearance-modal'))})()" style="cursor:pointer;">
                     <i class="fas fa-palette"></i>
                     <span>外观设置</span>
                 </div>
-                <div class="settings-card" id="chat-settings">
+                <div class="settings-card" id="chat-settings" onclick="(function(){hideModal(document.getElementById('settings-modal'));showModal(document.getElementById('chat-modal'))})()" style="cursor:pointer;">
                     <i class="fas fa-sliders-h"></i>
                     <span>聊天设置</span>
                 </div>
