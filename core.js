@@ -2882,18 +2882,19 @@ function showModal(modalElement, focusElement = null) {
                         }
                         if (doSettings) {
                             if (importedData.settings) {
-                                // 智能合并：保护新功能设置不被旧备份覆盖
-                                // 保存当前 settings 中所有不在导入数据中的键（即新功能专属设置）
+                                // 智能合并：只覆盖导入数据中存在的键，保护其他键（防止新功能被旧备份覆盖）
                                 var protectedKeys = {};
-                                var defaults = typeof getDefaultSettings === 'function' ? getDefaultSettings() : {};
+                                // 遍历当前 settings，保存那些在导入数据中不存在的键
                                 for (var sk in settings) {
-                                    if (settings.hasOwnProperty(sk) && !(sk in (importedData.settings || {}))) {
+                                    if (!settings.hasOwnProperty(sk)) continue;
+                                    // 如果导入数据中没有这个键，则保护它（这是新功能新增的键）
+                                    if (!(sk in (importedData.settings || {}))) {
                                         protectedKeys[sk] = settings[sk];
                                     }
                                 }
-                                // 合并导入的设置（只覆盖旧版已有的设置项）
+                                // 只覆盖导入数据中有的键
                                 Object.assign(settings, importedData.settings);
-                                // 恢复被保护的新功能设置
+                                // 恢复被保护的键（新功能设置）
                                 for (var pk in protectedKeys) {
                                     if (protectedKeys.hasOwnProperty(pk)) {
                                         settings[pk] = protectedKeys[pk];
