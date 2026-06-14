@@ -2363,6 +2363,30 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                             break;
                         }
                     }
+                    // ── 拼字卡功能 ──
+                    try {
+                        const _spliceEnabled = localStorage.getItem('partner_card_splice_enabled') === 'true';
+                        if (_spliceEnabled && replyText) {
+                            const _spliceProb = parseInt(localStorage.getItem('partner_card_splice_probability')) || 30;
+                            if (Math.random() * 100 < _spliceProb) {
+                                const _spliceMin = Math.max(2, parseInt(localStorage.getItem('partner_card_splice_min')) || 2);
+                                const _spliceMax = Math.max(_spliceMin, parseInt(localStorage.getItem('partner_card_splice_max')) || 4);
+                                const _spliceCount = _spliceMin + Math.floor(Math.random() * (_spliceMax - _spliceMin + 1));
+                                let _spliced = [replyText];
+                                const _usedTexts = new Set([replyText]);
+                                for (let _s = 1; _s < _spliceCount; _s++) {
+                                    if (replyPool.length === 0) break;
+                                    const _picked = replyPool[Math.floor(Math.random() * replyPool.length)];
+                                    const _pickedTrimmed = String(_picked || '').trim();
+                                    if (_pickedTrimmed && !_usedTexts.has(_pickedTrimmed)) {
+                                        _spliced.push(_pickedTrimmed);
+                                        _usedTexts.add(_pickedTrimmed);
+                                    }
+                                }
+                                replyText = _spliced.join(' ');
+                            }
+                        }
+                    } catch(e) { console.warn('[拼字卡]', e); }
                     if (!replyText && i === replyCount - 1) {
                         (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
                         return;
