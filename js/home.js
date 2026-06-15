@@ -467,12 +467,11 @@
     };
 
     window.handlePageBgUpload = function(event) {
-        const file = event.target.files;
+        const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = async function(e) {
-            // 先压缩再存储，避免 base64 过大
             const compressed = await compressHomeImage(e.target.result, 1200, 0.7);
             const bgValue = `url(${compressed}) center/cover no-repeat`;
             const pageBg = document.getElementById('home-page-bg');
