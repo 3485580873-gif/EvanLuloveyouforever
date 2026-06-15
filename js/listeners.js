@@ -1475,6 +1475,68 @@ autoSendSlider.addEventListener('change', () => {
     throttledSaveData();
 });
 
+// ========== 伴侣发朋友圈设置 ==========
+const partnerMomentToggle = document.getElementById('partner-moment-toggle');
+const partnerMomentControl = document.getElementById('partner-moment-control');
+const partnerMomentMinSlider = document.getElementById('partner-moment-min-slider');
+const partnerMomentMaxSlider = document.getElementById('partner-moment-max-slider');
+const partnerMomentCountSlider = document.getElementById('partner-moment-count-slider');
+const partnerMomentMinValue = document.getElementById('partner-moment-min-value');
+const partnerMomentMaxValue = document.getElementById('partner-moment-max-value');
+const partnerMomentCountValue = document.getElementById('partner-moment-count-value');
+
+var _partnerMomentEnabled = localStorage.getItem('partner_moment_enabled') === 'true';
+
+function updatePartnerMomentUI() {
+    if (partnerMomentToggle) partnerMomentToggle.classList.toggle('active', _partnerMomentEnabled);
+    if (partnerMomentControl) partnerMomentControl.style.display = _partnerMomentEnabled ? 'block' : 'none';
+    var minVal = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
+    var maxVal = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
+    var cntVal = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
+    if (partnerMomentMinSlider) partnerMomentMinSlider.value = minVal;
+    if (partnerMomentMaxSlider) partnerMomentMaxSlider.value = maxVal;
+    if (partnerMomentCountSlider) partnerMomentCountSlider.value = cntVal;
+    if (partnerMomentMinValue) partnerMomentMinValue.textContent = minVal + '分钟';
+    if (partnerMomentMaxValue) partnerMomentMaxValue.textContent = maxVal + '分钟';
+    if (partnerMomentCountValue) partnerMomentCountValue.textContent = cntVal + '条';
+}
+updatePartnerMomentUI();
+
+if (partnerMomentToggle) {
+    partnerMomentToggle.addEventListener('click', function() {
+        _partnerMomentEnabled = !_partnerMomentEnabled;
+        localStorage.setItem('partner_moment_enabled', _partnerMomentEnabled);
+        updatePartnerMomentUI();
+        // 通知 moments.js 重启定时器
+        if (_partnerMomentEnabled) {
+            if (typeof window.MomentsApp !== 'undefined' && typeof window.MomentsApp.startPartnerMomentTimer === 'function') {
+                window.MomentsApp.startPartnerMomentTimer();
+            }
+        }
+        if (typeof showNotification === 'function') showNotification('伴侣发朋友圈已' + (_partnerMomentEnabled ? '开启' : '关闭'), 'success');
+    });
+}
+
+function _savePartnerMomentInterval() {
+    var minV = partnerMomentMinSlider ? parseInt(partnerMomentMinSlider.value) : 30;
+    var maxV = partnerMomentMaxSlider ? parseInt(partnerMomentMaxSlider.value) : 120;
+    var cntV = partnerMomentCountSlider ? parseInt(partnerMomentCountSlider.value) : 1;
+    if (maxV < minV) maxV = minV;
+    localStorage.setItem('partner_moment_interval_min', minV);
+    localStorage.setItem('partner_moment_interval_max', maxV);
+    localStorage.setItem('partner_moment_count_max', cntV);
+    updatePartnerMomentUI();
+    if (_partnerMomentEnabled) {
+        if (typeof window.MomentsApp !== 'undefined' && typeof window.MomentsApp.restartPartnerMomentTimer === 'function') {
+            window.MomentsApp.restartPartnerMomentTimer();
+        }
+    }
+}
+
+if (partnerMomentMinSlider) { partnerMomentMinSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentMinSlider.addEventListener('input', function() { partnerMomentMinValue.textContent = partnerMomentMinSlider.value + '分钟'; }); }
+if (partnerMomentMaxSlider) { partnerMomentMaxSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentMaxSlider.addEventListener('input', function() { partnerMomentMaxValue.textContent = partnerMomentMaxSlider.value + '分钟'; }); }
+if (partnerMomentCountSlider) { partnerMomentCountSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentCountSlider.addEventListener('input', function() { partnerMomentCountValue.textContent = partnerMomentCountSlider.value + '条'; }); }
+
 // 摸鱼自动生成设置
 const moyuAutoGenerateToggle = document.getElementById('moyu-auto-generate-toggle');
 const moyuAutoGenerateControl = document.getElementById('moyu-auto-generate-control');

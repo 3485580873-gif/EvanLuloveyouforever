@@ -112,6 +112,11 @@
     }
   }
 
+  function restartPartnerMomentTimer() {
+    stopPartnerMomentTimer();
+    startPartnerMomentTimer();
+  }
+
   // ========== 表情包库辅助函数 ==========
   async function getStickerLibrary() {
     // 优先从 window 全局变量读取（core.js 初始化时设置）
@@ -1259,6 +1264,8 @@
           sticker: sticker
         });
         showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
+        // 记录评论访客
+        generateOneVisitorRecord(Date.now(), 'comment', '[表情包]', m.id);
         continue;
       }
 
@@ -1294,6 +1301,8 @@
         text: replyText
       });
       showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
+      // 记录评论访客
+      generateOneVisitorRecord(Date.now(), 'comment', replyText.substring(0, 50), m.id);
     }
 
     // 自动点赞（80%概率）
@@ -1329,6 +1338,9 @@
     // 发送点赞通知（只有系统点赞才通知）
     if (didLike) {
       showMomentsNotification(replierName, partnerAvatar, 'like', 1, m.id, '', getMomentPreviewImage(m));
+      // 记录点赞访客
+      generateOneVisitorRecord(Date.now(), 'like', '赞了你的朋友圈', m.id);
+    }
     }
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
@@ -1395,14 +1407,24 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
+  function _escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
   function getTodayVisitorCount() {
     const today = getTodayStr();
     return visitorRecords.filter(r => getRecordDateStr(r.timestamp) === today).length;
   }
 
-  function generateOneVisitorRecord(timestamp) {
+  function generateOneVisitorRecord(timestamp, type, content, momentId) {
     const ts = timestamp || Date.now();
-    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts });
+    var rec = { id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts };
+    if (type) rec.type = type;          // 'visit' | 'like' | 'comment'
+    if (content) rec.content = content; // 评论内容或点赞对象
+    if (momentId) rec.momentId = momentId;
+    visitorRecords.unshift(rec);
     visitorUnreadCount++;
     saveVisitorRecords();
     updateVisitorBadge();
@@ -1563,13 +1585,20 @@
       const streak = calcStreakDays(record.timestamp);
       const streakTag = streak >= 2 ? `<span class="visitor-streak-tag">连续来访${streak}天</span>` : '';
       const timeStr = formatMomentTime(record.timestamp);
+      // 类型标识
+      var typeIcon = '', typeLabel = '';
+      if (record.type === 'like') { typeIcon = '<i class="fas fa-heart" style="color:#e91e63;"></i>'; typeLabel = '赞了你'; }
+      else if (record.type === 'comment') { typeIcon = '<i class="fas fa-comment-dots" style="color:var(--accent-color);"></i>'; typeLabel = '评论了你'; }
+      else { typeIcon = '<i class="fas fa-eye" style="color:var(--text-secondary);"></i>'; typeLabel = '偷偷来看你'; }
+      var contentHtml = record.content ? '<div class="visitor-content" style="font-size:11px;color:var(--text-secondary);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">' + _escapeHtml(record.content.substring(0, 50)) + '</div>' : '';
       html += `
         <div class="visitor-item" data-visitor-id="${record.id}">
           <div class="visitor-item-inner" ontouchstart="MomentsApp._visitorTouchStart(event,'${record.id}')" ontouchmove="MomentsApp._visitorTouchMove(event,'${record.id}')" ontouchend="MomentsApp._visitorTouchEnd(event,'${record.id}')">
             <img class="visitor-avatar" src="${partnerAvatar}" alt="${partnerName}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=c0aede'">
             <div class="visitor-info">
-              <div class="visitor-name">${partnerName}${streakTag}</div>
+              <div class="visitor-name">${partnerName}${streakTag}<span class="visitor-type-badge" style="margin-left:6px;font-size:11px;font-weight:400;">${typeIcon} ${typeLabel}</span></div>
               <div class="visitor-time">${timeStr}</div>
+              ${contentHtml}
             </div>
           </div>
           <div class="visitor-delete-btn" onclick="MomentsApp.deleteVisitorRecord('${record.id}')">删除</div>
@@ -2213,6 +2242,7 @@
               const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
               moment.comments.push({ name: replierName, text: '', sticker: sticker, replyTo: targetName });
               showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, '[表情包]', getMomentPreviewImage(moment));
+              generateOneVisitorRecord(Date.now(), 'comment', '[表情包]回复了你', moment.id);
             } else if (hasTextContent) {
               const useKaomoji = customReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
               let replyText = '';
@@ -2228,6 +2258,7 @@
               }
               moment.comments.push({ name: replierName, text: replyText, replyTo: targetName });
               showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, replyText, getMomentPreviewImage(moment));
+              generateOneVisitorRecord(Date.now(), 'comment', replyText.substring(0, 50), moment.id);
             }
             saveMomentsToStorage();
             renderMoments();
@@ -4057,7 +4088,10 @@
     stopOnlineVisitorTimer,
     _visitorTouchStart,
     _visitorTouchMove,
-    _visitorTouchEnd
+    _visitorTouchEnd,
+    startPartnerMomentTimer,
+    restartPartnerMomentTimer,
+    generateOneVisitorRecord
   };
 
 })();
