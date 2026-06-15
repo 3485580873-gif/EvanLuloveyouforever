@@ -472,21 +472,43 @@
 
         const reader = new FileReader();
         reader.onload = async function(e) {
-            const url = e.target.result;
-            const bgValue = `url(${url}) center/cover no-repeat`;
+            // 先压缩再存储，避免 base64 过大
+            const compressed = await compressHomeImage(e.target.result, 1200, 0.7);
+            const bgValue = `url(${compressed}) center/cover no-repeat`;
             const pageBg = document.getElementById('home-page-bg');
             if (pageBg) pageBg.style.background = bgValue;
 
             document.querySelectorAll('#page-bg-presets .bg-preset').forEach(el => el.classList.remove('active'));
-            // 改用大容量存储，避免 localStorage 被清除
-            await homeSetLargeItem('home_page_bg_custom_large', url);
+            await homeSetLargeItem('home_page_bg_custom_large', compressed);
             homeSetItem('home_page_bg', 'custom');
-            
-            // 同步到聊天界面
+
             syncBgToChat(bgValue);
         };
         reader.readAsDataURL(file);
     };
+
+    // 压缩图片：缩小尺寸 + JPEG 编码，返回 base64
+    function compressHomeImage(base64, maxWidth, quality) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function() {
+                if (img.width <= maxWidth && base64.length < 200000) {
+                    resolve(base64);
+                    return;
+                }
+                const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
+                const w = Math.round(img.width * ratio);
+                const h = Math.round(img.height * ratio);
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = function() { resolve(base64); };
+            img.src = base64;
+        });
+    }
 
     // ========== 保存背景到预设（使用 localforage 避免 localStorage 大小限制） ==========
     window.savePageBgToPreset = async function() {

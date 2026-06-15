@@ -464,9 +464,13 @@
     // 每次打开都同步头像，确保与 Home 页保持一致
     await syncAvatarFromHome();
     
-    // 恢复封面背景
+    // 恢复封面背景（优先从 IndexedDB 读取，降级 localStorage）
     try {
-      const savedCover = localStorage.getItem('moments_cover');
+      let savedCover = null;
+      if (typeof localforage !== 'undefined') {
+        savedCover = await localforage.getItem('moments_cover_large');
+      }
+      if (!savedCover) savedCover = localStorage.getItem('moments_cover');
       if (savedCover) {
         userConfig.coverImage = savedCover;
       }
@@ -3767,12 +3771,14 @@
 
     const reader = new FileReader();
     reader.onload = function(ev) {
-      const base64 = ev.target.result;
-      const container = document.getElementById('moments-container');
-      if (container) {
-        container.querySelector('#beautifyCoverPreview').src = base64;
-        container.querySelector('#beautifyCoverPreview').dataset.base64 = base64;
-      }
+      // 压缩封面图，避免存储过大
+      compressImage(ev.target.result, 1200, 0.75).then(base64 => {
+        const container = document.getElementById('moments-container');
+        if (container) {
+          container.querySelector('#beautifyCoverPreview').src = base64;
+          container.querySelector('#beautifyCoverPreview').dataset.base64 = base64;
+        }
+      });
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -3813,9 +3819,15 @@
       }
     }
     if (coverPreview && coverPreview.dataset.base64) {
-      userConfig.coverImage = coverPreview.dataset.base64;
-      // 持久化封面背景
-      localStorage.setItem('moments_cover', coverPreview.dataset.base64);
+      // 压缩封面图后再存储
+      const compressed = await compressImage(coverPreview.dataset.base64, 1200, 0.75);
+      userConfig.coverImage = compressed;
+      // 封面图存 IndexedDB，不再存 localStorage
+      try { localStorage.removeItem('moments_cover'); } catch(e) {}
+      // 同时存一份到大容量存储
+      if (typeof localforage !== 'undefined') {
+        await localforage.setItem('moments_cover_large', compressed);
+      }
     }
     
     await initUserInfo();
