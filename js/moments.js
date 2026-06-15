@@ -1132,9 +1132,8 @@
 
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId, forceCurrent) {
-    console.log('[DEBUG] triggerAutoReply momentId=' + momentId + ' forceCurrent=' + forceCurrent);
     const m = momentsData.find(x => x.id === momentId);
-    if (!m) { console.log('[DEBUG] 未找到朋友圈'); return; }
+    if (!m) return;
 
     // forceCurrent 时，找到"我"的最后一条评论作为回复引用目标
     let replyToUser = null;
@@ -1157,7 +1156,6 @@
     const currentReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
     const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean);
     const customEmojis = (window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean);
-    console.log('[DEBUG] currentReplies=' + currentReplies.length + ' kaomoji=' + kaomojiLibrary.length + ' emojis=' + customEmojis.length);
     let _stickerLib = [];
     if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
       _stickerLib = window._stickerLibrary;
@@ -1380,6 +1378,7 @@
   let commentEmojiPanelOpen = false;
   let commentEmojiTab = 'emoji';
   let pendingCommentSticker = null;
+  let _autoReplyCooldown = false;
 
   // ========== Visitor Records ==========
   const VISITOR_STORAGE_KEY = 'moments_visitor_records';
@@ -2206,15 +2205,16 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 你发评论后对方自动回复（只要伴侣已配置）
+      // 你发评论后对方自动回复（只要伴侣已配置，且不在冷却中）
       const partnerName = getPartnerName();
-      if (partnerName) {
+      if (partnerName && !_autoReplyCooldown) {
+        _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
         const delay = Math.random() * replySpeed * 1000;
-        console.log('[DEBUG] 将在 ' + (delay/1000).toFixed(1) + ' 秒后触发自动回复, partnerName=' + partnerName);
         setTimeout(() => {
-          console.log('[DEBUG] 开始执行 triggerAutoReply');
           triggerAutoReply(currentCommentMomentId, true);
+          // 冷却 3 秒后允许再次触发
+          setTimeout(() => { _autoReplyCooldown = false; }, 3000);
         }, delay);
       }
     }
