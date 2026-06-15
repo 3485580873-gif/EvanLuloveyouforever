@@ -162,7 +162,7 @@ function loadMoreHistory() {
                 alwaysShowAvatar: false,
                 showPartnerNameInChat: false,
                 customFontUrl: "", 
-                customFontFileName: "",
+                localFontName: "",
         customBubbleCss: "",
         customGlobalCss: "",
                 myAvatarFrame: null, 
@@ -210,10 +210,13 @@ autoSendInterval: 5,
         pinyinCardEnabled: false,
         pinyinCardMin: 2,
         pinyinCardMax: 3,
-        partnerMomentEnabled: true,
-        partnerMomentMinInterval: 30,
-        partnerMomentMaxInterval: 120,
-        partnerMomentMaxCount: 1
+        // 朋友圈：对方主动发朋友圈（时长驱动，无概率）
+        momentsAutoPostEnabled: true,
+        momentsPostMinInterval: 1,
+        momentsPostMaxInterval: 3,
+        // 朋友圈字卡拼接数量
+        momentsPostMinCards: 1,
+        momentsPostMaxCards: 3
             };
         }
 
@@ -424,7 +427,7 @@ const loadData = async () => {
         }
         document.body.classList.toggle('show-partner-name', showPartnerNameInChat);
         try {
-            if (settings.customFontUrl) applyCustomFont(settings.customFontUrl);
+            if (settings.customFontUrl && settings.customFontUrl !== '__local__') applyCustomFont(settings.customFontUrl);
             if (settings.customBubbleCss) applyCustomBubbleCss(settings.customBubbleCss);
             if (settings.customGlobalCss) applyGlobalThemeCss(settings.customGlobalCss);
         } catch(e) { console.warn("样式应用失败", e); }
@@ -572,7 +575,6 @@ const loadData = async () => {
             if (typeof manageAutoSendTimer === 'function') manageAutoSendTimer();
             if (typeof manageMoyuAutoGenerateTimer === 'function') manageMoyuAutoGenerateTimer();
             if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer();
-            if (typeof managePartnerMomentTimer === 'function') managePartnerMomentTimer();
             if (typeof checkEnvelopeStatus === 'function') checkEnvelopeStatus();
             if (typeof updateUI === 'function') updateUI();
             if (settings.customBubbleCss) {
@@ -931,18 +933,6 @@ function manageAutoSendTimer() {
 let moyuSessionTimer = null; // 工作会话定时器
 let moyuMessageTimer = null; // 会话期间消息定时器
 let envelopeAutoSendTimer = null; // 时空来信定时器
-let partnerMomentTimer = null; // 伴侣发朋友圈定时器
-
-function managePartnerMomentTimer() {
-    if (partnerMomentTimer) {
-        clearTimeout(partnerMomentTimer);
-        partnerMomentTimer = null;
-    }
-    // 委托给 moments.js 管理（使用 localStorage 设置）
-    if (typeof window.MomentsApp !== 'undefined' && typeof window.MomentsApp.startPartnerMomentTimer === 'function') {
-        window.MomentsApp.startPartnerMomentTimer();
-    }
-}
 
 function manageEnvelopeAutoSendTimer() {
     // 清除现有定时器
@@ -1514,8 +1504,7 @@ window.openMoyuFromNotification = function () {
                 '#envelope-custom-rule-toggle': 'envelopeCustomRuleEnabled',
                 '#bottom-collapse-cs-toggle': 'bottomCollapseMode',
                 '#enter-key-send-toggle': 'enterKeySendEnabled',
-                '#pinyin-card-toggle': 'pinyinCardEnabled',
-                '#partner-moment-toggle': 'partnerMomentEnabled'
+                '#pinyin-card-toggle': 'pinyinCardEnabled'
             };
             for (const [sel, prop] of Object.entries(_pillSyncMap)) {
                 const el = document.querySelector(sel);
@@ -1772,6 +1761,10 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     } else if (isRedPacket) {
         content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
     } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+    // 渲染表情包（sticker）
+    if (msg.sticker) {
+        content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:120px;max-height:120px;border-radius:8px;${msg.text || msg.image ? ' margin-top:6px;' : ''} cursor:pointer;" onclick="viewImage('${msg.sticker}')">`;
+    }
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -2222,10 +2215,31 @@ const addMessage = (message) => {
             (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
         };
 
+        // ── 聊天表情包预览（与文字框配套发送）──
+        window.setChatStickerPreview = function(src) {
+            window._pendingChatSticker = src;
+            const preview = document.getElementById('chat-sticker-preview');
+            const img = document.getElementById('chat-sticker-preview-img');
+            if (preview && img) {
+                img.src = src;
+                preview.style.display = 'block';
+            }
+        };
+        window.clearChatStickerPreview = function() {
+            window._pendingChatSticker = null;
+            const preview = document.getElementById('chat-sticker-preview');
+            if (preview) preview.style.display = 'none';
+        };
+
+        // ── 表情包快捷栏（复用 user-sticker-picker，由 sticker-bar-btn 触发）──
+        // 无需额外函数，面板由 combo-btn 和 sticker-bar-btn 共享
+
         function sendMessage(textOverride = null, type = 'normal') {
             const text = textOverride || DOMElements.messageInput.value.trim();
             const imageFile = DOMElements.imageInput.files[0];
-            if (!text && !imageFile && type === 'normal') return;
+            // 检查是否有待发送的表情包
+            const pendingSticker = window._pendingChatSticker || null;
+            if (!text && !imageFile && !pendingSticker && type === 'normal') return;
 
             // ── 斜杠指令拦截 ──
             if (text && text.startsWith('/') && type === 'normal') {
@@ -2268,6 +2282,12 @@ const addMessage = (message) => {
                     replyTo: currentReplyTo,
                     type: type
                 };
+                // 如果有待发送的表情包，作为 sticker 字段附加
+                if (pendingSticker) {
+                    messageData.sticker = pendingSticker;
+                    window._pendingChatSticker = null;
+                    window.clearChatStickerPreview && window.clearChatStickerPreview();
+                }
                 if (type === 'system') messageData.sender = null;
 
                 addMessage(messageData);
@@ -2806,6 +2826,10 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         if (typeof window.checkRedPacketExpiry === 'function') {
                             setTimeout(function() { window.checkRedPacketExpiry(); }, 500);
                         }
+                        // 朋友圈互动：对方评论/点赞/偷偷访问/发朋友圈
+                        if (typeof window.triggerMomentsInteraction === 'function') {
+                            setTimeout(function() { window.triggerMomentsInteraction(); }, 600 + Math.random() * 800);
+                        }
                     }
                     } catch (e) {
                         console.error('[simulateReply] 渲染/回填出错:', e);
@@ -3199,7 +3223,7 @@ function showModal(modalElement, focusElement = null) {
                             if (importedData.settings) {
                                 Object.assign(settings, importedData.settings);
                                 try {
-                                    if (settings.customFontUrl) applyCustomFont(settings.customFontUrl);
+                                    if (settings.customFontUrl && settings.customFontUrl !== '__local__') applyCustomFont(settings.customFontUrl);
                                     if (settings.customBubbleCss) applyCustomBubbleCss(settings.customBubbleCss);
                                     if (settings.customGlobalCss) applyGlobalThemeCss(settings.customGlobalCss);
                                 } catch(e2) { console.warn('导入后样式应用失败', e2); }

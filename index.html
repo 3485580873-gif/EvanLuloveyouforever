@@ -11,8 +11,9 @@
     <title>传讯</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/shop.css">
     <link rel="icon" type="image/png" sizes="192x192" href="https://file.youtochat.com/images/20260216/1771224856844_qdqqd.jpeg">
     <link rel="apple-touch-icon" href="https://file.youtochat.com/images/20260216/1771224856844_qdqqd.jpeg">
     <meta name="apple-mobile-web-app-title" content="ʚ𝑳𝑶𝑽𝑬ɞ">
@@ -30,11 +31,10 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/diary.css">
     <link rel="stylesheet" href="css/home.css">
-    <link rel="stylesheet" href="css/moments.css">
     <link rel="stylesheet" href="css/pet-style.css">
+    <link rel="stylesheet" href="css/moments.css">
     <link rel="stylesheet" href="css/map.css">
     <link rel="stylesheet" href="css/spark.css">
-    <link rel="stylesheet" href="css/shop.css">
 
     <style id="css-live-preview-style">
         /* 输入框样式 */
@@ -47,84 +47,164 @@
         .message-input {
             flex: 1;
             min-width: 0;
-            padding: 6px 12px;
+            padding: 8px 14px;
             border: 1px solid var(--border-color);
             border-radius: 18px;
             background: var(--primary-bg);
             color: var(--text-primary);
             font-size: 14px;
             font-family: var(--font-family);
-            line-height: 1.5;
+            line-height: 1.4;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
             box-sizing: border-box;
+            white-space: pre-wrap;
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-all;
             min-height: 36px;
             max-height: 108px;
             overflow-y: auto;
-        }
-        .message-input:empty:before {
-            content: attr(placeholder);
-            color: var(--text-secondary);
-            opacity: 0.5;
-            pointer-events: none;
+            resize: none;
         }
         .message-input:focus {
             border-color: var(--accent-color);
             box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.15);
         }
-        .message-input img.inline-sticker {
-            display: inline-block;
-            vertical-align: middle;
-            width: 24px;
-            height: 24px;
-            object-fit: cover;
-            border-radius: 4px;
-            margin: 0 2px;
-            position: relative;
-            top: -1px;
+        /* TA的手机 */
+        .ta-phone-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--secondary-bg);
+            z-index: 100000;
+            display: flex;
+            flex-direction: column;
         }
-        .sticker-attached-row {
+        .ta-phone-header {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            background: var(--secondary-bg);
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--primary-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .ta-phone-back {
+            background: none;
+            border: none;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .ta-phone-title {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .ta-phone-desktop {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 40px 20px;
             flex-wrap: wrap;
         }
-        .sticker-attached-item {
-            position: relative;
-            width: 44px;
-            height: 44px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid var(--accent-color);
-            flex-shrink: 0;
+        .ta-phone-app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
         }
-        .sticker-attached-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .sticker-attached-remove {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            width: 18px;
-            height: 18px;
-            background: #ff5050;
-            color: #fff;
-            border-radius: 50%;
-            font-size: 10px;
+        .ta-phone-app-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            border: none;
-            line-height: 1;
+            color: white;
         }
+        .ta-phone-app-icon.green { background: #07c160; }
+        .ta-phone-app-icon.blue { background: #3b82f6; }
+        .ta-phone-app-icon.yellow { background: #f59e0b; }
+        .ta-phone-app-icon svg { width: 32px; height: 32px; }
+        .ta-phone-app-name {
+            font-size: 0.8rem;
+            color: var(--text);
+        }
+        .ta-phone-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .ta-phone-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--primary-bg);
+        }
+        .ta-phone-tab {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .ta-phone-tab.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+        .ta-phone-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .ta-phone-item {
+            background: var(--primary-bg);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .ta-phone-item-time {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+        .ta-phone-item-text {
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.5;
+            word-break: break-all;
+        }
+        .ta-phone-item-meta {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 6px;
+        }
+        .ta-phone-item-delete {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 0.8rem;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        .ta-phone-item-delete:hover {
+            opacity: 1;
+            color: #ef4444;
+        }
+        .ta-phone-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
     </style>
 </head>
 <body>
@@ -147,6 +227,21 @@
                 <div class="splash-slides" id="splash-slides">
 
                     <div class="splash-slide active" data-index="0">
+                        <div class="splash-slide-tag">说在最前</div>
+                        <div class="splash-slide-title">关于该二改网站</div>
+                        <div class="splash-slide-body" style="font-size:13px;line-height:1.6;">
+                            <p style="margin:4px 0;"><strong>致谢</strong></p>
+                            <p style="margin:4px 0;">本网站基于milk老师的代码进行二次开发。感谢milk老师原创付出，本二改版本尊重并保留原作者的一切权益。本网页修改制作前后耗时一个月，在此感谢参与测试、提供反馈和建议的各位。</p>
+                            <p style="margin:4px 0;"><strong>二改说明</strong></p>
+                            <p style="margin:4px 0;">二改作者为 <strong>小红书@之缘</strong>（42914702638）。除milk老师原创功能外，<strong>「摸鱼小记」「TA的手机」板块为本二改版本的原创功能</strong>，其中「TA的手机」灵感感谢小红书@Ww（503800375）。红包、商场等功能灵感虽不为我原创，但由我首次引入字卡网站，特此说明。</p>
+                            <div class="splash-highlight-box" style="margin:6px 0;padding:8px 10px;font-size:12.5px;">
+                                <strong>严禁盗用、冒领本版本。</strong>其余社媒上一切以"我"为名或声称是该版本作者的一律为盗用者。欢迎向我举报盗用行为，有任何反馈也可通过小红书私信告知我。
+                            </div>
+                            <p style="margin:4px 0;"><strong>社媒发布须知：</strong>在社媒上发布该二改网页的截图时，欢迎带上话题 <strong>#之缘</strong> 或 <strong>#Zmilk传讯网站</strong>。</p>
+                        </div>
+                    </div>
+
+                    <div class="splash-slide" data-index="1">
                         <div class="splash-slide-tag">关于字卡</div>
                         <div class="splash-slide-title">是否招鬼？</div>
                         <div class="splash-slide-body">
@@ -156,7 +251,7 @@
                         </div>
                     </div>
 
-                    <div class="splash-slide" data-index="1">
+                    <div class="splash-slide" data-index="2">
                         <div class="splash-slide-tag">关于谣言</div>
                         <div class="splash-slide-title">请有自知之明</div>
                         <div class="splash-slide-body">
@@ -166,7 +261,7 @@
                         </div>
                     </div>
 
-                    <div class="splash-slide" data-index="2">
+                    <div class="splash-slide" data-index="3">
                         <div class="splash-slide-tag">关于盈利</div>
                         <div class="splash-slide-title">纯粹为爱发电</div>
                         <div class="splash-slide-body">
@@ -177,7 +272,7 @@
                         </div>
                     </div>
 
-                    <div class="splash-slide" data-index="3">
+                    <div class="splash-slide" data-index="4">
                         <div class="splash-slide-tag">再次强调</div>
                         <div class="splash-slide-title">你对链接梦角的看法？</div>
                         <div class="splash-slide-body">
@@ -188,7 +283,7 @@
                         </div>
                     </div>
 
-                    <div class="splash-slide" data-index="4">
+                    <div class="splash-slide" data-index="5">
                         <div class="splash-slide-tag">关于视频通话</div>
                         <div class="splash-slide-title">纯粹的装饰</div>
                         <div class="splash-slide-body">
@@ -199,7 +294,7 @@
                         </div>
                     </div>
 
-                    <div class="splash-slide" data-index="5">
+                    <div class="splash-slide" data-index="6">
                         <div class="splash-slide-tag">入场承诺</div>
                         <div class="splash-slide-title">请留下你的承诺</div>
                         <div class="splash-pledge-desc">在下方输入框中，<em style="color:rgba(var(--accent-color-rgb,197,164,126),0.8);font-style:normal;">逐字抄写</em>以下承诺，即可进入网站。</div>
@@ -215,7 +310,7 @@
                     <button class="splash-btn splash-btn-ghost" id="splash-prev-btn" disabled>
                         <i class="fas fa-arrow-left"></i> 上一页
                     </button>
-                    <span class="splash-page-num" id="splash-page-num">1 / 6</span>
+                    <span class="splash-page-num" id="splash-page-num">1 / 7</span>
                     <button class="splash-btn splash-btn-next" id="splash-next-btn">
                         下一页 <i class="fas fa-arrow-right"></i>
                     </button>
@@ -316,7 +411,7 @@
             <div class="hero-card-bottom">
                 <div class="hero-content-bottom">
                     <div class="hero-title" id="hero-title">我 & 梦角</div>
-                    <div class="hero-subtitle" id="hero-subtitle">分享热汤 我们两个汤匙一个碗</div>
+                    <div class="hero-subtitle" id="hero-subtitle">两颗缠绕的心 会走同一条路</div>
                 </div>
             </div>
         </div>
@@ -369,6 +464,18 @@
                         <div class="app-icon" data-app="decide"><i class="fas fa-balance-scale"></i></div>
                         <span class="app-name">抉择</span>
                     </div>
+                    <div class="app-item" onclick="window.GiftCabinetApp.open()">
+                        <div class="app-icon" data-app="gift-cabinet">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+                                <polyline points="20 12 20 22 4 22 4 12"/>
+                                <rect x="2" y="7" width="20" height="5"/>
+                                <line x1="12" y1="22" x2="12" y2="7"/>
+                                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                            </svg>
+                        </div>
+                        <span class="app-name">礼物柜</span>
+                    </div>
                 </div>
             </div>
             <div class="apps-page" id="apps-page-2">
@@ -381,6 +488,18 @@
                         <div class="app-icon" data-app="accounting"><i class="fas fa-coins"></i></div>
                         <span class="app-name">同心记账</span>
                     </div>
+                    <div class="app-item" onclick="openApp('pet')">
+                        <div class="app-icon" data-app="pet">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+                                <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3.1-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/>
+                                <path d="M8 14v1"/>
+                                <path d="M16 14v1"/>
+                                <path d="M12 14v1"/>
+                                <path d="M12 18c1.5 0 2-1 2-1"/>
+                            </svg>
+                        </div>
+                        <span class="app-name">萌宠屋</span>
+                    </div>
                     <div class="app-item" onclick="openApp('ta-phone')">
                         <div class="app-icon" data-app="ta-phone">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
@@ -390,41 +509,25 @@
                         </div>
                         <span class="app-name">TA的手机</span>
                     </div>
-                    <div class="app-item" onclick="openApp('pet')">
-                        <div class="app-icon" data-app="pet"><i class="fas fa-paw"></i></div>
-                        <span class="app-name">萌宠屋</span>
+                    <div class="app-item" onclick="openApp('map')">
+                        <div class="app-icon" data-app="map">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+                                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                                <line x1="8" y1="2" x2="8" y2="18"/>
+                                <line x1="16" y1="6" x2="16" y2="22"/>
+                            </svg>
+                        </div>
+                        <span class="app-name">Zmilk地图</span>
                     </div>
                     <div class="app-item" onclick="openApp('shop')">
-                        <div class="app-icon" data-app="shop"><i class="fas fa-store"></i></div>
+                        <div class="app-icon" data-app="shop">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 0 1-8 0"/>
+                            </svg>
+                        </div>
                         <span class="app-name">商城</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('map')">
-                        <div class="app-icon" data-app="map"><i class="fas fa-map-marked-alt"></i></div>
-                        <span class="app-name">地图</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('moments')">
-                        <div class="app-icon" data-app="moments"><i class="fas fa-camera-retro"></i></div>
-                        <span class="app-name">朋友圈</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('gift-cabinet')">
-                        <div class="app-icon" data-app="gift-cabinet"><i class="fas fa-gift"></i></div>
-                        <span class="app-name">礼物柜</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('music')">
-                        <div class="app-icon" data-app="music"><i class="fas fa-music"></i></div>
-                        <span class="app-name">音乐</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('todolist')">
-                        <div class="app-icon" data-app="todolist"><i class="fas fa-tasks"></i></div>
-                        <span class="app-name">待办清单</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('dream')">
-                        <div class="app-icon" data-app="dream"><i class="fas fa-cloud-moon"></i></div>
-                        <span class="app-name">梦境</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('game')">
-                        <div class="app-icon" data-app="game"><i class="fas fa-gamepad"></i></div>
-                        <span class="app-name">小游戏</span>
                     </div>
                 </div>
             </div>
@@ -465,483 +568,287 @@
         </div>
     </div>
 
-    <div class="moments-container" id="moments-container">
-        <!-- 隐藏的文件上传 input -->
-        <input type="file" id="momentsPhotoInput" accept="image/*" multiple style="display:none;" onchange="MomentsApp.handlePhotoUpload(event)">
-        <input type="file" id="momentsVideoInput" accept="video/*" style="display:none;" onchange="MomentsApp.handleVideoUpload(event)">
-        <input type="file" id="momentsAvatarInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleAvatarUpload(event)">
-        <input type="file" id="momentsCoverInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleCoverUpload(event)">
-        <input type="file" id="momentsEditPhotoInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleEditPhotoUpload(event)">
-
-        <div class="app-container">
-            <!-- 返回按钮 -->
-            <button class="moments-back-btn" onclick="hideMomentsPage()">
-                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                返回
+    <!-- ========== 商城模块 ========== -->
+    <div class="shop-container" id="shop-container" style="display:none;">
+        <div class="shop-header">
+            <button class="shop-back" onclick="window.ShopApp.hideShop()">← 返回</button>
+            <span class="shop-title" id="shop-page-title">商城</span>
+            <div class="shop-balance" onclick="window.ShopApp.showBalanceModal()">
+                <i class="fas fa-wallet"></i>
+                <span id="shop-balance-display">余额: ¥520.00</span>
+            </div>
+        </div>
+        <div class="search-bar" id="shop-search-bar">
+            <div class="search-wrapper">
+                <input type="text" class="search-input" id="shop-search-input" placeholder="搜索商品..." oninput="window.ShopApp.onSearchInput()" onfocus="window.ShopApp.showSearchDropdown()">
+                <button class="search-clear" id="shop-search-clear" onclick="window.ShopApp.clearSearch()">✕</button>
+                <div class="search-dropdown" id="shop-search-dropdown">
+                    <div class="search-dropdown-title">
+                        <span>搜索历史</span>
+                        <button onclick="window.ShopApp.clearSearchHistory()">清除</button>
+                    </div>
+                    <div class="search-dropdown-tags" id="shop-search-history"></div>
+                    <div class="search-dropdown-title"><span>热门搜索</span></div>
+                    <div class="search-dropdown-tags">
+                        <div class="search-dropdown-tag" onclick="window.ShopApp.quickSearch('耳机')">耳机</div>
+                        <div class="search-dropdown-tag" onclick="window.ShopApp.quickSearch('蛋糕')">蛋糕</div>
+                        <div class="search-dropdown-tag" onclick="window.ShopApp.quickSearch('对戒')">对戒</div>
+                    </div>
+                </div>
+            </div>
+            <button class="wish-btn" onclick="window.ShopApp.showWishModal()">
+                <i class="fas fa-magic"></i> 许愿
             </button>
-
-            <!-- Cover -->
-            <div class="cover-wrapper">
-                <div class="cover-area" id="coverArea">
-                    <div class="cover-nav">
-                        <span>朋友圈</span>
-                        <div class="nav-icons">
-                            <svg viewBox="0 0 24 24" onclick="MomentsApp.openSearchPanel()"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                            <svg viewBox="0 0 24 24" onclick="MomentsApp.openBeautifyPanel()"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
-                            <svg viewBox="0 0 24 24" onclick="MomentsApp.openAlbumPanel()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                            <div class="visitor-icon-wrap" style="position:relative;display:inline-flex;align-items:center;">
-                                <svg viewBox="0 0 24 24" onclick="MomentsApp.openVisitorPanel()" style="cursor:pointer;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                                <span class="visitor-badge" id="visitorBadge" style="display:none;"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- 分割线 -->
-                    <div class="divider-line"></div>
-                </div>
-                <!-- User Profile - positioned to overlap divider -->
-                <div class="user-profile">
-                    <div class="user-profile-inner">
-                        <div class="info">
-                            <span class="name" id="userName">我</span>
-                        </div>
-                        <img class="avatar" id="userAvatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=me&backgroundColor=b6e3f4" alt="头像" onclick="MomentsApp.openCollectionPanel()" style="cursor:pointer;">
-                    </div>
-                    <span class="signature" id="userSignature">生活不止眼前的代码</span>
-                </div>
-            </div>
-
-            <!-- Moments List -->
-            <div class="moments-list" id="momentsList"></div>
-
-            <div class="watermark">— 朋友圈 · 分享生活 —</div>
         </div>
-
-        <!-- Notification Detail Panel -->
-        <div class="notification-detail-panel" id="notificationDetailPanel">
-            <div class="notification-detail-header">
-                <button class="back-btn" onclick="MomentsApp.closeNotificationDetailPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                </button>
-                <span class="title">消息</span>
-                <button class="clear-btn" onclick="MomentsApp.clearAllNotifications()">清空</button>
-            </div>
-            <div class="notification-detail-body" id="notificationDetailBody">
-                <!-- 通知列表将在这里动态渲染 -->
-            </div>
+        <div class="shop-tabs" id="shop-main-tabs">
+            <button class="shop-tab active" onclick="window.ShopApp.switchTab('recommend')">推荐</button>
+            <button class="shop-tab" onclick="window.ShopApp.switchTab('food')">外卖</button>
         </div>
-
-        <!-- Beautify Panel -->
-        <div class="beautify-panel" id="beautifyPanel">
-            <div class="beautify-header">
-                <button class="back-btn" onclick="MomentsApp.closeBeautifyPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                    返回
-                </button>
-                <span class="title">个性化设置</span>
-                <button class="save-btn" onclick="MomentsApp.saveBeautify()">保存</button>
+        <div class="shop-content" id="shop-content">
+            <div id="shop-recommend-panel">
+                <div class="sub-tags-wrapper">
+                    <div class="sub-tags-toggle" onclick="window.ShopApp.toggleSubTags(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>全部</span>
+                    </div>
+                    <div class="sub-tags-content" id="shop-recommend-subtags">
+                        <div class="sub-tag active" onclick="window.ShopApp.filterSubTag(this)">全部</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">衣物</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">日用品</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">数码</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">计生用品</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">饰品</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">居家</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">美妆</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">文具</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">书籍</div>
+                        <div class="sub-tag-add" onclick="window.ShopApp.showAddTagModal('recommend')">+ 自定义</div>
+                    </div>
+                </div>
+                <div class="product-grid" id="shop-recommend-grid"></div>
             </div>
-            <div class="beautify-body">
-                <div class="beautify-section">
-                    <div class="beautify-section-title">个人信息</div>
-                    <div class="beautify-row">
-                        <label>昵称</label>
-                        <input type="text" id="beautifyName" placeholder="输入昵称">
+            <div id="shop-food-panel" style="display:none;">
+                <div class="sub-tags-wrapper">
+                    <div class="sub-tags-toggle" onclick="window.ShopApp.toggleSubTags(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>全部</span>
                     </div>
-                    <div class="beautify-row">
-                        <label>签名</label>
-                        <input type="text" id="beautifySignature" placeholder="输入个性签名">
-                    </div>
-                </div>
-                <div class="beautify-section">
-                    <div class="beautify-section-title">头像</div>
-                    <div class="beautify-row">
-                        <label>头像</label>
-                        <img class="beautify-avatar-preview" id="beautifyAvatarPreview" src="" alt="头像预览" onclick="MomentsApp.updateBeautifyAvatar()" style="cursor:pointer;" title="点击上传头像">
-                    </div>
-                </div>
-                <div class="beautify-section">
-                    <div class="beautify-section-title">朋友圈背景</div>
-                    <img class="beautify-cover-preview" id="beautifyCoverPreview" src="" alt="背景预览" onclick="MomentsApp.updateBeautifyCover()" style="cursor:pointer;" title="点击上传背景">
-                </div>
-                <div class="beautify-section">
-                    <div class="beautify-section-title">互动设置</div>
-                    <div class="beautify-row">
-                        <label>回复速度</label>
-                        <div class="beautify-range-wrap">
-                            <input type="range" id="beautifyReplySpeed" min="5" max="18000" step="5" value="5" oninput="MomentsApp.updateSpeedLabel()">
-                            <span class="beautify-range-label" id="speedLabel">5秒</span>
-                        </div>
-                    </div>
-                    <div class="beautify-row">
-                        <label>评论数量</label>
-                        <div class="beautify-count-wrap">
-                            <input type="number" id="beautifyReplyCountMin" min="0" max="20" value="" placeholder="最少" oninput="MomentsApp.updateCountLabel()">
-                            <span class="beautify-count-sep">~</span>
-                            <input type="number" id="beautifyReplyCountMax" min="0" max="20" value="" placeholder="最多" oninput="MomentsApp.updateCountLabel()">
-                            <span class="beautify-range-label" id="countLabel">随机</span>
-                        </div>
+                    <div class="sub-tags-content" id="shop-food-subtags">
+                        <div class="sub-tag active" onclick="window.ShopApp.filterSubTag(this)">全部</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">奶茶</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">快餐</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">零食</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">水果</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">甜品</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">汤品</div>
+                        <div class="sub-tag" onclick="window.ShopApp.filterSubTag(this)">夜宵</div>
+                        <div class="sub-tag-add" onclick="window.ShopApp.showAddTagModal('food')">+ 自定义</div>
                     </div>
                 </div>
-                <div class="beautify-section">
-                    <div class="beautify-section-title">好友列表</div>
-                    <div class="beautify-friends-desc">用于自动点赞的预设好友，默认包含伴侣</div>
-                    <div class="beautify-row" style="margin-bottom:12px;">
-                        <label>好友点赞</label>
-                        <div class="toggle-switch" id="toggleFriendLike" onclick="MomentsApp.toggleFriendLikeSwitch()">
-                            <div class="toggle-knob"></div>
-                        </div>
-                    </div>
-                    <div class="beautify-friends-list" id="beautifyFriendsList"></div>
-                    <div class="beautify-friends-add">
-                        <input type="text" id="beautifyFriendName" placeholder="好友昵称">
-                        <button onclick="MomentsApp.addFriend()">添加</button>
-                    </div>
+                <div class="product-grid" id="shop-food-grid"></div>
+            </div>
+            <div id="shop-cart-panel" style="display:none;">
+                <div class="cart-list" id="shop-cart-list"></div>
+            </div>
+            <div id="shop-order-panel" style="display:none;">
+                <div class="order-tabs">
+                    <button class="order-tab active" onclick="window.ShopApp.filterOrder(this,'all')">全部</button>
+                    <button class="order-tab" onclick="window.ShopApp.filterOrder(this,'pending')">待送达</button>
+                    <button class="order-tab" onclick="window.ShopApp.filterOrder(this,'completed')">已完成</button>
+                    <button class="order-tab" onclick="window.ShopApp.filterOrder(this,'cancelled')">已取消</button>
                 </div>
+                <div class="order-list" id="shop-order-list"></div>
             </div>
         </div>
-
-        <!-- Search Panel -->
-        <div class="search-panel" id="searchPanel">
-            <div class="search-header">
-                <button class="search-back" onclick="MomentsApp.closeSearchPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                </button>
-                <div class="search-input-wrap">
-                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                    <input type="text" class="search-input" id="searchInput" placeholder="搜索朋友圈内容" oninput="MomentsApp.handleSearchInput()">
-                    <button class="search-clear" id="searchClear" onclick="MomentsApp.clearSearchInput()">
-                        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                    </button>
-                </div>
+        <div class="cart-footer" id="shop-cart-footer">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" class="cart-checkbox" id="shop-cart-selectall" onchange="window.ShopApp.toggleSelectAll()">
+                <span style="font-size:0.8rem;color:var(--text-light);">全选</span>
             </div>
-            <div class="search-filters" style="padding:12px 16px;background:#fff;border-bottom:1px solid #f0f0f0;">
-                <div style="display:flex;flex-direction:column;gap:10px;">
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <span style="font-size:13px;color:#999;white-space:nowrap;">开始：</span>
-                        <input type="date" id="searchDateFrom" onchange="MomentsApp.handleTimeFilterChange()" style="flex:1;padding:8px 10px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;background:#fff;">
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <span style="font-size:13px;color:#999;white-space:nowrap;">结束：</span>
-                        <input type="date" id="searchDateTo" onchange="MomentsApp.handleTimeFilterChange()" style="flex:1;padding:8px 10px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;background:#fff;">
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button onclick="MomentsApp.setQuickTime('today')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">今天</button>
-                        <button onclick="MomentsApp.setQuickTime('week')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一周</button>
-                        <button onclick="MomentsApp.setQuickTime('month')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一月</button>
-                        <button onclick="MomentsApp.setQuickTime('year')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一年</button>
-                        <button onclick="MomentsApp.clearTimeFilter()" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">清除</button>
-                    </div>
-                </div>
-            </div>
-            <div class="search-body" id="searchBody">
-                <div class="search-empty">输入关键词搜索朋友圈内容</div>
-            </div>
+            <div style="flex:1;"></div>
+            <div class="cart-total">合计: <span id="shop-cart-total">¥0</span></div>
+            <button class="checkout-btn delete-selected-btn" onclick="window.ShopApp.deleteSelected()" style="background:var(--danger-color,#ff4757);">删除</button>
+            <button class="checkout-btn" onclick="window.ShopApp.checkout()">结算</button>
         </div>
-
-        <!-- Album Panel -->
-        <div class="album-panel" id="albumPanel">
-            <div class="album-header">
-                <button class="back-btn" onclick="MomentsApp.closeAlbumPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                    返回
-                </button>
-                <span class="title">朋友圈相册</span>
-                <button class="album-expand-btn" id="albumExpandBtn" onclick="MomentsApp.toggleAlbumExpand()">
-                    <svg viewBox="0 0 24 24"><path d="M3 3h8v2H3V3zm0 4h8v2H3V7zm0 4h8v2H3v-2zm10 0h8v2h-8v-2zm0-4h8v2h-8V7zm0-4h8v2h-8V3z"/></svg>
-                </button>
-            </div>
-            <div class="album-filter-bar" id="albumFilterBar">
-                <div class="album-filter-row">
-                    <span class="album-filter-label">从</span>
-                    <input type="date" id="albumDateFrom" onchange="MomentsApp.renderAlbum()">
-                </div>
-                <div class="album-filter-row">
-                    <span class="album-filter-label">至</span>
-                    <input type="date" id="albumDateTo" onchange="MomentsApp.renderAlbum()">
-                </div>
-                <div class="album-filter-actions">
-                    <button onclick="MomentsApp.setAlbumQuickTime('week')" class="album-quick-btn">一周</button>
-                    <button onclick="MomentsApp.setAlbumQuickTime('month')" class="album-quick-btn">一月</button>
-                    <button onclick="MomentsApp.setAlbumQuickTime('year')" class="album-quick-btn">一年</button>
-                    <button onclick="MomentsApp.clearAlbumTimeFilter()" class="album-quick-btn">清除</button>
-                </div>
-            </div>
-            <div class="album-body" id="albumBody">
-                <div class="album-empty">暂无照片</div>
-            </div>
-        </div>
-
-        <!-- Collection Panel -->
-        <div class="collection-panel" id="collectionPanel">
-            <div class="collection-header">
-                <button class="back-btn" onclick="MomentsApp.closeCollectionPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                    返回
-                </button>
-                <span class="title">我的收藏</span>
-                <span class="placeholder"></span>
-            </div>
-            <div class="collection-body" id="collectionBody">
-                <div class="collection-empty">暂无收藏</div>
-            </div>
-        </div>
-
-        <!-- FAB Publish Button -->
-        <button class="fab-publish" id="fabBtn" onclick="MomentsApp.openPublishPanel()">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        </button>
-
-        <!-- Mask -->
-        <div class="mask" id="mask" onclick="MomentsApp.closeAllPanels()"></div>
-
-        <!-- Publish Panel -->
-        <div class="publish-panel" id="publishPanel">
-            <div class="publish-header">
-                <button class="cancel" onclick="MomentsApp.closeAllPanels()">取消</button>
-                <button class="post" onclick="MomentsApp.publishMoment()">发表</button>
-            </div>
-            <div class="publish-body">
-                <textarea class="publish-textarea" id="publishText" placeholder="这一刻的想法..."></textarea>
-                <div class="publish-mentions" id="publishMentionsDisplay" style="display:none;">
-                    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
-                    <span id="mentionsText">提醒谁看</span>
-                </div>
-                <div class="publish-location" id="publishLocationDisplay" onclick="MomentsApp.openLocationPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                    <span id="locationText">所在位置</span>
-                </div>
-                <div class="publish-photos" id="publishPhotos">
-                    <div class="add-photo-btn" onclick="MomentsApp.triggerAddPhoto()"></div>
-                </div>
-                <div class="publish-stickers" id="publishStickers" style="display:none;">
-                    <div class="publish-sticker-item" id="publishStickerItem">
-                        <img id="publishStickerImg" src="" alt="表情包">
-                        <div class="remove-photo" onclick="MomentsApp.removePublishSticker()">
-                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="publish-video-area" id="publishVideoArea" style="display:none;">
-                    <div class="publish-video-item" id="publishVideoItem">
-                        <img id="publishVideoCover" src="" alt="视频封面">
-                        <div class="video-play-badge"></div>
-                        <div class="remove-photo" onclick="MomentsApp.removePublishVideo()">
-                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                        </div>
-                        <div class="video-duration" id="publishVideoDuration">0:30</div>
-                    </div>
-                </div>
-            </div>
-            <div class="publish-toolbar">
-                <div class="toolbar-icons">
-                    <button class="tool-btn" onclick="MomentsApp.triggerAddPhoto()">
-                        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                        <span class="tooltip">添加图片</span>
-                    </button>
-                    <button class="tool-btn" onclick="MomentsApp.triggerAddVideo()">
-                        <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-                        <span class="tooltip">添加视频</span>
-                    </button>
-                    <button class="tool-btn" onclick="MomentsApp.openMentionPanel()">
-                        <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
-                        <span class="tooltip">提醒谁看</span>
-                    </button>
-                    <!-- 我发布朋友圈时不显示表情包按钮，对方(系统自动)仍可发表情包 -->
-                    <!-- <button class="tool-btn" id="my-publish-sticker-btn" onclick="MomentsApp.togglePublishStickerPanel()" style="display:none;">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-3.22 7.52 3.22zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>
-                        <span class="tooltip">添加表情包</span>
-                    </button> -->
-                </div>
-                <span class="publish-footer-note">朋友圈权限</span>
-            </div>
-        </div>
-
-        <!-- Comment Input Popup -->
-        <div class="comment-popup" id="commentPopup">
-            <button class="emoji-toggle-btn" onclick="MomentsApp.toggleCommentEmojiPanel()">
-                <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+        <div class="shop-bottom-nav">
+            <button class="shop-nav-item active" onclick="window.ShopApp.switchNav('shop', this)">
+                <i class="fas fa-store"></i>
+                <span>商城</span>
             </button>
-            <div class="comment-input-area">
-                <div class="comment-sticker-preview" id="commentStickerPreview" style="display:none;">
-                    <img src="" alt="已选表情包">
-                    <span class="remove-sticker" onclick="MomentsApp.removePendingCommentSticker()">×</span>
-                </div>
-                <input type="text" id="commentInput" placeholder="写评论..." onkeydown="if(event.key==='Enter')MomentsApp.submitComment()">
-            </div>
-            <button class="send-btn" onclick="MomentsApp.submitComment()">发送</button>
+            <button class="shop-nav-item" onclick="window.ShopApp.switchNav('cart', this)">
+                <i class="fas fa-shopping-cart"></i>
+                <span>购物车</span>
+            </button>
+            <button class="shop-nav-item" onclick="window.ShopApp.switchNav('order', this)">
+                <i class="fas fa-clipboard-list"></i>
+                <span>订单</span>
+            </button>
         </div>
 
-        <!-- Publish Sticker Panel -->
-        <div class="publish-sticker-panel" id="publishStickerPanel">
-            <div class="publish-sticker-header">
-                <span>选择表情包</span>
-                <button class="close-btn" onclick="MomentsApp.closePublishStickerPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    <!-- 商品详情弹窗 -->
+    <div class="shop-modal" id="shop-product-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeProductModal()">✕</button>
+        <button class="shop-modal-share-btn" onclick="window.ShopApp.shareProduct()">🔗</button>
+        <div class="shop-modal-content">
+            <div class="shop-modal-img" id="shop-modal-img"></div>
+            <div class="shop-modal-name" id="shop-modal-name"></div>
+            <div class="shop-modal-desc" id="shop-modal-desc"></div>
+            <div class="shop-modal-price" id="shop-modal-price"></div>
+            <div id="shop-modal-specs"></div>
+            <div class="spec-section">
+                <div class="spec-title">数量</div>
+                <div class="quantity-control">
+                    <button class="qty-btn" onclick="window.ShopApp.changeQty(-1)">-</button>
+                    <span class="qty-num" id="shop-modal-qty">1</span>
+                    <button class="qty-btn" onclick="window.ShopApp.changeQty(1)">+</button>
+                </div>
+            </div>
+            <div class="remark-section">
+                <div class="spec-title">订单备注</div>
+                <textarea class="remark-input" id="shop-modal-remark" placeholder="给TA留言，或备注特殊要求..."></textarea>
+            </div>
+            <div class="buy-options" id="shop-modal-buy-options">
+                <button class="buy-btn self" id="shop-modal-btn-cart" onclick="window.ShopApp.addToCartFromModal()">
+                    <i class="fas fa-cart-plus"></i> 加入购物车
+                </button>
+                <button class="buy-btn self" id="shop-modal-btn-self" onclick="window.ShopApp.buy('self')">
+                    <i class="fas fa-user"></i> 给自己买
+                </button>
+                <button class="buy-btn dream" id="shop-modal-btn-dream" onclick="window.ShopApp.buy('dream')">
+                    <i class="fas fa-heart"></i> 给梦角买
                 </button>
             </div>
-            <div class="publish-sticker-body" id="publishStickerBody"></div>
+            <button class="buy-btn wish" id="shop-modal-btn-booking" style="width:100%;margin-top:10px;" onclick="window.ShopApp.showBookingModal()">
+                <i class="fas fa-clock"></i> 预订送达
+            </button>
+            <button class="buy-btn pay-request-style" id="shop-modal-btn-pay" style="width:100%;margin-top:10px;" onclick="window.ShopApp.askTAPay()">
+                <i class="fas fa-hand-holding-heart"></i> 找TA代付
+            </button>
         </div>
+    </div>
 
-        <!-- Comment Emoji/Sticker Panel -->
-        <div class="comment-emoji-panel" id="commentEmojiPanel">
-            <div class="comment-emoji-tabs">
-                <button class="emoji-tab active" data-tab="emoji" onclick="MomentsApp.switchCommentEmojiTab('emoji')">表情</button>
-                <button class="emoji-tab" data-tab="kaomoji" onclick="MomentsApp.switchCommentEmojiTab('kaomoji')">颜文字</button>
-                <button class="emoji-tab" data-tab="sticker" onclick="MomentsApp.switchCommentEmojiTab('sticker')">表情包</button>
+    <!-- 许愿弹窗 -->
+    <div class="shop-modal wish-modal" id="shop-wish-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeWishModal()">✕</button>
+        <div class="shop-modal-content">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center;">✨ 许愿商品</div>
+            <div class="wish-form-group">
+                <label class="wish-label">商品名称</label>
+                <input type="text" class="wish-input" id="wish-name" placeholder="输入商品名称...">
             </div>
-            <div class="comment-emoji-body" id="commentEmojiBody"></div>
+            <div class="wish-form-group">
+                <label class="wish-label">价格 (¥)</label>
+                <input type="number" class="wish-input" id="wish-price" placeholder="0.00">
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">分类</label>
+                <select class="wish-select" id="wish-category">
+                    <option value="recommend">推荐</option>
+                    <option value="food">外卖</option>
+                </select>
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">小标签（用逗号分隔）</label>
+                <input type="text" class="wish-input" id="wish-tags" placeholder="如: 衣物, 新品, 限量">
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">商品图标</label>
+                <div class="wish-icon-row">
+                    <input type="text" class="wish-input" id="wish-icon" placeholder="输入emoji 如: 👔 🧋 🎁" style="flex:1;">
+                    <span style="color:var(--text-light);font-size:0.8rem;">或</span>
+                    <label class="wish-img-upload">
+                        <input type="file" id="wish-img-input" accept="image/*" onchange="window.ShopApp.handleWishImgUpload(event)" style="display:none;">
+                        <span>📷 上传图片</span>
+                    </label>
+                </div>
+                <div class="wish-img-preview" id="wish-img-preview" style="display:none;"></div>
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">商品描述</label>
+                <textarea class="wish-textarea" id="wish-desc" placeholder="输入商品详细描述..."></textarea>
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">规格选项</label>
+                <div id="wish-specs"></div>
+                <button class="add-spec-btn" onclick="window.ShopApp.addWishSpec()">+ 添加规格</button>
+            </div>
+            <button class="buy-btn dream" style="width:100%;margin-top:10px;" onclick="window.ShopApp.submitWish()">
+                <i class="fas fa-magic"></i> 许愿上架
+            </button>
         </div>
+    </div>
 
-        <!-- Custom Like/Comment Panel -->
-        <div class="custom-panel" id="customPanel">
-            <div class="custom-panel-header">
-                <span class="title" id="customPanelTitle">自定义点赞</span>
-                <button class="close-btn" onclick="MomentsApp.closeCustomPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div class="custom-panel-body">
-                <div class="custom-input-group">
-                    <label id="customLabel">点赞人名称（用逗号分隔）</label>
-                    <input type="text" id="customInput" placeholder="例如：张三, 李四, 王五">
-                    <div class="custom-friends-shortcut" id="customFriendsShortcut"></div>
-                </div>
-                <div class="custom-input-group" id="customCommentGroup" style="display:none;">
-                    <label>评论内容</label>
-                    <textarea id="customCommentInput" placeholder="输入评论内容..."></textarea>
-                </div>
-            </div>
-            <div class="custom-panel-footer">
-                <button class="cancel-btn" onclick="MomentsApp.closeCustomPanel()">取消</button>
-                <button class="confirm-btn" onclick="MomentsApp.confirmCustom()">确定</button>
-            </div>
+    <!-- 余额设置弹窗 -->
+    <div class="shop-modal balance-modal" id="shop-balance-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeBalanceModal()">✕</button>
+        <div class="shop-modal-content" style="text-align:center;padding:30px 20px;">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;">💰 余额设置</div>
+            <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:20px;">自定义你的购物预算</div>
+            <div class="balance-display" id="shop-balance-display">¥520.00</div>
+            <input type="number" class="balance-input" id="shop-balance-input" placeholder="输入新余额">
+            <button class="buy-btn dream" style="width:100%;" onclick="window.ShopApp.saveBalance()">
+                <i class="fas fa-check"></i> 确认修改
+            </button>
         </div>
+    </div>
 
-        <!-- Edit Panel -->
-        <div class="edit-panel" id="editPanel">
-            <div class="edit-panel-header">
-                <span class="title">编辑朋友圈</span>
-                <button class="close-btn" onclick="MomentsApp.closeEditPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div class="edit-panel-body" id="editPanelBody">
-                <textarea class="edit-textarea" id="editTextarea" placeholder="编辑内容..."></textarea>
-                <div class="edit-info">
-                    <span id="editTime">发布时间：2小时前</span>
-                    <span id="editLikes">点赞：3</span>
-                    <span id="editComments">评论：2</span>
-                </div>
-                <div class="edit-location-group" style="margin-top:12px;">
-                    <label style="display:block;font-size:13px;color:#999;margin-bottom:6px;">所在位置</label>
-                    <div style="display:flex;gap:8px;">
-                        <input type="text" id="editLocationInput" placeholder="输入位置..." style="flex:1;padding:10px 12px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;">
-                        <button onclick="MomentsApp.openEditLocationPanel()" style="padding:10px 16px;background:#07c160;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;">选择</button>
-                    </div>
-                </div>
-                <div class="edit-mention-group" style="margin-top:12px;">
-                    <label style="display:block;font-size:13px;color:#999;margin-bottom:6px;">提到了谁</label>
-                    <div id="editMentionDisplay" style="padding:10px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#fafafa;font-size:14px;color:#333;min-height:40px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;"></div>
-                    <button onclick="MomentsApp.openEditMentionPanel()" style="margin-top:8px;padding:8px 16px;background:#f5f5f5;color:#666;border:none;border-radius:6px;font-size:13px;cursor:pointer;">编辑提醒</button>
-                </div>
-            </div>
-            <div class="edit-panel-footer">
-                <button class="delete-btn" onclick="MomentsApp.deleteMoment()">删除</button>
-                <button class="save-btn" onclick="MomentsApp.saveEdit()">保存</button>
-            </div>
+    <!-- 查看回复弹窗 -->
+    <div class="shop-modal" id="shop-reply-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeReplyModal()">✕</button>
+        <div class="shop-modal-content">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center;">💬 梦角的回复</div>
+            <div id="shop-reply-list"></div>
         </div>
+    </div>
 
-        <!-- Mention Panel -->
-        <div class="mention-panel" id="mentionPanel">
-            <div class="mention-panel-header">
-                <span class="title">提醒谁看</span>
-                <button class="close-btn" onclick="MomentsApp.closeMentionPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div class="mention-panel-body">
-                <div class="mention-input-group">
-                    <label>选择要提醒的好友</label>
-                    <input type="text" id="mentionSearch" placeholder="搜索好友..." oninput="MomentsApp.filterMentions()">
-                </div>
-                <div class="mention-list" id="mentionList"></div>
-            </div>
-            <div class="mention-panel-footer">
-                <button class="cancel-btn" onclick="MomentsApp.closeMentionPanel()">取消</button>
-                <button class="confirm-btn" onclick="MomentsApp.confirmMentions()">确定</button>
-            </div>
-        </div>
-
-        <!-- Location Panel -->
-        <div class="location-panel" id="locationPanel">
-            <div class="location-panel-header">
-                <span class="title">所在位置</span>
-                <button class="close-btn" onclick="MomentsApp.closeLocationPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div class="location-panel-body">
-                <div class="location-input-group">
-                    <label>自定义位置</label>
-                    <input type="text" id="locationInput" placeholder="输入位置名称...">
-                </div>
-            </div>
-            <div class="location-panel-footer">
-                <button class="cancel-btn" onclick="MomentsApp.closeLocationPanel()">取消</button>
-                <button class="confirm-btn" onclick="MomentsApp.confirmLocation()">确定</button>
-            </div>
-        </div>
-
-        <!-- Image Preview Overlay -->
-        <div class="preview-overlay" id="previewOverlay">
-            <div class="preview-close" onclick="MomentsApp.closePreview()">
-                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </div>
-            <div class="preview-counter" id="previewCounter">1 / 9</div>
-            <div class="preview-nav prev" onclick="MomentsApp.prevImage()">
-                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-            </div>
-            <div class="preview-nav next" onclick="MomentsApp.nextImage()">
-                <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-            </div>
-            <div class="preview-image-container" id="previewContainer">
-                <img id="previewImage" src="" alt="预览">
-            </div>
-            <div class="preview-video-container" id="previewVideoContainer" style="display:none;">
-                <video id="previewVideoPlayer" style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:8px;display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);" playsinline></video>
-                <img id="previewVideoCover" src="" alt="视频封面">
-                <div class="preview-video-play" onclick="MomentsApp.toggleVideoPlay()">
-                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-                <div class="preview-video-info" id="previewVideoInfo">点击播放</div>
-            </div>
-            <button class="preview-detail-btn" onclick="MomentsApp.goToMomentDetail()">详情</button>
-        </div>
-
-        <!-- Long Press Hint -->
-        <div class="long-press-hint" id="longPressHint">长按进入自定义模式</div>
-
-        <!-- Visitor Records Panel -->
-        <div class="visitor-panel" id="visitorPanel">
-            <div class="visitor-header">
-                <button class="back-btn" onclick="MomentsApp.closeVisitorPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                </button>
-                <span class="title">访客记录</span>
-                <button class="visitor-test-btn" onclick="MomentsApp.generateTestVisitor()" style="background:none;border:none;color:#50a0ff;font-size:14px;cursor:pointer;padding:4px 8px;margin-right:8px;">测试</button>
-                <button class="visitor-clear-btn" onclick="MomentsApp.clearAllVisitors()">清空</button>
-            </div>
-            <div class="visitor-list" id="visitorList"></div>
-            <div class="visitor-empty" id="visitorEmpty" style="display:none;">
-                <div style="text-align:center;padding:60px 20px;color:#999;">
-                    <div style="font-size:48px;margin-bottom:16px;opacity:0.5;">👁️</div>
-                    <div style="font-size:16px;margin-bottom:8px;">暂无访客记录</div>
-                    <div style="font-size:13px;color:#ccc;">梦角来访时会在这里留下足迹</div>
-                </div>
+    <!-- 自定义分类弹窗 -->
+    <div class="shop-modal" id="shop-addtag-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeAddTagModal()">✕</button>
+        <div class="shop-modal-content">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center;">+ 自定义分类</div>
+            <div class="tag-input-row">
+                <input type="text" id="shop-newtag-input" placeholder="输入分类名称...">
+                <button class="tag-add-btn" onclick="window.ShopApp.addCustomTag()">添加</button>
             </div>
         </div>
     </div>
-    <!-- ========== 朋友圈模块结束 ========== -->
+
+    <!-- 预订弹窗 -->
+    <div class="shop-modal" id="shop-booking-modal">
+        <button class="shop-modal-close" onclick="window.ShopApp.closeBookingModal()">✕</button>
+        <div class="shop-modal-content">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;text-align:center;">⏰ 预订送达</div>
+            <div class="wish-form-group">
+                <label class="wish-label">快捷选项</label>
+                <div class="spec-options">
+                    <div class="spec-option" onclick="window.ShopApp.selectBooking(this,5)">5分钟后</div>
+                    <div class="spec-option" onclick="window.ShopApp.selectBooking(this,30)">30分钟后</div>
+                    <div class="spec-option" onclick="window.ShopApp.selectBooking(this,60)">1小时后</div>
+                    <div class="spec-option" onclick="window.ShopApp.selectBooking(this,1440)">明天</div>
+                </div>
+            </div>
+            <div class="wish-form-group">
+                <label class="wish-label">自定义分钟数</label>
+                <input type="number" class="wish-input" id="shop-booking-minutes" placeholder="输入分钟数">
+            </div>
+            <div class="buy-options">
+                <button class="buy-btn self" style="flex:1;" onclick="window.ShopApp.bookingBuy('self')">给自己买</button>
+                <button class="buy-btn dream" style="flex:1;" onclick="window.ShopApp.bookingBuy('dream')">给梦角买</button>
+            </div>
+        </div>
+    </div>
+    </div><!-- shop-container end -->
+    <!-- 礼物柜弹窗 -->
+    <div class="center-modal" id="gift-cabinet-modal">
+        <div class="center-modal-overlay" onclick="window.GiftCabinetApp.close()"></div>
+        <div class="center-modal-box">
+            <button class="center-modal-close" onclick="window.GiftCabinetApp.close()">✕</button>
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:12px;text-align:center;">🎁 我的礼物柜</div>
+            <div id="gift-cabinet-list" style="max-height:60vh;overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <!-- ========== 商城模块结束 ========== -->
 
     <!-- 消息通知横幅 -->
     <div class="home-notification" id="home-notification">
@@ -1067,7 +974,7 @@
             <div class="customize-section">
                 <div class="customize-section-title">签名</div>
                 <div class="customize-field">
-                    <input type="text" id="customize-subtitle-input" value="分享热汤 我们两个汤匙一个碗" maxlength="30" onchange="updateHeroSubtitle(this.value)" placeholder="输入签名">
+                    <input type="text" id="customize-subtitle-input" value="两颗缠绕的心 会走同一条路" maxlength="30" onchange="updateHeroSubtitle(this.value)" placeholder="输入签名">
                 </div>
             </div>
 
@@ -1270,6 +1177,929 @@
     </div>
     <!-- ========== 主页模块结束 ========== -->
 
+    <!-- ========== 萌宠屋模块 ========== -->
+    <div class="pet-container" id="pet-container" style="display:none;">
+        <!-- 顶部导航 -->
+        <div class="pet-page-nav">
+            <button class="pet-back-btn" onclick="hidePetPage()">
+                <i class="fas fa-arrow-left"></i>
+                <span>返回</span>
+            </button>
+            <h1 class="pet-page-title">🐾 萌宠屋</h1>
+            <div class="pet-page-placeholder"></div>
+        </div>
+
+        <!-- 剧情引导界面 -->
+        <div id="story-screen" class="screen">
+            <div class="story-container">
+                <div class="story-box" id="story-box">
+                    <div class="story-icon">💭</div>
+                    <div class="story-text" id="story-text">...</div>
+                    <div class="story-hint">点击继续</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 过渡页 -->
+        <div id="transition-screen" class="screen">
+            <div class="transition-container">
+                <div class="transition-icon">✨</div>
+                <h2 class="transition-title">去遇见你的萌宠吧！</h2>
+                <p class="transition-subtitle">一段温馨的陪伴之旅即将开始...</p>
+                <button class="dreamy-btn primary" onclick="showPetSelection()">继续前进</button>
+            </div>
+        </div>
+
+        <!-- 开始界面 -->
+        <div id="start-screen" class="screen">
+            <div class="start-container">
+                <h1 class="main-title">
+                    <span class="title-icon">🌸</span>
+                    像素宠物伙伴
+                    <span class="title-icon">🌸</span>
+                </h1>
+                <p class="subtitle">选择你的小伙伴，开始温馨陪伴之旅</p>
+                <div class="pet-grid">
+                    <div class="pet-card" data-pet="cat">
+                        <div class="pet-avatar">🐱</div>
+                        <span class="pet-name">像素猫</span>
+                    </div>
+                    <div class="pet-card" data-pet="dog">
+                        <div class="pet-avatar">🐕</div>
+                        <span class="pet-name">像素狗</span>
+                    </div>
+                    <div class="pet-card" data-pet="rabbit">
+                        <div class="pet-avatar">🐰</div>
+                        <span class="pet-name">像素兔</span>
+                    </div>
+                    <div class="pet-card" data-pet="fox">
+                        <div class="pet-avatar">🦊</div>
+                        <span class="pet-name">像素狐</span>
+                    </div>
+                    <div class="pet-card" data-pet="hamster">
+                        <div class="pet-avatar">🐹</div>
+                        <span class="pet-name">像素仓鼠</span>
+                    </div>
+                    <div class="pet-card" data-pet="bird">
+                        <div class="pet-avatar">🐦</div>
+                        <span class="pet-name">像素鸟</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏主界面 -->
+        <div id="game-screen" class="screen">
+            <div class="game-container">
+                <div class="top-bar">
+                    <div class="pet-info">
+                        <span class="pet-name-display" id="display-pet-name" onclick="showPetCard()" style="cursor:pointer;" title="点击查看宠物名片">小团子</span>
+                        <span class="stage-badge" id="pet-stage">幼年期</span>
+                    </div>
+                    <div class="top-actions">
+                        <div class="coin-display" onclick="collectCoins()" style="cursor:pointer;" title="点击收取金币">💰<span id="coin-amount">500</span><span id="pending-coins" class="pending-coins"></span></div>
+                        <button class="icon-btn" id="music-toggle" title="音乐">🎵</button>
+                        <button class="icon-btn" id="switch-pet-btn" title="切换宠物">🐾</button>
+                        <button class="icon-btn" id="achievements-btn" title="成就">🏆</button>
+                        <button class="icon-btn" id="pet-settings-btn" title="设置">⚙️</button>
+                    </div>
+                </div>
+                <div class="level-bar">
+                    <span class="level-text">LV.<span id="level-num">1</span></span>
+                    <div class="exp-bar"><div class="exp-fill" id="exp-fill"></div></div>
+                    <span class="exp-text"><span id="exp-current">0</span>/<span id="exp-total">50</span></span>
+                </div>
+                <div class="pet-showcase">
+                    <div class="side-actions left">
+                        <button class="mini-btn" id="activity-btn" title="看看在做什么">👀</button>
+                        <button class="mini-btn" id="go-out-btn" title="外出">🚪</button>
+                        <button class="mini-btn" id="locker-btn" title="置物柜">🗄️</button>
+                    </div>
+                    <div class="pet-circle" id="pet-sprite">
+                        <img id="game-pet-img" src="" alt="宠物">
+                    </div>
+                    <div class="side-actions right">
+                        <button class="mini-btn" id="house-btn" title="小屋">🏠</button>
+                        <button class="mini-btn" id="shop-btn" title="商场">🛒</button>
+                        <button class="mini-btn" id="wardrobe-btn" title="衣柜">👔</button>
+                    </div>
+                    <div class="speech-bubble" id="pet-speech">
+                        <span class="bubble-text">今天好开心呀~</span>
+                    </div>
+                    <div class="pet-effects" id="pet-effects"></div>
+                </div>
+                <div class="status-panel dreamy-card purple">
+                    <div class="panel-title collapsible" id="status-toggle">
+                        <span>💫 <span id="status-pet-name">小团子</span> <span class="personality-badge" id="personality-badge">傲娇</span></span>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="status-grid collapsible-content" id="status-content">
+                        <div class="status-cell">
+                            <div class="status-cell-top">
+                                <span class="status-icon">🍖</span>
+                                <span class="status-label">饱食度：</span>
+                                <span class="status-value" id="hunger-text">肚子饱饱的</span>
+                            </div>
+                            <div class="status-bar"><div class="status-bar-fill" id="hunger-bar"></div></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-cell-top">
+                                <span class="status-icon">😊</span>
+                                <span class="status-label">心情：</span>
+                                <span class="status-value" id="mood-text">超开心</span>
+                            </div>
+                            <div class="status-bar"><div class="status-bar-fill" id="mood-bar"></div></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-cell-top">
+                                <span class="status-icon">⚡</span>
+                                <span class="status-label">精力：</span>
+                                <span class="status-value" id="energy-text">精神满满</span>
+                            </div>
+                            <div class="status-bar"><div class="status-bar-fill" id="energy-bar"></div></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-cell-top">
+                                <span class="status-icon">💖</span>
+                                <span class="status-label">好感度：</span>
+                                <span class="status-value" id="affection-text">超喜欢你</span>
+                            </div>
+                            <div class="status-bar"><div class="status-bar-fill" id="affection-bar"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tasks-panel dreamy-card mint">
+                    <div class="panel-title collapsible" id="tasks-toggle">
+                        <span>📋 今天要做的事</span>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="task-list collapsible-content" id="task-list"></div>
+                </div>
+                <div class="interaction-panel">
+                    <button class="action-btn" data-action="feed"><span class="btn-icon">🍖</span><span class="btn-text">喂食</span></button>
+                    <button class="action-btn" data-action="pet"><span class="btn-icon">👋</span><span class="btn-text">抚摸</span></button>
+                    <button class="action-btn" data-action="play"><span class="btn-icon">🎮</span><span class="btn-text">玩耍</span></button>
+                    <button class="action-btn" data-action="clean"><span class="btn-icon">🛁</span><span class="btn-text">清洁</span></button>
+                    <button class="action-btn" data-action="sleep"><span class="btn-icon">🌙</span><span class="btn-text">睡觉</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 互动弹窗 -->
+        <div class="modal" id="interaction-modal">
+            <div class="modal-content">
+                <div class="modal-header" id="modal-header"><span class="modal-icon" id="modal-icon">🍖</span><span class="modal-title-text" id="modal-title">喂食</span></div>
+                <div class="modal-body" id="modal-body"></div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal()">取消</button></div>
+            </div>
+        </div>
+        <!-- 成就弹窗 -->
+        <div class="modal" id="achievements-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">🏆</span><span class="modal-title-text">成就收集</span></div>
+                <div class="modal-body"><div class="achievements-grid" id="achievements-grid"></div></div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('achievements-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 小屋弹窗 -->
+        <div class="modal" id="switch-pet-modal">
+            <div class="modal-content">
+                <div class="modal-header purple"><span class="modal-icon">🏠</span><span class="modal-title-text">我的小屋</span></div>
+                <div class="modal-body">
+                    <div class="switch-pet-grid" id="switch-pet-grid"></div>
+                    <div class="release-section" id="release-section">
+                        <div class="release-title">⚠️ 放生宠物</div>
+                        <div class="release-desc">放生后宠物数据将被删除，无法恢复</div>
+                        <button class="dreamy-btn danger" onclick="showReleaseConfirm()">放生当前宠物</button>
+                    </div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('switch-pet-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 取名弹窗 -->
+        <div class="modal" id="name-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">✨</span><span class="modal-title-text">给宠物取个名字</span></div>
+                <div class="modal-body" style="text-align:center;">
+                    <div id="name-modal-img" style="font-size:4rem;margin-bottom:10px;">🐱</div>
+                    <div style="font-weight:700;margin-bottom:5px;" id="name-modal-pet-type">像素猫</div>
+                    <div style="color:var(--text-light);font-size:0.85rem;margin-bottom:15px;" id="name-modal-pet-desc">傲娇独立</div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--text);text-align:left;">宠物名字</label>
+                        <input type="text" id="pet-name-input" class="dreamy-input" maxlength="8" placeholder="输入一个可爱的名字...">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;font-weight:600;margin-bottom:6px;color:var(--text);text-align:left;">宠物怎么称呼你</label>
+                        <input type="text" id="owner-name-input" class="dreamy-input" maxlength="8" placeholder="主人、铲屎官...">
+                    </div>
+                    <div style="display:flex;flex-direction:column-reverse;gap:8px;">
+                        <button class="dreamy-btn secondary" style="width:100%;" onclick="cancelNaming()">再想想 🔄</button>
+                        <button id="start-btn" class="dreamy-btn primary" style="width:100%;">开始养成 ✨</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 正在做什么弹窗 -->
+        <div class="modal" id="activity-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">👀</span><span class="modal-title-text">看看它在做什么</span></div>
+                <div class="modal-body" style="text-align:center;padding:20px;">
+                    <img id="activity-modal-img" src="" style="width:60px;height:60px;border-radius:50%;margin-bottom:10px;object-fit:cover;">
+                    <div style="font-weight:700;margin-bottom:5px;" id="activity-modal-pet-name">小团子</div>
+                    <div style="font-size:1rem;color:var(--text);margin:15px 0;padding:15px;background:var(--cream);border-radius:12px;" id="activity-modal-text">正在发呆...</div>
+                    <div style="font-size:0.8rem;color:var(--text-light);margin-top:10px;display:none;" id="activity-modal-cooldown"></div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('activity-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 召回确认弹窗 -->
+        <div class="modal" id="recall-modal">
+            <div class="modal-content">
+                <div class="modal-header yellow"><span class="modal-icon">🚪</span><span class="modal-title-text">召回宠物</span></div>
+                <div class="modal-body" style="text-align:center;padding:20px;">
+                    <div style="font-size:2rem;margin-bottom:10px;">🏠</div>
+                    <div style="font-size:1rem;color:var(--text);margin-bottom:8px;" id="recall-pet-name">小团子</div>
+                    <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:5px;" id="recall-destination">正在公园玩</div>
+                    <div style="font-size:0.85rem;color:var(--peach);margin-bottom:15px;">⚠️ 强制召回不会获得战利品和心情奖励哦</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="dreamy-btn secondary" onclick="closeModal('recall-modal')">让它继续玩</button>
+                    <button class="dreamy-btn primary" onclick="confirmRecall()">召回</button>
+                </div>
+            </div>
+        </div>
+        <!-- 置物柜弹窗 -->
+        <div class="modal" id="locker-modal">
+            <div class="modal-content">
+                <div class="modal-header purple"><span class="modal-icon">🗄️</span><span class="modal-title-text">置物柜</span></div>
+                <div class="modal-body" style="padding:10px;">
+                    <div class="locker-tabs">
+                        <button class="locker-tab active" data-tab="treasure" onclick="switchLockerTab('treasure')">💎 宝藏</button>
+                        <button class="locker-tab" data-tab="supplies" onclick="switchLockerTab('supplies')">🧸 宠物用具</button>
+                    </div>
+                    <div class="locker-content" id="locker-content"></div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('locker-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 小屋弹窗 -->
+        <div class="modal" id="house-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">🏠</span><span class="modal-title-text">宠物小屋</span></div>
+                <div class="modal-body" style="padding:10px;">
+                    <div class="house-tabs" id="house-tabs">
+                        <button class="house-tab active" data-tab="overview" onclick="switchHouseTab('overview')">🏠 概况</button>
+                        <button class="house-tab" data-tab="furniture" onclick="switchHouseTab('furniture')">🪑 家具</button>
+                        <button class="house-tab" id="breeding-tab-btn" style="display:none;" data-tab="breeding" onclick="switchHouseTab('breeding')">💕 繁育</button>
+                    </div>
+                    <div class="house-content" id="house-overview"><div class="house-desc" id="house-desc"></div></div>
+                    <div class="house-content" id="house-furniture-page" style="display:none;"><div class="house-furniture" id="house-furniture"></div></div>
+                    <div class="house-content" id="house-breeding-page" style="display:none;">
+                        <div class="breeding-tabs">
+                            <button class="breeding-tab active" data-tab="mate" onclick="switchBreedingTab('mate')">💕 配对</button>
+                            <button class="breeding-tab" data-tab="pregnant" onclick="switchBreedingTab('pregnant')">🤰 怀孕中</button>
+                            <button class="breeding-tab" data-tab="chart" onclick="switchBreedingTab('chart')">📜 图谱</button>
+                        </div>
+                        <div class="breeding-content" id="breeding-mate"><div class="breeding-desc" style="margin-bottom:15px;">选择两只成年宠物进行配对繁育</div><div class="mate-pet-list" id="mate-pet-list"></div></div>
+                        <div class="breeding-content" id="breeding-pregnant" style="display:none;"><div class="pregnant-list" id="pregnant-list"></div></div>
+                        <div class="breeding-content" id="breeding-chart" style="display:none;"><div class="breeding-chart" id="breeding-chart-content"></div></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('house-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 放生确认弹窗 -->
+        <div class="modal" id="release-modal">
+            <div class="modal-content">
+                <div class="modal-header peach"><span class="modal-icon">💔</span><span class="modal-title-text">确认放生</span></div>
+                <div class="modal-body" style="text-align:center;padding:20px;">
+                    <div style="font-size:3rem;margin-bottom:10px;">😢</div>
+                    <div style="font-size:1rem;font-weight:700;margin-bottom:5px;" id="release-pet-name">小团子</div>
+                    <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:10px;">真的要放生吗？</div>
+                    <div style="font-size:0.75rem;color:var(--peach);">此操作无法撤销！</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="dreamy-btn secondary" onclick="closeModal('release-modal')">再想想</button>
+                    <button class="dreamy-btn danger" onclick="confirmRelease()">确认放生</button>
+                </div>
+            </div>
+        </div>
+        <!-- 繁育弹窗 -->
+        <div class="modal" id="breeding-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">💕</span><span class="modal-title-text">宠物繁育</span></div>
+                <div class="modal-body" style="padding:20px;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:20px;">
+                        <div style="text-align:center;"><div style="font-size:1.5rem;" id="breeding-pet1-gender">♂️</div><div style="font-weight:700;" id="breeding-pet1-name">小团子</div></div>
+                        <div style="font-size:2rem;">❤️</div>
+                        <div style="text-align:center;"><div style="font-size:1.5rem;">?</div><select id="breeding-pet2-select" class="dreamy-input" style="width:120px;"><option value="">选择配偶</option></select></div>
+                    </div>
+                    <div style="font-size:0.8rem;color:var(--text-light);text-align:center;">繁育需要双方好感度≥50<br>繁育后父母好感度各-20</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="dreamy-btn secondary" onclick="closeModal('breeding-modal')">取消</button>
+                    <button class="dreamy-btn primary" onclick="doBreeding()">开始繁育</button>
+                </div>
+            </div>
+        </div>
+        <!-- 宝宝命名弹窗 -->
+        <div class="modal" id="naming-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">🍼</span><span class="modal-title-text">宝宝出生了！</span></div>
+                <div class="modal-body" style="text-align:center;padding:25px;">
+                    <div style="font-size:3rem;margin-bottom:15px;">🎉</div>
+                    <div style="font-size:1rem;color:var(--text-light);margin-bottom:10px;"><span id="baby-mother-name">妈妈</span> 和 <span id="baby-father-name">爸爸</span> 的宝宝出生了！</div>
+                    <div style="font-size:0.9rem;color:var(--pink);margin-bottom:20px;">请给宝宝取个名字吧~</div>
+                    <input type="text" id="baby-name-input" class="dreamy-input" placeholder="输入宝宝名字" maxlength="10" style="text-align:center;width:200px;">
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn primary" onclick="confirmBabyName()">确认</button></div>
+            </div>
+        </div>
+        <!-- 随机事件弹窗 -->
+        <div class="modal" id="event-modal">
+            <div class="modal-content">
+                <div class="modal-header mint"><span class="modal-icon" id="event-icon">✨</span><span class="modal-title-text" id="event-title">随机事件</span></div>
+                <div class="modal-body" style="text-align:center;padding:25px;">
+                    <div style="font-size:3rem;margin-bottom:15px;" id="event-emoji">🎉</div>
+                    <div style="font-size:1rem;color:var(--text);margin-bottom:15px;line-height:1.6;" id="event-desc">事件描述</div>
+                    <div style="font-size:0.85rem;color:var(--mint);font-weight:600;" id="event-effect">效果</div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn primary" onclick="closeModal('event-modal')">太棒了！</button></div>
+            </div>
+        </div>
+        <!-- 宠物名片弹窗 -->
+        <div class="modal" id="pet-card-modal">
+            <div class="modal-content">
+                <div class="modal-header pink"><span class="modal-icon">🐾</span><span class="modal-title-text">宠物名片</span></div>
+                <div class="modal-body" style="padding:20px;">
+                    <div class="pet-card-content">
+                        <div class="pet-card-avatar"><img id="pet-card-img" src="" alt="宠物" style="width:80px;height:80px;border-radius:50%;object-fit:cover;"></div>
+                        <div class="pet-card-name" id="pet-card-name">小团子</div>
+                        <div class="pet-card-breed" id="pet-card-breed">暹罗猫</div>
+                        <div class="pet-card-info">
+                            <div class="pet-card-row"><span class="pet-card-label">性别</span><span class="pet-card-value" id="pet-card-gender">♂️ 公</span></div>
+                            <div class="pet-card-row"><span class="pet-card-label">性格</span><span class="pet-card-value" id="pet-card-personality">傲娇</span></div>
+                            <div class="pet-card-row"><span class="pet-card-label">颜色</span><span class="pet-card-value" id="pet-card-color">橘色</span></div>
+                            <div class="pet-card-row"><span class="pet-card-label">等级</span><span class="pet-card-value" id="pet-card-level">LV.1</span></div>
+                            <div class="pet-card-row"><span class="pet-card-label">健康</span><span class="pet-card-value" id="pet-card-health">健康</span></div>
+                            <div class="pet-card-row"><span class="pet-card-label">子女</span><span class="pet-card-value" id="pet-card-children">暂无</span></div>
+                        </div>
+                        <div class="pet-card-status">
+                            <div class="pet-card-status-title">当前状态</div>
+                            <div class="pet-card-status-bar"><span>饱食度</span><div class="pet-card-bar"><div id="pet-card-hunger" style="width:80%;background:var(--mint);"></div></div><span id="pet-card-hunger-val">80</span></div>
+                            <div class="pet-card-status-bar"><span>心情</span><div class="pet-card-bar"><div id="pet-card-mood" style="width:70%;background:var(--pink);"></div></div><span id="pet-card-mood-val">70</span></div>
+                            <div class="pet-card-status-bar"><span>精力</span><div class="pet-card-bar"><div id="pet-card-energy" style="width:60%;background:var(--lavender);"></div></div><span id="pet-card-energy-val">60</span></div>
+                            <div class="pet-card-status-bar"><span>好感</span><div class="pet-card-bar"><div id="pet-card-affection" style="width:50%;background:var(--peach);"></div></div><span id="pet-card-affection-val">50</span></div>
+                        </div>
+                        <div class="pet-card-ability"><div class="pet-card-ability-title">特殊能力</div><div class="pet-card-ability-list" id="pet-card-ability"><span style="color:var(--text-light);">无</span></div></div>
+                        <div class="pet-card-skills"><div class="pet-card-skills-title">已学会的技能</div><div class="pet-card-skills-list" id="pet-card-skills"><span style="color:var(--text-light);">暂无技能</span></div></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('pet-card-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 像素宠物商场弹窗 -->
+        <div class="modal" id="pet-shop-modal">
+            <div class="modal-content">
+                <div class="modal-header mint"><span class="modal-icon">🛒</span><span class="modal-title-text">商场</span></div>
+                <div class="modal-body" style="padding:10px;">
+                    <div class="shop-tabs">
+                        <button class="shop-tab active" data-tab="food" onclick="switchShopTab('food')">🍖 食品区</button>
+                        <button class="shop-tab" data-tab="furniture" onclick="switchShopTab('furniture')">🪑 家具区</button>
+                        <button class="shop-tab" data-tab="clothes" onclick="switchShopTab('clothes')">👔 服饰区</button>
+                        <button class="shop-tab" data-tab="supplies" onclick="switchShopTab('supplies')">🧸 宠物用具</button>
+                    </div>
+                    <div class="shop-content" id="pet-shop-content"></div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('pet-shop-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- 像素宠物购买确认弹窗 -->
+        <div class="modal" id="pet-shop-buy-modal">
+            <div class="modal-content">
+                <div class="modal-header yellow"><span class="modal-icon">🛒</span><span class="modal-title-text">确认购买</span></div>
+                <div class="modal-body" style="text-align:center;padding:20px;">
+                    <div style="font-size:3rem;margin-bottom:10px;" id="pet-shop-buy-icon">🥕</div>
+                    <div style="font-size:1.1rem;font-weight:700;margin-bottom:5px;" id="pet-shop-buy-name">高级胡萝卜</div>
+                    <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:15px;">单价: 💰<span id="pet-shop-buy-price">50</span></div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:15px;">
+                        <span style="font-size:0.85rem;">数量:</span>
+                        <input type="number" id="pet-shop-buy-quantity" class="dreamy-input" value="1" min="1" max="99" style="width:60px;text-align:center;" onchange="updateBuyTotal()">
+                    </div>
+                    <div style="font-size:1rem;font-weight:700;color:var(--peach);padding:10px;background:var(--cream);border-radius:10px;">总计: 💰<span id="pet-shop-buy-total">50</span></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="dreamy-btn secondary" onclick="closeModal('pet-shop-buy-modal')">取消</button>
+                    <button class="dreamy-btn primary" onclick="confirmBuy()">确认购买</button>
+                </div>
+            </div>
+        </div>
+        <!-- 衣柜弹窗 -->
+        <div class="modal" id="wardrobe-modal">
+            <div class="modal-content">
+                <div class="modal-header purple"><span class="modal-icon">👔</span><span class="modal-title-text">衣柜</span></div>
+                <div class="modal-body" style="padding:15px;">
+                    <div class="outfit-display" id="outfit-display"><div class="outfit-label">当前穿搭</div><div class="outfit-content" id="outfit-content">宠物没有穿戴任何饰品</div></div>
+                    <div class="wardrobe-list" id="wardrobe-list"></div>
+                </div>
+                <div class="modal-footer"><button class="dreamy-btn secondary" onclick="closeModal('wardrobe-modal')">关闭</button></div>
+            </div>
+        </div>
+        <!-- Toast提示 -->
+        <div class="toast" id="toast"></div>
+    </div>
+    <!-- ========== 萌宠屋模块结束 ========== -->
+
+    <!-- ========== TA的手机模块 ========== -->
+    <div class="ta-phone-container" id="ta-phone-container" style="display:none;">
+        <div class="ta-phone-modal">
+            <div class="ta-phone-header">
+                <button class="ta-phone-back" onclick="window.TaPhoneApp.goBack()">← 返回</button>
+                <span class="ta-phone-title" id="ta-phone-header-title">TA的手机</span>
+                <span></span>
+            </div>
+            <div class="ta-phone-desktop">
+                <div class="ta-phone-app" onclick="window.TaPhoneApp.showTaPhoneTab('chat')">
+                    <div class="ta-phone-app-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    </div>
+                    <span class="ta-phone-app-name">聊天</span>
+                </div>
+                <div class="ta-phone-app" onclick="window.TaPhoneApp.showTaPhoneTab('moments')">
+                    <div class="ta-phone-app-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                    <span class="ta-phone-app-name">朋友圈</span>
+                </div>
+                <div class="ta-phone-app" onclick="window.TaPhoneApp.showTaPhoneTab('gifts')">
+                    <div class="ta-phone-app-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                    </div>
+                    <span class="ta-phone-app-name">礼物柜</span>
+                </div>
+            </div>
+            <!-- 内容列表 -->
+            <div class="ta-phone-content" id="ta-phone-content" style="display:none;">
+                <div class="ta-phone-tabs">
+                    <button class="ta-phone-tab" data-tab="chat" onclick="window.TaPhoneApp.showTaPhoneTab('chat')">聊天</button>
+                    <button class="ta-phone-tab" data-tab="moments" onclick="window.TaPhoneApp.showTaPhoneTab('moments')">朋友圈</button>
+                    <button class="ta-phone-tab" data-tab="gifts" onclick="window.TaPhoneApp.showTaPhoneTab('gifts')">礼物柜</button>
+                </div>
+                <div id="ta-phone-sort-bar" style="display:none;gap:6px;padding:6px 12px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button class="ta-phone-sort-btn active" data-sort="collected" onclick="window.TaPhoneApp.setChatSortMode('collected')" style="background:none;border:1px solid var(--border-color,rgba(255,255,255,0.15));border-radius:12px;padding:3px 10px;font-size:0.7rem;color:var(--text-light,#aaa);cursor:pointer;">按收藏时间</button>
+                    <button class="ta-phone-sort-btn" data-sort="original-desc" onclick="window.TaPhoneApp.setChatSortMode('original-desc')" style="background:none;border:1px solid var(--border-color,rgba(255,255,255,0.15));border-radius:12px;padding:3px 10px;font-size:0.7rem;color:var(--text-light,#aaa);cursor:pointer;">按发言时间 ↓</button>
+                    <button class="ta-phone-sort-btn" data-sort="original-asc" onclick="window.TaPhoneApp.setChatSortMode('original-asc')" style="background:none;border:1px solid var(--border-color,rgba(255,255,255,0.15));border-radius:12px;padding:3px 10px;font-size:0.7rem;color:var(--text-light,#aaa);cursor:pointer;">按发言时间 ↑</button>
+                </div>
+                <div class="ta-phone-list" id="ta-phone-list"></div>
+            </div>
+        </div>
+    </div>
+    <!-- ========== TA的手机模块结束 ========== -->
+
+    <!-- ========== 朋友圈模块 ========== -->
+    <div class="moments-container" id="moments-container">
+        <!-- 隐藏的文件上传 input -->
+        <input type="file" id="momentsPhotoInput" accept="image/*" multiple style="display:none;" onchange="MomentsApp.handlePhotoUpload(event)">
+        <input type="file" id="momentsVideoInput" accept="video/*" style="display:none;" onchange="MomentsApp.handleVideoUpload(event)">
+        <input type="file" id="momentsAvatarInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleAvatarUpload(event)">
+        <input type="file" id="momentsCoverInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleCoverUpload(event)">
+        <input type="file" id="momentsEditPhotoInput" accept="image/*" style="display:none;" onchange="MomentsApp.handleEditPhotoUpload(event)">
+
+        <div class="app-container">
+            <!-- 返回按钮 -->
+            <button class="moments-back-btn" onclick="hideMomentsPage()">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                返回
+            </button>
+
+            <!-- Cover -->
+            <div class="cover-wrapper">
+                <div class="cover-area" id="coverArea">
+                    <div class="cover-nav">
+                        <span>朋友圈</span>
+                        <div class="nav-icons">
+                            <svg viewBox="0 0 24 24" onclick="MomentsApp.openSearchPanel()"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <svg viewBox="0 0 24 24" onclick="MomentsApp.openBeautifyPanel()"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
+                            <div class="visitor-icon-wrap" style="position:relative;display:inline-flex;align-items:center;">
+                                <svg viewBox="0 0 24 24" onclick="MomentsApp.openVisitorPanel()" style="cursor:pointer;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                <span class="visitor-badge" id="visitorBadge" style="display:none;"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 分割线 -->
+                    <div class="divider-line"></div>
+                </div>
+                <!-- User Profile - positioned to overlap divider -->
+                <div class="user-profile">
+                    <div class="user-profile-inner">
+                        <div class="info">
+                            <span class="name" id="userName">我</span>
+                        </div>
+                        <img class="avatar" id="userAvatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=me&backgroundColor=b6e3f4" alt="头像" onclick="MomentsApp.openCollectionPanel()" style="cursor:pointer;">
+                    </div>
+                    <span class="signature" id="userSignature">生活不止眼前的代码</span>
+                </div>
+            </div>
+
+            <!-- Moments List -->
+            <div class="moments-list" id="momentsList"></div>
+
+            <div class="watermark">— 朋友圈 · 分享生活 —</div>
+        </div>
+
+        <!-- Notification Detail Panel -->
+        <div class="notification-detail-panel" id="notificationDetailPanel">
+            <div class="notification-detail-header">
+                <button class="back-btn" onclick="MomentsApp.closeNotificationDetailPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </button>
+                <span class="title">消息</span>
+                <button class="clear-btn" onclick="MomentsApp.clearAllNotifications()">清空</button>
+            </div>
+            <div class="notification-detail-body" id="notificationDetailBody">
+                <!-- 通知列表将在这里动态渲染 -->
+            </div>
+        </div>
+
+        <!-- Beautify Panel -->
+        <div class="beautify-panel" id="beautifyPanel">
+            <div class="beautify-header">
+                <button class="back-btn" onclick="MomentsApp.closeBeautifyPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    返回
+                </button>
+                <span class="title">个性化设置</span>
+                <button class="save-btn" onclick="MomentsApp.saveBeautify()">保存</button>
+            </div>
+            <div class="beautify-body">
+                <div class="beautify-section">
+                    <div class="beautify-section-title">个人信息</div>
+                    <div class="beautify-row">
+                        <label>昵称</label>
+                        <input type="text" id="beautifyName" placeholder="输入昵称">
+                    </div>
+                    <div class="beautify-row">
+                        <label>签名</label>
+                        <input type="text" id="beautifySignature" placeholder="输入个性签名">
+                    </div>
+                </div>
+                <div class="beautify-section">
+                    <div class="beautify-section-title">头像</div>
+                    <div class="beautify-row">
+                        <label>头像</label>
+                        <img class="beautify-avatar-preview" id="beautifyAvatarPreview" src="" alt="头像预览" onclick="MomentsApp.updateBeautifyAvatar()" style="cursor:pointer;" title="点击上传头像">
+                    </div>
+                </div>
+                <div class="beautify-section">
+                    <div class="beautify-section-title">朋友圈背景</div>
+                    <img class="beautify-cover-preview" id="beautifyCoverPreview" src="" alt="背景预览" onclick="MomentsApp.updateBeautifyCover()" style="cursor:pointer;" title="点击上传背景">
+                </div>
+                <div class="beautify-section">
+                    <div class="beautify-section-title">互动设置</div>
+                    <div class="beautify-row">
+                        <label>回复速度</label>
+                        <div class="beautify-range-wrap">
+                            <input type="range" id="beautifyReplySpeed" min="5" max="18000" step="5" value="5" oninput="MomentsApp.updateSpeedLabel()">
+                            <span class="beautify-range-label" id="speedLabel">5秒</span>
+                        </div>
+                    </div>
+                    <div class="beautify-row">
+                        <label>评论数量</label>
+                        <div class="beautify-count-wrap">
+                            <input type="number" id="beautifyReplyCountMin" min="0" max="20" value="" placeholder="最少" oninput="MomentsApp.updateCountLabel()">
+                            <span class="beautify-count-sep">~</span>
+                            <input type="number" id="beautifyReplyCountMax" min="0" max="20" value="" placeholder="最多" oninput="MomentsApp.updateCountLabel()">
+                            <span class="beautify-range-label" id="countLabel">随机</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="beautify-section">
+                    <div class="beautify-section-title">好友列表</div>
+                    <div class="beautify-friends-desc">用于自动点赞的预设好友，默认包含伴侣</div>
+                    <div class="beautify-row" style="margin-bottom:12px;">
+                        <label>好友点赞</label>
+                        <div class="toggle-switch" id="toggleFriendLike" onclick="MomentsApp.toggleFriendLikeSwitch()">
+                            <div class="toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div class="beautify-friends-list" id="beautifyFriendsList"></div>
+                    <div class="beautify-friends-add">
+                        <input type="text" id="beautifyFriendName" placeholder="好友昵称">
+                        <button onclick="MomentsApp.addFriend()">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Panel -->
+        <div class="search-panel" id="searchPanel">
+            <div class="search-header">
+                <button class="search-back" onclick="MomentsApp.closeSearchPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </button>
+                <div class="search-input-wrap">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" class="search-input" id="searchInput" placeholder="搜索朋友圈内容" oninput="MomentsApp.handleSearchInput()">
+                    <button class="search-clear" id="searchClear" onclick="MomentsApp.clearSearchInput()">
+                        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="search-filters" style="padding:12px 16px;background:#fff;border-bottom:1px solid #f0f0f0;">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:13px;color:#999;white-space:nowrap;">开始：</span>
+                        <input type="date" id="searchDateFrom" onchange="MomentsApp.handleTimeFilterChange()" style="flex:1;padding:8px 10px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;background:#fff;">
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:13px;color:#999;white-space:nowrap;">结束：</span>
+                        <input type="date" id="searchDateTo" onchange="MomentsApp.handleTimeFilterChange()" style="flex:1;padding:8px 10px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;background:#fff;">
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="MomentsApp.setQuickTime('today')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">今天</button>
+                        <button onclick="MomentsApp.setQuickTime('week')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一周</button>
+                        <button onclick="MomentsApp.setQuickTime('month')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一月</button>
+                        <button onclick="MomentsApp.setQuickTime('year')" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">最近一年</button>
+                        <button onclick="MomentsApp.clearTimeFilter()" style="flex:1;padding:6px;background:#f5f5f5;border:none;border-radius:6px;font-size:12px;color:#666;cursor:pointer;">清除</button>
+                    </div>
+                </div>
+            </div>
+            <div class="search-body" id="searchBody">
+                <div class="search-empty">输入关键词搜索朋友圈内容</div>
+            </div>
+        </div>
+
+
+        <!-- Collection Panel -->
+        <div class="collection-panel" id="collectionPanel">
+            <div class="collection-header">
+                <button class="back-btn" onclick="MomentsApp.closeCollectionPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    返回
+                </button>
+                <span class="title">我的收藏</span>
+                <span class="placeholder"></span>
+            </div>
+            <div class="collection-body" id="collectionBody">
+                <div class="collection-empty">暂无收藏</div>
+            </div>
+        </div>
+
+        <!-- FAB Publish Button -->
+        <button class="fab-publish" id="fabBtn" onclick="MomentsApp.openPublishPanel()">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+
+        <!-- Mask -->
+        <div class="mask" id="mask" onclick="MomentsApp.closeAllPanels()"></div>
+
+        <!-- Publish Panel -->
+        <div class="publish-panel" id="publishPanel">
+            <div class="publish-header">
+                <button class="cancel" onclick="MomentsApp.closeAllPanels()">取消</button>
+                <button class="post" onclick="MomentsApp.publishMoment()">发表</button>
+            </div>
+            <div class="publish-body">
+                <textarea class="publish-textarea" id="publishText" placeholder="这一刻的想法..."></textarea>
+                <div class="publish-mentions" id="publishMentionsDisplay" style="display:none;" onclick="MomentsApp.openMentionPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                    <span id="mentionsText">提醒谁看</span>
+                </div>
+                <div class="publish-location" id="publishLocationDisplay" onclick="MomentsApp.openLocationPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    <span id="locationText">所在位置</span>
+                </div>
+                <div class="publish-photos" id="publishPhotos">
+                    <div class="add-photo-btn" onclick="MomentsApp.triggerAddPhoto()"></div>
+                </div>
+                <div class="publish-stickers" id="publishStickers" style="display:none;">
+                    <div class="publish-sticker-item" id="publishStickerItem">
+                        <img id="publishStickerImg" src="" alt="表情包">
+                        <div class="remove-photo" onclick="MomentsApp.removePublishSticker()">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="publish-video-area" id="publishVideoArea" style="display:none;">
+                    <div class="publish-video-item" id="publishVideoItem">
+                        <img id="publishVideoCover" src="" alt="视频封面">
+                        <div class="video-play-badge"></div>
+                        <div class="remove-photo" onclick="MomentsApp.removePublishVideo()">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </div>
+                        <div class="video-duration" id="publishVideoDuration">0:30</div>
+                    </div>
+                </div>
+            </div>
+            <div class="publish-toolbar">
+                <div class="toolbar-icons">
+                    <button class="tool-btn" onclick="MomentsApp.triggerAddPhoto()">
+                        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                        <span class="tooltip">添加图片</span>
+                    </button>
+                    <button class="tool-btn" onclick="MomentsApp.triggerAddVideo()">
+                        <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                        <span class="tooltip">添加视频</span>
+                    </button>
+                    <button class="tool-btn" onclick="MomentsApp.openMentionPanel()">
+                        <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                        <span class="tooltip">提醒谁看</span>
+                    </button>
+                    <button class="tool-btn" onclick="MomentsApp.togglePublishStickerPanel()">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-3.22 7.52 3.22zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>
+                        <span class="tooltip">添加表情包</span>
+                    </button>
+                </div>
+                <span class="publish-footer-note">朋友圈权限</span>
+            </div>
+        </div>
+
+        <!-- Comment Input Popup -->
+        <div class="comment-popup" id="commentPopup">
+            <button class="emoji-toggle-btn" onclick="MomentsApp.toggleCommentEmojiPanel()">
+                <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+            </button>
+            <div class="comment-input-area">
+                <div class="comment-sticker-preview" id="commentStickerPreview" style="display:none;">
+                    <img src="" alt="已选表情包">
+                    <span class="remove-sticker" onclick="MomentsApp.removePendingCommentSticker()">×</span>
+                </div>
+                <input type="text" id="commentInput" placeholder="写评论..." onkeydown="if(event.key==='Enter')MomentsApp.submitComment()">
+            </div>
+            <button class="send-btn" onclick="MomentsApp.submitComment()">发送</button>
+        </div>
+
+        <!-- Publish Sticker Panel -->
+        <div class="publish-sticker-panel" id="publishStickerPanel">
+            <div class="publish-sticker-header">
+                <span>选择表情包</span>
+                <button class="close-btn" onclick="MomentsApp.closePublishStickerPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="publish-sticker-body" id="publishStickerBody"></div>
+        </div>
+
+        <!-- Comment Emoji/Sticker Panel -->
+        <div class="comment-emoji-panel" id="commentEmojiPanel">
+            <div class="comment-emoji-tabs">
+                <button class="emoji-tab active" data-tab="emoji" onclick="MomentsApp.switchCommentEmojiTab('emoji')">表情</button>
+                <button class="emoji-tab" data-tab="kaomoji" onclick="MomentsApp.switchCommentEmojiTab('kaomoji')">颜文字</button>
+                <button class="emoji-tab" data-tab="sticker" onclick="MomentsApp.switchCommentEmojiTab('sticker')">表情包</button>
+            </div>
+            <div class="comment-emoji-body" id="commentEmojiBody"></div>
+        </div>
+
+        <!-- Custom Like/Comment Panel -->
+        <div class="custom-panel" id="customPanel">
+            <div class="custom-panel-header">
+                <span class="title" id="customPanelTitle">自定义点赞</span>
+                <button class="close-btn" onclick="MomentsApp.closeCustomPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="custom-panel-body">
+                <div class="custom-input-group">
+                    <label id="customLabel">点赞人名称（用逗号分隔）</label>
+                    <input type="text" id="customInput" placeholder="例如：张三, 李四, 王五">
+                    <div class="custom-friends-shortcut" id="customFriendsShortcut"></div>
+                </div>
+                <div class="custom-input-group" id="customCommentGroup" style="display:none;">
+                    <label>评论内容</label>
+                    <textarea id="customCommentInput" placeholder="输入评论内容..."></textarea>
+                </div>
+            </div>
+            <div class="custom-panel-footer">
+                <button class="cancel-btn" onclick="MomentsApp.closeCustomPanel()">取消</button>
+                <button class="confirm-btn" onclick="MomentsApp.confirmCustom()">确定</button>
+            </div>
+        </div>
+
+        <!-- Edit Panel -->
+        <div class="edit-panel" id="editPanel">
+            <div class="edit-panel-header">
+                <span class="title">编辑朋友圈</span>
+                <button class="close-btn" onclick="MomentsApp.closeEditPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="edit-panel-body" id="editPanelBody">
+                <textarea class="edit-textarea" id="editTextarea" placeholder="编辑内容..."></textarea>
+                <div class="edit-info">
+                    <span id="editTime">发布时间：2小时前</span>
+                    <span id="editLikes">点赞：3</span>
+                    <span id="editComments">评论：2</span>
+                </div>
+                <div class="edit-location-group" style="margin-top:12px;">
+                    <label style="display:block;font-size:13px;color:#999;margin-bottom:6px;">所在位置</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" id="editLocationInput" placeholder="输入位置..." style="flex:1;padding:10px 12px;border:1px solid #e5e5e5;border-radius:6px;font-size:14px;">
+                        <button onclick="MomentsApp.openEditLocationPanel()" style="padding:10px 16px;background:#07c160;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;">选择</button>
+                    </div>
+                </div>
+                <div class="edit-mention-group" style="margin-top:12px;">
+                    <label style="display:block;font-size:13px;color:#999;margin-bottom:6px;">提到了谁</label>
+                    <div id="editMentionDisplay" style="padding:10px 12px;border:1px solid #e5e5e5;border-radius:6px;background:#fafafa;font-size:14px;color:#333;min-height:40px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;"></div>
+                    <button onclick="MomentsApp.openEditMentionPanel()" style="margin-top:8px;padding:8px 16px;background:#f5f5f5;color:#666;border:none;border-radius:6px;font-size:13px;cursor:pointer;">编辑提醒</button>
+                </div>
+            </div>
+            <div class="edit-panel-footer">
+                <button class="delete-btn" onclick="MomentsApp.deleteMoment()">删除</button>
+                <button class="save-btn" onclick="MomentsApp.saveEdit()">保存</button>
+            </div>
+        </div>
+
+        <!-- Mention Panel -->
+        <div class="mention-panel" id="mentionPanel">
+            <div class="mention-panel-header">
+                <span class="title">提醒谁看</span>
+                <button class="close-btn" onclick="MomentsApp.closeMentionPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="mention-panel-body">
+                <div class="mention-input-group">
+                    <label>选择要提醒的好友</label>
+                    <input type="text" id="mentionSearch" placeholder="搜索好友..." oninput="MomentsApp.filterMentions()">
+                </div>
+                <div class="mention-list" id="mentionList"></div>
+            </div>
+            <div class="mention-panel-footer">
+                <button class="cancel-btn" onclick="MomentsApp.closeMentionPanel()">取消</button>
+                <button class="confirm-btn" onclick="MomentsApp.confirmMentions()">确定</button>
+            </div>
+        </div>
+
+        <!-- Location Panel -->
+        <div class="location-panel" id="locationPanel">
+            <div class="location-panel-header">
+                <span class="title">所在位置</span>
+                <button class="close-btn" onclick="MomentsApp.closeLocationPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="location-panel-body">
+                <div class="location-input-group">
+                    <label>自定义位置</label>
+                    <input type="text" id="locationInput" placeholder="输入位置名称...">
+                </div>
+            </div>
+            <div class="location-panel-footer">
+                <button class="cancel-btn" onclick="MomentsApp.closeLocationPanel()">取消</button>
+                <button class="confirm-btn" onclick="MomentsApp.confirmLocation()">确定</button>
+            </div>
+        </div>
+
+        <!-- Image Preview Overlay -->
+        <div class="preview-overlay" id="previewOverlay">
+            <div class="preview-close" onclick="MomentsApp.closePreview()">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </div>
+            <div class="preview-counter" id="previewCounter">1 / 9</div>
+            <div class="preview-nav prev" onclick="MomentsApp.prevImage()">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <div class="preview-nav next" onclick="MomentsApp.nextImage()">
+                <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </div>
+            <div class="preview-image-container" id="previewContainer">
+                <img id="previewImage" src="" alt="预览">
+            </div>
+            <div class="preview-video-container" id="previewVideoContainer" style="display:none;">
+                <video id="previewVideoPlayer" style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:8px;display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);" playsinline></video>
+                <img id="previewVideoCover" src="" alt="视频封面">
+                <div class="preview-video-play" onclick="MomentsApp.toggleVideoPlay()">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <div class="preview-video-info" id="previewVideoInfo">点击播放</div>
+            </div>
+            <button class="preview-detail-btn" onclick="MomentsApp.goToMomentDetail()">详情</button>
+        </div>
+
+        <!-- Long Press Hint -->
+        <div class="long-press-hint" id="longPressHint">长按进入自定义模式</div>
+
+        <!-- Visitor Records Panel -->
+        <div class="visitor-panel" id="visitorPanel">
+            <div class="visitor-header">
+                <button class="back-btn" onclick="MomentsApp.closeVisitorPanel()">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </button>
+                <span class="title">访客记录</span>
+                <button class="visitor-clear-btn" onclick="MomentsApp.clearAllVisitors()">清空</button>
+            </div>
+            <div class="visitor-list" id="visitorList"></div>
+            <div class="visitor-empty" id="visitorEmpty" style="display:none;">
+                <div style="text-align:center;padding:60px 20px;color:#999;">
+                    <div style="font-size:48px;margin-bottom:16px;opacity:0.5;">👁️</div>
+                    <div style="font-size:16px;margin-bottom:8px;">暂无访客记录</div>
+                    <div style="font-size:13px;color:#ccc;">梦角来访时会在这里留下足迹</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ========== 朋友圈模块结束 ========== -->
+
     <div class="header">
         <div class="header-motto"></div>
         <div class="header-inner">
@@ -1277,11 +2107,10 @@
                 <div id="partner-name" class="username">
                     梦角
                 </div>
-                <div id="partner-avatar-container" class="avatar-container" style="position:relative;">
+                <div id="partner-avatar-container" class="avatar-container">
                     <div class="avatar" id="partner-avatar">
                         <i class="fas fa-user"></i>
                     </div>
-                    <span id="partner-badge-icon" style="position:absolute;bottom:-2px;right:-4px;font-size:12px;line-height:1;pointer-events:none;">🌸</span>
                 </div>
                 <div class="status" id="partner-status">
                     <span>在线</span>
@@ -1295,6 +2124,11 @@
                 <button id="theme-toggle" class="action-btn" title="切换主题"><i class="fas fa-moon"></i></button>
                 <button id="calendar-btn" class="action-btn" title="日历" onclick="openMiniCalendar()"><i class="fas fa-calendar-alt"></i></button>
                 <button id="settings-btn" class="action-btn" title="设置"><i class="fas fa-cog"></i></button>
+                <!-- 火花图标 -->
+                <div class="spark-icon" id="spark-icon" onclick="SparkApp.openSparkModal()" style="display:none;">
+                    <span class="spark-flame">&#x1F525;</span>
+                    <span class="spark-badge" id="spark-badge"></span>
+                </div>
             </div>
              <div class="user-info">
                 <div class="username" id="my-name">
@@ -1402,36 +2236,41 @@
     <div class="input-area-wrapper">
         <div class="batch-preview" id="batch-preview"></div>
         <div id="reply-preview-container"></div>
-        <div id="sticker-preview-area" style="display:none;padding:4px 12px;background:var(--secondary-bg);border-top:1px solid var(--border-color);align-items:center;gap:8px;">
-            <div style="display:flex;align-items:center;gap:8px;width:100%;overflow-x:auto;">
-                <span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">📎 附件:</span>
-                <span id="sticker-preview-cancel" style="cursor:pointer;font-size:14px;color:var(--text-secondary);margin-left:auto;flex-shrink:0;" title="清除附件">✕</span>
-            </div>
-        </div>
         <div id="collapsed-extras-panel" style="display:none;">
-            <div class="collapsed-extras-inner" style="padding:12px; background:var(--secondary-bg); border-top:1px solid var(--border-color);">
-                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
-                    <button class="collapsed-extra-btn" id="attachment-btn-extra" title="发送图片" onclick="document.getElementById('image-input').click()">
-                        <i class="fas fa-image"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" id="combo-btn-extra" title="表情拍一拍">
-                        <i class="fas fa-laugh-beam"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" id="batch-btn-extra" title="批量发送">
-                        <i class="fas fa-layer-group"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" title="字卡回复" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');showModal(document.getElementById('custom-replies-modal'));})();">
-                        <i class="fas fa-comment-dots"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" title="塔罗占卜" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');generateFortune();})();">
-                        <i class="fas fa-star-and-crescent"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" id="collapsed-call-btn" title="视频通话" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');if(window.callFeature&&typeof window.callFeature.startCall==='function')window.callFeature.startCall(false);})();">
-                        <i class="fas fa-video"></i>
-                    </button>
-                    <button class="collapsed-extra-btn" title="退出收纳" onclick="window.exitCollapseMode && window.exitCollapseMode()" style="color:#ff5050; background:rgba(255,80,80,0.1);">
-                        <i class="fas fa-times"></i>
-                    </button>
+            <div class="collapsed-extras-inner">
+                <div class="wx-extras-grid">
+                    <div class="wx-extra-item" id="attachment-btn-extra" onclick="document.getElementById('image-input').click()">
+                        <div class="wx-extra-icon"><i class="fas fa-image"></i></div>
+                        <div class="wx-extra-label">相册</div>
+                    </div>
+                    <div class="wx-extra-item" id="combo-btn-extra">
+                        <div class="wx-extra-icon"><i class="fas fa-laugh-beam"></i></div>
+                        <div class="wx-extra-label">表情</div>
+                    </div>
+                    <div class="wx-extra-item" id="continue-btn-extra" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');var cb=document.getElementById('continue-btn');if(cb)cb.click();})();">
+                        <div class="wx-extra-icon"><i class="fas fa-ellipsis-h"></i></div>
+                        <div class="wx-extra-label">继续说</div>
+                    </div>
+                    <div class="wx-extra-item" id="red-packet-btn-extra" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');window.showRedPacketSendModal && window.showRedPacketSendModal();})();">
+                        <div class="wx-extra-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="wx-extra-label">红包</div>
+                    </div>
+                    <div class="wx-extra-item" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');showModal(document.getElementById('custom-replies-modal'));})();">
+                        <div class="wx-extra-icon"><i class="fas fa-comment-dots"></i></div>
+                        <div class="wx-extra-label">字卡</div>
+                    </div>
+                    <div class="wx-extra-item" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');generateFortune();})();">
+                        <div class="wx-extra-icon"><i class="fas fa-star-and-crescent"></i></div>
+                        <div class="wx-extra-label">占卜</div>
+                    </div>
+                    <div class="wx-extra-item" id="collapsed-call-btn" onclick="(function(){document.getElementById('collapsed-extras-panel').style.display='none';document.getElementById('collapse-expand-btn').classList.remove('open');if(window.callFeature&&typeof window.callFeature.startCall==='function')window.callFeature.startCall(false);})();">
+                        <div class="wx-extra-icon"><i class="fas fa-video"></i></div>
+                        <div class="wx-extra-label">通话</div>
+                    </div>
+                    <div class="wx-extra-item" onclick="window.exitCollapseMode && window.exitCollapseMode()">
+                        <div class="wx-extra-icon" style="background:rgba(255,80,80,0.08);color:#e74c3c;"><i class="fas fa-times"></i></div>
+                        <div class="wx-extra-label">退出</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1451,11 +2290,29 @@
         </svg>
     </button>
 
-    <div class="message-input" id="message-input" contenteditable="true" placeholder="说点什么..." wrap="soft" rows="1" onpaste="handleMessageInputPaste(event)" onkeydown="handleMessageInputKeydown(event)"></div>
+    <textarea class="message-input" id="message-input" placeholder="" wrap="soft" rows="1"></textarea>
+
+    <!-- 表情包预览区（与文字框配套，在输入框上方显示） -->
+    <div id="chat-sticker-preview" style="display:none;position:absolute;left:12px;right:60px;bottom:56px;z-index:10;">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:var(--secondary-bg);border:1px solid var(--border-color);border-radius:12px;padding:4px 8px;box-shadow:0 -2px 8px rgba(0,0,0,0.05);">
+            <img id="chat-sticker-preview-img" src="" alt="表情包" style="width:48px;height:48px;object-fit:cover;border-radius:8px;">
+            <button onclick="window.clearChatStickerPreview()" style="width:20px;height:20px;border:none;border-radius:50%;background:var(--text-secondary);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;padding:0;flex-shrink:0;"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
     
     <div class="input-buttons">
-    <button class="continue-btn input-btn" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
-        <button class="batch-btn input-btn collapse-hideable" id="batch-btn" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
+    <button class="continue-btn input-btn collapse-hideable" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
+    <button class="batch-btn input-btn" id="batch-btn" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
+
+    <!-- 表情包快捷栏按钮 -->
+    <button class="sticker-bar-btn input-btn" id="sticker-bar-btn" title="表情包" style="position:relative;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
+            <polyline points="21 15 16 10 5 21"/>
+        </svg>
+    </button>
+
         <button class="send-btn input-btn" id="send-btn" title="发送消息"><i class="fas fa-paper-plane"></i></button>
         
         <div class="sticker-picker-popover" id="user-sticker-picker">
@@ -1609,7 +2466,7 @@
     </div>
 </div>
 
-<div class="modal" id="envelope-view-modal" style="z-index:2100;">
+<div class="modal" id="envelope-view-modal" style="z-index:100000;">
     <div class="modal-content" style="overflow:hidden;padding:0;background:transparent;max-height:92vh;display:flex;flex-direction:column;">
     <div style="background:var(--secondary-bg);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
         <div style="background:var(--accent-color);padding:0;position:relative;overflow:hidden;flex-shrink:0;">
@@ -1752,11 +2609,11 @@
             </div>
 
             <div class="settings-grid">
-                <div class="settings-card" id="appearance-settings" onclick="(function(){hideModal(document.getElementById('settings-modal'));showModal(document.getElementById('appearance-modal'))})()" style="cursor:pointer;">
+                <div class="settings-card" id="appearance-settings">
                     <i class="fas fa-palette"></i>
                     <span>外观设置</span>
                 </div>
-                <div class="settings-card" id="chat-settings" onclick="(function(){hideModal(document.getElementById('settings-modal'));showModal(document.getElementById('chat-modal'))})()" style="cursor:pointer;">
+                <div class="settings-card" id="chat-settings">
                     <i class="fas fa-sliders-h"></i>
                     <span>聊天设置</span>
                 </div>
@@ -1809,9 +2666,6 @@
     </div>
     <div class="settings-card" onclick="showAppearancePanel('avatar')" style="cursor:pointer;">
         <i class="fas fa-user-circle"></i><span>聊天头像</span>
-    </div>
-    <div class="settings-card" onclick="showAppearancePanel('icons')" style="cursor:pointer;">
-        <i class="fas fa-th"></i><span>功能图标</span>
     </div>
 </div>
 
@@ -1873,32 +2727,29 @@
                 <input type="range" min="12" max="24" value="16" class="font-size-slider" id="font-size-slider">
                 <span class="font-size-value" id="font-size-value">16px</span>
             </div>
+            <!-- 本地上传字体 -->
+            <div style="margin-top: 12px; padding: 10px 12px; background: var(--bg-secondary); border-radius: 10px; border: 1px dashed var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="upload-font-btn" class="modal-btn modal-btn-primary" style="padding: 7px 14px; font-size: 12px; white-space: nowrap; display: flex; align-items: center; gap: 5px;" title="上传本地字体文件">
+                        <i class="fas fa-upload"></i> 本地上传字体
+                    </button>
+                    <span id="local-font-name" style="font-size: 12px; color: var(--accent-color); flex: 1; word-break: break-all;"></span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; opacity: 0.7;">
+                    支持 TTF / OTF / WOFF / WOFF2 格式，上传后自动应用
+                </div>
+            </div>
+            <input type="file" id="local-font-input" accept=".ttf,.otf,.woff,.woff2" style="display: none;">
+            <!-- 字体链接 -->
             <div style="margin-top: 10px;">
                 <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:5px;">字体链接 (CSS/TTF):</label>
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="custom-font-url" class="modal-input" style="margin-bottom:0; font-size:12px;" placeholder="https://example.com/font.woff2">
                     <button id="apply-font-btn" class="modal-btn modal-btn-primary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">应用</button>
-                    <button id="follow-system-font-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap; margin-left: 5px;">跟随系统</button>
+                    <button id="follow-system-font-btn" class="modal-btn modal-btn-secondary" style="padding: 5px 10px; font-size: 12px; white-space: nowrap;">跟随系统</button>
                 </div>
                 <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; opacity: 0.7;">
                     提示: 应用后将覆盖默认字体。留空并应用可恢复默认。
-                </div>
-            </div>
-            <!-- 本地字体上传 -->
-            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
-                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:6px;">📁 本地字体上传:</label>
-                <input type="file" id="local-font-file-input" accept=".ttf,.otf,.woff,.woff2,.eot" style="display:none;">
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <button id="local-font-upload-btn" class="modal-btn modal-btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;">
-                        <i class="fas fa-upload"></i> 选择字体文件
-                    </button>
-                    <span id="local-font-file-name" style="font-size:11px;color:var(--accent-color);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;"></span>
-                    <button id="local-font-clear-btn" class="modal-btn modal-btn-secondary" style="padding:4px 10px;font-size:11px;white-space:nowrap;display:none;">
-                        <i class="fas fa-times"></i> 清除
-                    </button>
-                </div>
-                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">
-                    支持 TTF / OTF / WOFF / WOFF2 格式，单个文件不超过10MB
                 </div>
             </div>
         </div>
@@ -2180,19 +3031,6 @@
             <div id="global-css-status" style="display:none;margin-top:8px;font-size:11px;color:var(--text-secondary);padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border-radius:8px;"></div>
         </div>
     </div>
-
-    <div id="appearance-panel-icons" class="appearance-sub-panel" style="display:none;">
-        <div class="settings-section">
-            <div class="settings-section-title"><i class="fas fa-th"></i>功能图标自定义</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;opacity:0.75;">隐藏不需要的功能或更换图标样式</div>
-            <div id="app-icons-config-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-            <div style="margin-top:14px;text-align:center;">
-                <button class="modal-btn modal-btn-secondary" id="reset-app-icons-btn" style="font-size:12px;padding:6px 14px;">
-                    <i class="fas fa-undo"></i> 恢复默认
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
             <div class="modal-buttons" style="position:sticky;bottom:0;background:var(--secondary-bg);border-top:1px solid var(--border-color);padding:12px 0 0;z-index:10;margin-top:8px;margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px;padding-bottom:max(12px, env(safe-area-inset-bottom, 0px));">
@@ -2299,12 +3137,12 @@
                     <div class="cs-card" style="margin-bottom:10px;">
                         <div class="cs-slider-row">
                             <span class="cs-slider-label">最短等待</span>
-                            <input type="range" min="1000" max="120000" step="1000" value="3000" class="font-size-slider" id="reply-delay-min-slider">
+                            <input type="range" min="1000" max="600000" step="1000" value="3000" class="font-size-slider" id="reply-delay-min-slider">
                             <span class="cs-slider-val" id="reply-delay-min-value">3s</span>
                         </div>
                         <div class="cs-slider-row">
                             <span class="cs-slider-label">最长等待</span>
-                            <input type="range" min="1000" max="120000" step="1000" value="7000" class="font-size-slider" id="reply-delay-max-slider">
+                            <input type="range" min="1000" max="600000" step="1000" value="7000" class="font-size-slider" id="reply-delay-max-slider">
                             <span class="cs-slider-val" id="reply-delay-max-value">7s</span>
                         </div>
                     </div>
@@ -2325,30 +3163,60 @@
                         </div>
                     </div>
 
-                    <p class="cs-group-label" style="margin-top:12px;">伴侣发朋友圈</p>
+                    <p class="cs-group-label" style="margin-top:4px;">拼字卡</p>
                     <div class="cs-card">
-                        <div class="setting-pill-row" id="partner-moment-toggle">
-                            <span class="setting-pill-icon"><i class="fas fa-images"></i></span>
-                            <span class="setting-pill-label">伴侣主动发朋友圈</span>
+                        <div class="setting-pill-row" id="pinyin-card-toggle">
+                            <span class="setting-pill-icon"><i class="fas fa-puzzle-piece"></i></span>
+                            <span class="setting-pill-label">拼字卡 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后，系统会随机将字卡拼接合并发送</span></span>
                             <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
                         </div>
-                        <div id="partner-moment-control" style="display:none;">
+                        <div id="pinyin-card-settings" style="display:none;border-top:1px solid var(--border-color);margin-top:8px;">
                             <div class="cs-slider-row">
-                                <span class="cs-slider-label">最短间隔</span>
-                                <input type="range" min="5" max="240" step="5" value="30" class="font-size-slider" id="partner-moment-min-slider">
-                                <span class="cs-slider-val" id="partner-moment-min-value">30分钟</span>
+                                <span class="cs-slider-label">最少句数</span>
+                                <input type="range" min="2" max="10" step="1" value="2" class="font-size-slider" id="pinyin-card-min-slider">
+                                <span class="cs-slider-val" id="pinyin-card-min-value">2句</span>
                             </div>
                             <div class="cs-slider-row">
-                                <span class="cs-slider-label">最长间隔</span>
-                                <input type="range" min="5" max="480" step="5" value="120" class="font-size-slider" id="partner-moment-max-slider">
-                                <span class="cs-slider-val" id="partner-moment-max-value">120分钟</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">每次最多条数</span>
-                                <input type="range" min="1" max="3" step="1" value="1" class="font-size-slider" id="partner-moment-count-slider">
-                                <span class="cs-slider-val" id="partner-moment-count-value">1条</span>
+                                <span class="cs-slider-label">最多句数</span>
+                                <input type="range" min="2" max="10" step="1" value="3" class="font-size-slider" id="pinyin-card-max-slider">
+                                <span class="cs-slider-val" id="pinyin-card-max-value">3句</span>
                             </div>
                         </div>
+                    </div>
+
+                    <p class="cs-group-label" style="margin-top:4px;">朋友圈</p>
+                    <div class="cs-card">
+                        <div class="setting-pill-row" id="moments-auto-post-toggle">
+                            <span class="setting-pill-icon"><i class="fas fa-images"></i></span>
+                            <span class="setting-pill-label">对方主动发朋友圈 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后，对方会按时间间隔随机发朋友圈</span></span>
+                            <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
+                        </div>
+                    </div>
+                    <div id="moments-auto-post-settings">
+                    <div class="cs-card" style="margin-top:6px;">
+                        <div class="cs-slider-row">
+                            <span class="cs-slider-label">最短时长</span>
+                            <input type="range" min="1" max="10" step="0.5" value="1" class="font-size-slider" id="moments-post-min-interval-slider">
+                            <span class="cs-slider-val" id="moments-post-min-interval-value">1小时</span>
+                        </div>
+                        <div class="cs-slider-row">
+                            <span class="cs-slider-label">最长时长</span>
+                            <input type="range" min="1" max="10" step="0.5" value="3" class="font-size-slider" id="moments-post-max-interval-slider">
+                            <span class="cs-slider-val" id="moments-post-max-interval-value">3小时</span>
+                        </div>
+                    </div>
+                    <div class="cs-card" style="margin-top:6px;">
+                        <div class="cs-slider-row">
+                            <span class="cs-slider-label">最少字卡</span>
+                            <input type="range" min="1" max="8" step="1" value="1" class="font-size-slider" id="moments-post-min-cards-slider">
+                            <span class="cs-slider-val" id="moments-post-min-cards-value">1条</span>
+                        </div>
+                        <div class="cs-slider-row">
+                            <span class="cs-slider-label">最多字卡</span>
+                            <input type="range" min="1" max="8" step="1" value="3" class="font-size-slider" id="moments-post-max-cards-slider">
+                            <span class="cs-slider-val" id="moments-post-max-cards-value">3条</span>
+                        </div>
+                    </div>
                     </div>
 
                     <p class="cs-group-label" style="margin-top:4px;">摸鱼记录</p>
@@ -2448,59 +3316,6 @@
                             <span class="setting-pill-icon"><i class="fas fa-kiss-wink-heart"></i></span>
                             <span class="setting-pill-label">颜文字混入消息 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后颜文字与文字同条发送</span></span>
                             <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                    </div>
-
-                    <p class="cs-group-label" style="margin-top:4px;">TA的朋友圈</p>
-                    <div class="cs-card">
-                        <div class="setting-pill-row" id="partner-moment-toggle">
-                            <span class="setting-pill-icon"><i class="fas fa-camera-retro"></i></span>
-                            <span class="setting-pill-label">TA主动发朋友圈</span>
-                            <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                        <div id="partner-moment-interval-settings" style="display:none;border-top:1px solid var(--border-color);margin-top:8px;">
-                            <div style="padding:10px 14px 4px;font-size:12px;font-weight:600;color:var(--text-primary);">发朋友圈间隔</div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最少</span>
-                                <input type="range" min="5" max="360" step="5" value="30" class="font-size-slider" id="partner-moment-interval-min-slider">
-                                <span class="cs-slider-val" id="partner-moment-interval-min-value">30分钟</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最多</span>
-                                <input type="range" min="5" max="720" step="5" value="120" class="font-size-slider" id="partner-moment-interval-max-slider">
-                                <span class="cs-slider-val" id="partner-moment-interval-max-value">120分钟</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">每次条数</span>
-                                <input type="range" min="1" max="5" step="1" value="1" class="font-size-slider" id="partner-moment-count-slider">
-                                <span class="cs-slider-val" id="partner-moment-count-value">1条</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p class="cs-group-label" style="margin-top:4px;">TA拼字卡</p>
-                    <div class="cs-card">
-                        <div class="setting-pill-row" id="partner-card-splice-toggle">
-                            <span class="setting-pill-icon"><i class="fas fa-puzzle-piece"></i></span>
-                            <span class="setting-pill-label">TA拼字卡发消息 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后TA有概率拼接多条字卡为一条消息</span></span>
-                            <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                        <div id="partner-card-splice-settings" style="display:none;border-top:1px solid var(--border-color);margin-top:8px;">
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">概率</span>
-                                <input type="range" min="5" max="100" step="5" value="30" class="font-size-slider" id="partner-card-splice-prob-slider">
-                                <span class="cs-slider-val" id="partner-card-splice-prob-value">30%</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最少拼</span>
-                                <input type="range" min="2" max="10" step="1" value="2" class="font-size-slider" id="partner-card-splice-min-slider">
-                                <span class="cs-slider-val" id="partner-card-splice-min-value">2条</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最多拼</span>
-                                <input type="range" min="2" max="10" step="1" value="4" class="font-size-slider" id="partner-card-splice-max-slider">
-                                <span class="cs-slider-val" id="partner-card-splice-max-value">4条</span>
-                            </div>
                         </div>
                     </div>
 
@@ -3698,8 +4513,12 @@
                     <p style="font-weight: bold; color: var(--text-primary); text-align: center;">
                         原创：小红书 @milk (1149615009)
                     </p>
+                    <p style="font-weight: bold; color: var(--text-primary); text-align: center;">
+                        二改作者：小红书@之缘(42914702638)
+                    </p>
                     <p style="color: #e53935; font-weight: bold; text-align: center; margin-top: 10px; border: 1px solid #e53935; padding: 5px; border-radius: 5px;">
                         此代码绝对禁止商用和盈利行为，一旦发现追究到底
+                        请尊重著作权，禁止盗用、冒领我的二改网站，或以此盈利二贩，一旦发现追究到底
                     </p>
                     <p style="text-align: center; margin-bottom: 15px;">支持二改二传，感谢使用！</p>
                     <li style="text-align: center; font-size: 1.1em; color: #8A2BE2; list-style: none; margin: 5px 0;"><b>反对性别暴力</b></li>
@@ -3835,6 +4654,7 @@
 </div>
 
 <div id="dg-editor-modal" style="display:none;"></div>
+
     <!-- == 核心层 == -->
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
@@ -3851,691 +4671,47 @@
     <script src="js/features/theme-editor.js"></script>
     <script src="js/features/group-chat.js"></script>
     <script src="js/features/call.js"></script>
-    <script src="js/features/map.js"></script>
     <script src="js/diary.js"></script>
     <script src="js/accounting.js"></script>
     <script src="js/moyu.js"></script>
-    <script src="js/pet-game.js"></script>
-    <script src="js/pet.js"></script>
-    <script src="js/shop.js"></script>
-    <script src="js/gift-cabinet.js"></script>
+    <script src="js/features/map.js"></script>
 
     <!-- == 合并模块 == -->
-    <script src="js/games.js"></script> 
-    <script src="js/features.js"></script> 
+    <script src="js/games.js"></script>
+    <script src="js/features.js"></script>
     <script src="js/data.js"></script>
-    <script src="js/onboarding.js"></script> 
+    <script src="js/onboarding.js"></script>
     <script src="js/listeners.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/pet-game.js"></script>
+    <script src="js/ta-phone.js"></script>
+    <script src="js/shop.js"></script>
+    <script src="js/gift-cabinet.js"></script>
     <script src="js/moments.js"></script>
     <script src="js/spark.js"></script>
-    <script src="js/app.js"></script>
-    <!-- === 综合补丁：表情直接发出 + 红包逻辑 + 电话挂断记录 === -->
-    <script>
-(function() {
-    'use strict';
 
-    // ========== 初始化 stickerLibrary 和 myStickerLibrary（如果外部脚本未定义） ==========
-    if (typeof stickerLibrary === 'undefined') window.stickerLibrary = [];
-    if (typeof myStickerLibrary === 'undefined') window.myStickerLibrary = [];
-    if (typeof customPokes === 'undefined') window.customPokes = [];
-
-    // ========== 1. 表情选择器交互 ==========
-    var comboBtn = document.getElementById('combo-btn');
-    var comboBtnExtra = document.getElementById('combo-btn-extra');
-    var stickerPicker = document.getElementById('user-sticker-picker');
-    var comboContentArea = document.getElementById('combo-content-area');
-    var currentStickerTab = 'my-sticker';
-
-    // 切换表情选择器显示
-    function toggleStickerPicker() {
-        if (!stickerPicker) return;
-        var isActive = stickerPicker.classList.contains('active');
-        if (isActive) {
-            stickerPicker.classList.remove('active');
-        } else {
-            stickerPicker.classList.add('active');
-            renderStickerContent(currentStickerTab);
-        }
-    }
-
-    if (comboBtn) {
-        comboBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleStickerPicker();
-        });
-    }
-    if (comboBtnExtra) {
-        comboBtnExtra.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleStickerPicker();
-        });
-    }
-
-    // 点击选择器外部关闭
-    document.addEventListener('click', function(e) {
-        if (!stickerPicker || !stickerPicker.classList.contains('active')) return;
-        if (!stickerPicker.contains(e.target) && e.target !== comboBtn && e.target !== comboBtnExtra
-            && !(comboBtn && comboBtn.contains(e.target)) && !(comboBtnExtra && comboBtnExtra.contains(e.target))) {
-            stickerPicker.classList.remove('active');
-        }
-    });
-
-    // Tab 切换
-    if (stickerPicker) {
-        var tabBtns = stickerPicker.querySelectorAll('.combo-tab-btn');
-        tabBtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                tabBtns.forEach(function(b) { b.classList.remove('active'); });
-                btn.classList.add('active');
-                currentStickerTab = btn.dataset.tab;
-                renderStickerContent(currentStickerTab);
-            });
-        });
-    }
-
-    // 渲染表情内容
-    function renderStickerContent(tab) {
-        if (!comboContentArea) return;
-        var html = '';
-        var items = [];
-
-        if (tab === 'my-sticker') {
-            items = window.myStickerLibrary || [];
-            if (items.length === 0) {
-                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
-                    + '<i class="fas fa-image" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
-                    + '还没有表情包<br><span style="font-size:11px;opacity:0.7;">点击上方 "添加" 按钮上传</span></div>';
-            }
-        } else if (tab === 'partner-sticker') {
-            items = window.stickerLibrary || [];
-            if (items.length === 0) {
-                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
-                    + '<i class="fas fa-heart" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
-                    + '对方还没有表情包</div>';
-            }
-        } else if (tab === 'poke') {
-            items = window.customPokes || [];
-            if (items.length === 0) {
-                html = '<div style="text-align:center;padding:30px 12px;color:var(--text-secondary);font-size:13px;">'
-                    + '<i class="fas fa-hand-sparkles" style="font-size:28px;display:block;margin-bottom:8px;opacity:0.4;"></i>'
-                    + '还没有拍一拍</div>';
-            } else {
-                // 拍一拍用文字按钮
-                html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px;">';
-                items.forEach(function(item, idx) {
-                    var label = typeof item === 'string' ? item : (item.text || item.label || item);
-                    html += '<div class="sticker-item poke-item" data-poke="' + idx + '" '
-                        + 'style="padding:8px 12px;background:var(--primary-bg);border:1px solid var(--border-color);'
-                        + 'border-radius:12px;cursor:pointer;font-size:13px;color:var(--text-primary);'
-                        + 'transition:all 0.2s;max-width:100%;word-break:break-all;"'
-                        + 'onmouseover="this.style.borderColor=\'var(--accent-color)\';this.style.background=\'rgba(var(--accent-color-rgb),0.08)\'"'
-                        + 'onmouseout="this.style.borderColor=\'var(--border-color)\';this.style.background=\'var(--primary-bg)\'"'
-                        + '>' + label + '</div>';
-                });
-                html += '</div>';
-                comboContentArea.innerHTML = html;
-                // 绑定拍一拍点击
-                setTimeout(function() {
-                    comboContentArea.querySelectorAll('.poke-item').forEach(function(el) {
-                        el.addEventListener('click', function() {
-                            var idx = parseInt(el.dataset.poke);
-                            var pokeText = items[idx];
-                            if (typeof pokeText === 'object') pokeText = pokeText.text || pokeText.label || '';
-                            sendStickerOrPoke(null, pokeText);
-                        });
-                    });
-                }, 0);
-                return;
-            }
-        }
-
-        if (tab !== 'poke' && items.length > 0) {
-            html = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;max-height:280px;overflow-y:auto;">';
-            items.forEach(function(item, idx) {
-                var src = typeof item === 'string' ? item : (item.url || item.src || item);
-                var thumbStyle = 'width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;';
-                html += '<img src="' + src + '" class="sticker-thumb" data-idx="' + idx + '" data-tab="' + tab + '" '
-                    + 'style="' + thumbStyle + '" '
-                    + 'onmouseover="this.style.borderColor=\'var(--accent-color)\';this.style.transform=\'scale(1.08)\'" '
-                    + 'onmouseout="this.style.borderColor=\'transparent\';this.style.transform=\'scale(1)\'" '
-                    + 'onerror="this.style.display=\'none\'" '
-                    + '/>';
-            });
-            html += '</div>';
-        }
-
-        comboContentArea.innerHTML = html;
-
-        // 绑定表情点击事件 → 附加到输入框（可随文字一起发送）
-        if (tab !== 'poke') {
-            setTimeout(function() {
-                comboContentArea.querySelectorAll('.sticker-thumb').forEach(function(img) {
-                    img.addEventListener('click', function() {
-                        var idx = parseInt(img.dataset.idx);
-                        var tabSrc = img.dataset.tab;
-                        var itemsArr = tabSrc === 'my-sticker' ? (window.myStickerLibrary || []) : (window.stickerLibrary || []);
-                        var src = typeof itemsArr[idx] === 'string' ? itemsArr[idx] : (itemsArr[idx].url || itemsArr[idx].src || itemsArr[idx]);
-                        if (src) {
-                            // 附加表情包到输入区域（而非立即发送）
-                            attachStickerToInput(src);
-                            // 关闭选择器
-                            if (stickerPicker) stickerPicker.classList.remove('active');
-                        }
-                    });
-                });
-            }, 0);
-        }
-    }
-
-    // ========== 表情包附件系统 ==========
-    window._pendingAttachments = [];
-
-    function attachStickerToInput(src) {
-        if (!window._pendingAttachments) window._pendingAttachments = [];
-        window._pendingAttachments.push(src);
-        renderAttachmentPreview();
-    }
-
-    function renderAttachmentPreview() {
-        var previewArea = document.getElementById('sticker-preview-area');
-        if (!previewArea) return;
-        var attrs = window._pendingAttachments || [];
-        if (attrs.length === 0) {
-            previewArea.style.display = 'none';
-            previewArea.innerHTML = '';
-            return;
-        }
-        previewArea.style.display = 'flex';
-        var html = '<div style="display:flex;align-items:center;gap:8px;width:100%;overflow-x:auto;flex-wrap:wrap;">';
-        html += '<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">📎 附件:</span>';
-        attrs.forEach(function(src, i) {
-            html += '<div class="sticker-attached-item">';
-            html += '<img src="' + src + '" alt="表情">';
-            html += '<button class="sticker-attached-remove" onclick="removeAttachment(' + i + ')" title="移除">✕</button>';
-            html += '</div>';
-        });
-        html += '<span style="font-size:11px;color:var(--text-secondary);cursor:pointer;margin-left:auto;flex-shrink:0;" onclick="clearAllAttachments()" title="清除全部附件">清空 ✕</span>';
-        html += '</div>';
-        previewArea.innerHTML = html;
-    }
-
-    window.removeAttachment = function(idx) {
-        if (window._pendingAttachments) {
-            window._pendingAttachments.splice(idx, 1);
-        }
-        renderAttachmentPreview();
-    };
-
-    window.clearAllAttachments = function() {
-        window._pendingAttachments = [];
-        renderAttachmentPreview();
-    };
-
-    // 输入框粘贴处理：只保留纯文本，去除格式
-    function handleMessageInputPaste(e) {
-        e.preventDefault();
-        var text = (e.clipboardData || window.clipboardData).getData('text/plain');
-        // 插入纯文本
-        var selection = window.getSelection();
-        if (selection.rangeCount) {
-            var range = selection.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(document.createTextNode(text));
-            // 光标移到末尾
-            range.collapse(false);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-    }
-
-    // 输入框键盘事件：Enter发送，Shift+Enter换行
-    function handleMessageInputKeydown(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessageWithAttachments();
-        }
-    }
-
-    // 发送按钮点击事件
-    (function() {
-        var sendBtn = document.getElementById('send-btn');
-        if (sendBtn) {
-            sendBtn.addEventListener('click', function() {
-                sendMessageWithAttachments();
-            });
-        }
-    })();
-
-    // 发送表情或拍一拍
-    function sendStickerOrPoke(imgSrc, pokeText) {
-        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
-        if (!addMessageFn) {
-            console.warn('[补丁] addMessage 函数不可用');
-            return;
-        }
-        if (imgSrc) {
-            // 发送表情图片
-            addMessageFn({
-                id: Date.now(),
-                sender: 'user',
-                text: '',
-                timestamp: new Date(),
-                image: imgSrc,
-                status: 'sent',
-                favorited: false,
-                note: null,
-                type: 'normal'
-            });
-            if (typeof playSound === 'function') playSound('send');
-            if (typeof window.simulateReply === 'function') {
-                var delayRange = (typeof settings !== 'undefined' && settings.replyDelayMax - settings.replyDelayMin) || 4000;
-                var randomDelay = ((typeof settings !== 'undefined' && settings.replyDelayMin) || 3000) + Math.random() * delayRange;
-                setTimeout(function() { window.simulateReply(); }, randomDelay);
-            }
-        } else if (pokeText) {
-            addMessageFn({
-                id: Date.now(),
-                sender: 'user',
-                text: pokeText,
-                timestamp: new Date(),
-                status: 'sent',
-                favorited: false,
-                note: null,
-                type: 'poke'
-            });
-            if (typeof playSound === 'function') playSound('send');
-            if (typeof window.simulateReply === 'function') {
-                setTimeout(function() { window.simulateReply(); }, 2000 + Math.random() * 3000);
-            }
-        }
-    }
-
-    // 发送文字+附件组合消息
-    function sendMessageWithAttachments() {
-        var msgInput = document.getElementById('message-input');
-        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
-        if (!addMessageFn) { console.warn('[补丁] addMessage 不可用'); return; }
-        
-        // 获取文字内容
-        var text = msgInput ? (msgInput.innerText || msgInput.textContent || '').trim() : '';
-        var attrs = window._pendingAttachments || [];
-        
-        if (!text && attrs.length === 0) return;
-
-        // 发送第一条消息（文字 + 第一张附件图片）
-        if (attrs.length > 0) {
-            // 文字 + 第一张图片
-            addMessageFn({
-                id: Date.now(),
-                sender: 'user',
-                text: text,
-                timestamp: new Date(),
-                image: attrs[0],
-                status: 'sent',
-                favorited: false,
-                note: null,
-                type: 'normal'
-            });
-            // 额外的图片单独发送
-            for (var i = 1; i < attrs.length; i++) {
-                addMessageFn({
-                    id: Date.now() + i,
-                    sender: 'user',
-                    text: '',
-                    timestamp: new Date(),
-                    image: attrs[i],
-                    status: 'sent',
-                    favorited: false,
-                    note: null,
-                    type: 'normal'
-                });
-            }
-        } else {
-            // 只有文字
-            addMessageFn({
-                id: Date.now(),
-                sender: 'user',
-                text: text,
-                timestamp: new Date(),
-                status: 'sent',
-                favorited: false,
-                note: null,
-                type: 'normal'
-            });
-        }
-        
-        // 清空输入
-        if (msgInput) { msgInput.innerHTML = ''; msgInput.innerText = ''; }
-        window.clearAllAttachments();
-        
-        if (typeof playSound === 'function') playSound('send');
-        if (typeof window.simulateReply === 'function') {
-            var delayRange = (typeof settings !== 'undefined' && settings.replyDelayMax - settings.replyDelayMin) || 4000;
-            var randomDelay = ((typeof settings !== 'undefined' && settings.replyDelayMin) || 3000) + Math.random() * delayRange;
-            setTimeout(function() { window.simulateReply(); }, randomDelay);
-        }
-    }
-
-    // 快捷上传表情处理
-    var quickUploadInput = document.getElementById('my-sticker-quick-upload');
-    if (quickUploadInput) {
-        quickUploadInput.addEventListener('change', function(e) {
-            var files = e.target.files;
-            if (!files || files.length === 0) return;
-            Array.from(files).forEach(function(file) {
-                if (!file.type.match(/^image\//)) return;
-                var reader = new FileReader();
-                reader.onload = function(ev) {
-                    var dataUrl = ev.target.result;
-                    if (!window.myStickerLibrary) window.myStickerLibrary = [];
-                    window.myStickerLibrary.push(dataUrl);
-                    // 保存到 localforage
-                    if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
-                        localforage.setItem(getStorageKey('myStickerLibrary'), window.myStickerLibrary).catch(function(){});
-                    }
-                    // 刷新当前tab
-                    if (currentStickerTab === 'my-sticker') renderStickerContent('my-sticker');
-                    if (typeof showNotification === 'function') showNotification('表情已添加', 'success');
-                };
-                reader.readAsDataURL(file);
-            });
-            quickUploadInput.value = '';
-        });
-    }
-
-    // 暴露渲染函数供其他模块使用
-    window._refreshStickerPicker = function() {
-        renderStickerContent(currentStickerTab);
-    };
-
-    // ========== 2. 红包逻辑（由 red-packet.js 模块统一管理）==========
-    window._redPacketLedger = window._redPacketLedger || [];
-    // 红包发送/领取/过期/渲染/余额管理 均在 js/features/red-packet.js 中
-
-    // ========== 3. 刷新/闪退时挂断电话并保留通话记录 ==========
-    window._callActive = false;
-    window._callStartTime = null;
-    window._callType = 'voice'; // 'voice' or 'video'
-
-    // 拦截 callFeature
-    var _callCheckInterval = setInterval(function() {
-        if (window.callFeature && typeof window.callFeature.startCall === 'function') {
-            clearInterval(_callCheckInterval);
-            var origStartCall = window.callFeature.startCall;
-            window.callFeature.startCall = function(isVideo) {
-                window._callActive = true;
-                window._callStartTime = Date.now();
-                window._callType = isVideo ? 'video' : 'voice';
-                if (typeof origStartCall === 'function') origStartCall.apply(this, arguments);
-            };
-            var origEndCall = window.callFeature.endCall;
-            if (typeof origEndCall === 'function') {
-                window.callFeature.endCall = function() {
-                    window._callActive = false;
-                    window._callStartTime = null;
-                    if (typeof origEndCall === 'function') origEndCall.apply(this, arguments);
-                };
-            }
-        }
-    }, 500);
-
-    // beforeunload 处理
-    window.addEventListener('beforeunload', function() {
-        if (window._callActive && window._callStartTime) {
-            var duration = Math.floor((Date.now() - window._callStartTime) / 1000);
-            var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
-            var callTypeLabel = window._callType === 'video' ? '视频通话' : '语音通话';
-            var callRecord = {
-                id: Date.now(),
-                activeCallRecord: true,
-                duration: duration,
-                callType: window._callType,
-                partnerName: partnerName,
-                timestamp: new Date().toISOString()
-            };
-            // 保存到 sessionStorage（跨刷新可用）
-            try {
-                sessionStorage.setItem('_lastCallRecord', JSON.stringify(callRecord));
-            } catch(e) {}
-            window._callActive = false;
-            window._callStartTime = null;
-        }
-    });
-
-    // 页面加载时恢复通话记录
-    window.addEventListener('load', function() {
-        try {
-            var raw = sessionStorage.getItem('_lastCallRecord');
-            if (raw) {
-                var record = JSON.parse(raw);
-                sessionStorage.removeItem('_lastCallRecord');
-                if (record && record.activeCallRecord && record.duration > 0) {
-                    var mins = Math.floor(record.duration / 60);
-                    var secs = record.duration % 60;
-                    var durStr = mins > 0 ? (mins + '分' + secs + '秒') : (secs + '秒');
-                    var callTypeLabel = record.callType === 'video' ? '视频通话' : '语音通话';
-                    var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
-                    if (addMessageFn) {
-                        addMessageFn({
-                            id: Date.now() - 1,
-                            sender: null,
-                            text: callTypeLabel + '已挂断（刷新/闪退），通话时长 ' + durStr,
-                            timestamp: new Date(),
-                            status: 'received',
-                            favorited: false,
-                            note: null,
-                            type: 'system'
-                        });
-                    }
-                }
-            }
-        } catch(e) {}
-    });
-
-    // ========== 5. 实时同步：劫持 saveData 在保存后刷新表情选择器 ==========
-    var _origSaveData = window.saveData;
-    if (typeof _origSaveData === 'function') {
-        window.saveData = function() {
-            var result = _origSaveData.apply(this, arguments);
-            // 保存完成后，如果表情选择器打开，刷新显示
-            if (stickerPicker && stickerPicker.classList.contains('active')) {
-                setTimeout(function() { renderStickerContent(currentStickerTab); }, 300);
-            }
-            return result;
-        };
-    }
-
-    // ========== 6. 监控 stickerLibrary/myStickerLibrary 变化 ==========
-    // 通过轮询检查 + 保存后刷新实现实时同步
-    var _lastStickerLen = (window.stickerLibrary || []).length;
-    var _lastMyStickerLen = (window.myStickerLibrary || []).length;
-    setInterval(function() {
-        var curStickerLen = (window.stickerLibrary || []).length;
-        var curMyStickerLen = (window.myStickerLibrary || []).length;
-        if (curStickerLen !== _lastStickerLen || curMyStickerLen !== _lastMyStickerLen) {
-            _lastStickerLen = curStickerLen;
-            _lastMyStickerLen = curMyStickerLen;
-            if (stickerPicker && stickerPicker.classList.contains('active')) {
-                renderStickerContent(currentStickerTab);
-            }
-        }
-    }, 2000);
-
-    // ========== 7. 聊天设置修复：Tab切换 + 开关事件绑定 ==========
-    
-    // 7a. Tab 切换函数（功能/节奏/音效/显示/昵称）
-    window.switchCsTab = function(tabEl) {
-        if (!tabEl) return;
-        var panelId = tabEl.getAttribute('data-panel');
-        if (!panelId) return;
-        
-        // 更新 tab 样式
-        document.querySelectorAll('.cs-tab').forEach(function(t) { t.classList.remove('active'); });
-        tabEl.classList.add('active');
-        
-        // 切换面板显示
-        document.querySelectorAll('.cs-panel').forEach(function(p) { p.classList.remove('active'); });
-        var target = document.getElementById(panelId);
-        if (target) target.classList.add('active');
-    };
-    
-    // 7b. 开关点击事件绑定 - 给所有 setting-pill-row 绑定点击切换
-    setTimeout(function() {
-        var _pillMap = {
-            'reply-toggle': 'replyEnabled',
-            'read-receipts-toggle': 'readReceiptsEnabled',
-            'read-no-reply-toggle': 'allowReadNoReply',
-            'typing-indicator-toggle': 'typingIndicatorEnabled',
-            'enter-key-send-toggle': 'enterKeySendEnabled',
-            'sound-toggle': 'soundEnabled',
-            'emoji-mix-toggle': 'emojiMixEnabled',
-            'kaomoji-mix-toggle': 'kaomojiMixEnabled',
-            'auto-send-toggle': 'autoSendEnabled',
-            'moyu-auto-generate-toggle': 'moyuAutoGenerateEnabled',
-            'moyu-show-detail-toggle': 'moyuShowDetail',
-            'envelope-auto-send-toggle': 'envelopeAutoSendEnabled',
-            'envelope-custom-rule-toggle': 'envelopeCustomRuleEnabled',
-            'partner-moment-toggle': 'partnerMomentEnabled',
-            'partner-card-splice-toggle': 'partnerCardSpliceEnabled'
-        };
-        
-        document.querySelectorAll('#chat-modal .setting-pill-row').forEach(function(row) {
-            var id = row.id;
-            if (!id || _pillMap[id] === undefined) return;
-            
-            row.style.cursor = 'pointer';
-            row.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var prop = _pillMap[id];
-                if (!window.settings || prop === undefined) return;
-                
-                // 切换值
-                var newVal = !window.settings[prop];
-                window.settings[prop] = newVal;
-                
-                // 更新 UI
-                this.classList.toggle('active', newVal);
-                
-                // 保存
-                if (typeof window.saveData === 'function') window.saveData();
-                if (typeof window.throttledSaveData === 'function') window.throttledSaveData();
-                
-                console.log('[聊天设置] ' + id + ' → ' + newVal);
-            });
-        });
-        
-        console.log('[聊天设置修复] Tab切换 + 开关事件已绑定');
-    }, 500);
-
-    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 电话挂断记录 | 聊天设置修复');
-})();
-</script>
-
-<script>
-// ========== Splash 页面翻页逻辑 ==========
-(function() {
-    var slides = document.querySelectorAll('#splash-slides .splash-slide');
-    var prevBtn = document.getElementById('splash-prev-btn');
-    var nextBtn = document.getElementById('splash-next-btn');
-    var enterBtn = document.getElementById('splash-enter-btn');
-    var pageNum = document.getElementById('splash-page-num');
-    var dotsContainer = document.getElementById('splash-dots');
-    var pledgeInput = document.getElementById('splash-pledge-input');
-    var pledgeHint = document.getElementById('splash-pledge-hint');
-    var pledgeText = document.getElementById('splash-pledge-text');
-    var total = slides.length;
-    var current = 0;
-
-    // 生成圆点指示器
-    if (dotsContainer) {
-        for (var i = 0; i < total; i++) {
-            var dot = document.createElement('div');
-            dot.className = 'splash-dot' + (i === 0 ? ' active' : '');
-            dot.setAttribute('data-index', i);
-            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' + (i === 0 ? 'rgba(var(--accent-color-rgb,197,164,126),0.9)' : 'rgba(255,255,255,0.3)') + ';cursor:pointer;transition:all 0.3s;';
-            (function(idx) {
-                dot.addEventListener('click', function() { goTo(idx); });
-            })(i);
-            dotsContainer.appendChild(dot);
-        }
-    }
-
-    function updateDots() {
-        var dots = dotsContainer ? dotsContainer.querySelectorAll('.splash-dot') : [];
-        for (var i = 0; i < dots.length; i++) {
-            dots[i].style.background = i === current ? 'rgba(var(--accent-color-rgb,197,164,126),0.9)' : 'rgba(255,255,255,0.3)';
-        }
-    }
-
-    function goTo(idx) {
-        if (idx < 0 || idx >= total) return;
-        slides[current].classList.remove('active');
-        current = idx;
-        slides[current].classList.add('active');
-        if (pageNum) pageNum.textContent = (current + 1) + ' / ' + total;
-        if (prevBtn) prevBtn.disabled = current === 0;
-        if (nextBtn) nextBtn.style.display = current === total - 1 ? 'none' : '';
-        if (enterBtn) enterBtn.style.display = current === total - 1 ? '' : 'none';
-        updateDots();
-        // 最后一页聚焦输入框
-        if (current === total - 1 && pledgeInput) {
-            setTimeout(function() { pledgeInput.focus(); }, 300);
-            checkPledge();
-        }
-    }
-
-    function checkPledge() {
-        if (!pledgeInput || !pledgeText || !pledgeHint || !enterBtn) return;
-        var required = pledgeText.textContent.trim();
-        var typed = pledgeInput.value.trim();
-        if (typed === required) {
-            pledgeHint.textContent = '✓ 承诺已确认，可以进入';
-            pledgeHint.style.color = 'rgba(76,175,80,0.9)';
-            enterBtn.disabled = false;
-            enterBtn.style.opacity = '1';
-            enterBtn.style.pointerEvents = 'auto';
-        } else {
-            var remain = required.length - typed.length;
-            pledgeHint.textContent = '请完整输入上方承诺后方可进入' + (typed.length > 0 ? '（还需输入 ' + (required.substring(typed.length) || '完毕') + '）' : '');
-            pledgeHint.style.color = '';
-            enterBtn.disabled = true;
-            enterBtn.style.opacity = '0.5';
-            enterBtn.style.pointerEvents = 'none';
-        }
-    }
-
-    // 绑定按钮事件
-    if (prevBtn) {
-        prevBtn.addEventListener('click', function() { goTo(current - 1); });
-    }
-    if (nextBtn) {
-        nextBtn.addEventListener('click', function() { goTo(current + 1); });
-    }
-    if (pledgeInput) {
-        pledgeInput.addEventListener('input', checkPledge);
-    }
-    if (enterBtn) {
-        enterBtn.addEventListener('click', function() {
-            var splash = document.getElementById('splash-declaration');
-            if (splash) {
-                splash.style.opacity = '0';
-                splash.style.transition = 'opacity 0.6s';
-                setTimeout(function() {
-                    splash.style.display = 'none';
-                    // 触发欢迎动画
-                    var welcome = document.getElementById('welcome-animation');
-                    if (welcome) welcome.style.display = '';
-                }, 600);
-            }
-        });
-    }
-
-    // 初始化
-    goTo(0);
-})();
-</script>
-
+    <!-- 火花弹窗（放在 body 直接子级，避免被父容器 overflow:hidden 裁剪） -->
+    <div class="spark-modal-overlay" id="spark-modal-overlay" onclick="SparkApp.closeSparkModal()">
+        <div class="spark-modal" onclick="event.stopPropagation()">
+            <div class="spark-modal-flame" id="spark-modal-flame">&#x1F525;</div>
+            <div class="spark-modal-title" id="spark-modal-title">火花燃烧中</div>
+            <div class="spark-modal-subtitle" id="spark-modal-subtitle">保持连续聊天，让火花更旺！</div>
+            <div class="spark-stats-grid">
+                <div class="spark-stat-card">
+                    <div class="spark-stat-value" id="spark-streak-days">0</div>
+                    <div class="spark-stat-label">连续天数</div>
+                </div>
+                <div class="spark-stat-card">
+                    <div class="spark-stat-value" id="spark-rekindle-count">0</div>
+                    <div class="spark-stat-label">重燃次数</div>
+                </div>
+            </div>
+            <div class="spark-rekindle-info" id="spark-rekindle-info">
+                <div class="rekindle-text">&#x2728; 火花状态良好</div>
+                <div class="rekindle-sub">继续保持连续聊天吧！</div>
+            </div>
+            <button class="spark-modal-close" onclick="SparkApp.closeSparkModal()">知道了</button>
+        </div>
+    </div>
 </body>
 </html>

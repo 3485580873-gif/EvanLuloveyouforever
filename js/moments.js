@@ -575,8 +575,10 @@
     const commentsHtml = m.comments.length > 0 ? `
       <div class="comment-section">
         ${m.comments.map((c, idx) => `
-          <div class="comment-item" onclick="MomentsApp.replyToComment(${m.id}, ${idx}, '${c.name}')">
-            <span class="comment-name">${c.name}</span>${c.replyTo ? `<span class="reply-arrow">回复</span><span class="reply-to">${c.replyTo}</span>` : ''}：<span class="comment-text">${c.text}</span>${c.sticker ? `<img class="comment-sticker-img" src="${c.sticker}" alt="表情包" style="max-width:80px;max-height:80px;border-radius:4px;vertical-align:middle;display:inline-block;margin-left:4px;">` : ''}
+          <div class="comment-item${c.replyTo ? ' comment-nested' : ''}" onclick="MomentsApp.replyToComment(${m.id}, ${idx}, '${c.name}')">
+            <div class="comment-item-inner">
+              <span class="comment-name">${c.name}</span>${c.replyTo ? `<span class="reply-arrow">回复</span><span class="reply-to">${c.replyTo}</span>` : ''}：<span class="comment-text">${c.text}</span>${c.sticker ? `<img class="comment-sticker-img" src="${c.sticker}" alt="表情包" style="max-width:80px;max-height:80px;border-radius:4px;vertical-align:middle;display:inline-block;margin-left:4px;">` : ''}
+            </div>
           </div>
         `).join('')}
       </div>
@@ -1650,6 +1652,11 @@
       previewImage
     });
 
+    // 评论/点赞时同时生成访客记录
+    if (type === 'comment' || type === 'like') {
+      generateOneVisitorRecord(Date.now());
+    }
+
     // 更新小红点
     updateMomentsBadge();
 
@@ -2571,6 +2578,124 @@
 
     closeLocationPanel();
   }
+
+  // ========== Partner Posts (对方主动发朋友圈) ==========
+  const partnerPostTexts = [
+    "今天天气真好呀 ☀️",
+    "心情不错，分享一首歌 🎵",
+    "忙碌的一天终于结束了 🌙",
+    "刚看到一部超好看的电影 🎬",
+    "分享今日份美食 🍜",
+    "周末就要好好放松呀~",
+    "最近在学新东西，好有趣！",
+    "有人一起去旅行吗？✈️"
+  ];
+
+  function generateRandomImages(count) {
+    const images = [];
+    for (let i = 0; i < count; i++) {
+      const seed = Math.random().toString(36).substring(2, 10);
+      // 交替使用 picsum 和 dicebear
+      if (Math.random() < 0.5) {
+        images.push('https://picsum.photos/seed/' + seed + '/400/400');
+      } else {
+        images.push('https://api.dicebear.com/7.x/shapes/svg?seed=' + seed + '&backgroundColor=b6e3f4');
+      }
+    }
+    return images;
+  }
+
+  function partnerPostMoment() {
+    const partnerName = getPartnerName();
+    const partnerAvatar = getPartnerAvatar();
+    const text = partnerPostTexts[Math.floor(Math.random() * partnerPostTexts.length)];
+    const imageCount = Math.floor(Math.random() * 4); // 0-3 张
+    const now = Date.now();
+    const randomOffset = Math.floor(Math.random() * 24 * 60 * 60 * 1000); // 过去24小时内
+    const postTime = now - randomOffset;
+
+    const newMoment = {
+      id: postTime,
+      avatar: partnerAvatar,
+      nickname: partnerName,
+      time: postTime,
+      text: text,
+      images: imageCount > 0 ? generateRandomImages(imageCount) : [],
+      sticker: null,
+      video: null,
+      likes: [],
+      likedByMe: false,
+      collected: false,
+      comments: [],
+      mentions: [],
+      location: ''
+    };
+
+    momentsData.unshift(newMoment);
+    saveMomentsToStorageSync();
+    renderMoments();
+
+    // 通知用户：对方发了朋友圈
+    showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, newMoment.id, '发布了新朋友圈', getMomentPreviewImage(newMoment));
+  }
+
+  // ========== Trigger Moments Interaction (core.js calls this) ==========
+  function triggerMomentsInteraction() {
+    // 1. 3% 概率：偷偷看朋友圈
+    if (Math.random() < 0.03) {
+      generateOneVisitorRecord(Date.now());
+      // 在朋友圈列表顶部显示通知
+      showMomentsNotification(getPartnerName(), getPartnerAvatar(), 'comment', 1, null, '对方偷偷看了你的朋友圈', '');
+    }
+
+    // 找到最新一条"我"发的朋友圈
+    const myLatestMoment = momentsData.find(m => m.nickname === userConfig.name);
+
+    // 2. 10% 概率：对方评论最新一条我发的朋友圈
+    if (myLatestMoment && Math.random() < 0.1) {
+      const partnerName = getPartnerName();
+      const randomComments = [
+        '赞！',
+        '好棒呀~',
+        '不错不错',
+        '哈哈',
+        '太好看了',
+        '我也想试试',
+        '真有趣',
+        '羡慕了',
+        '下次一起呀',
+        '记录生活真好'
+      ];
+      const commentText = randomComments[Math.floor(Math.random() * randomComments.length)];
+      myLatestMoment.comments.push({
+        name: partnerName,
+        text: commentText
+      });
+      saveMomentsToStorageSync();
+      renderMoments();
+      showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText, getMomentPreviewImage(myLatestMoment));
+    }
+
+    // 3. 10% 概率：对方点赞最新一条我发的朋友圈
+    if (myLatestMoment && Math.random() < 0.1) {
+      const partnerName = getPartnerName();
+      if (!myLatestMoment.likes.includes(partnerName)) {
+        myLatestMoment.likes.push(partnerName);
+        saveMomentsToStorageSync();
+        renderMoments();
+        showMomentsNotification(partnerName, getPartnerAvatar(), 'like', 1, myLatestMoment.id, '', getMomentPreviewImage(myLatestMoment));
+      }
+    }
+
+    // 4. 根据 settings.momentsPartnerPostChance 概率：对方发一条朋友圈
+    const postChance = (window.settings && window.settings.momentsPartnerPostChance) || 0.05;
+    if (Math.random() < postChance) {
+      partnerPostMoment();
+    }
+  }
+
+  // 挂载到 window
+  window.triggerMomentsInteraction = triggerMomentsInteraction;
 
   // ========== Publish ==========
   let publishPhotoCount = 0;
@@ -3608,9 +3733,6 @@
       generateOfflineVisitors();
       startOnlineVisitorTimer();
       updateVisitorBadge();
-
-      // 初始化伴侣发朋友圈定时器
-      startPartnerMomentTimer();
     } catch (e) {
       console.error('MomentsApp init error:', e);
     }
@@ -3713,6 +3835,132 @@
       }
     }
   }
+
+  // ========== 朋友圈互动触发（由 core.js simulateReply 调用） ==========
+  function triggerMomentsInteraction() {
+    const partnerName = getPartnerName();
+    const partnerAvatar = getPartnerAvatar();
+
+    // 1. 偷偷看朋友圈（概率3%，和拍一拍相同）
+    if (Math.random() < 0.03) {
+      generateOneVisitorRecord(Date.now());
+      showMomentsNotification(partnerName, partnerAvatar, 'visit', 1, null, '偷偷看了你的朋友圈');
+    }
+
+    // 2. 对方评论最新一条我发的朋友圈（10%概率）
+    const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
+    if (myMoments.length > 0 && Math.random() < 0.10) {
+      const latestMyMoment = myMoments[0];
+      const commentTexts = [
+        '好棒呀！', '太厉害了！', '好喜欢这条~', '真的吗？', '哈哈哈哈', '可爱！',
+        '说得真好', '我也这么觉得', '太真实了', '好治愈', '赞赞赞', '好看！',
+        '这也太美了吧', '羡慕了', '学到了', 'mark一下', '期待后续！', '这也太会了'
+      ];
+      const randomComment = commentTexts[Math.floor(Math.random() * commentTexts.length)];
+      latestMyMoment.comments.push({
+        name: partnerName,
+        text: randomComment,
+        sticker: undefined,
+        replyTo: undefined
+      });
+      saveMomentsToStorageSync();
+      showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
+    }
+
+    // 3. 对方点赞最新一条我发的朋友圈（10%概率）
+    if (myMoments.length > 0 && Math.random() < 0.10) {
+      const latestMyMoment = myMoments[0];
+      if (!latestMyMoment.likes.includes(partnerName)) {
+        latestMyMoment.likes.push(partnerName);
+        saveMomentsToStorageSync();
+        showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
+      }
+    }
+
+    // 4. 对方主动发朋友圈（时长驱动，在最短~最长小时区间内随机触发）
+    const autoPostEnabled = (typeof settings !== 'undefined' && settings.momentsAutoPostEnabled !== false);
+    if (!autoPostEnabled) return;
+
+    const now = Date.now();
+    const lastPostTime = parseInt(localStorage.getItem('moments_last_partner_post') || '0');
+    const minH = (typeof settings !== 'undefined' && settings.momentsPostMinInterval) ? settings.momentsPostMinInterval : 1;
+    const maxH = (typeof settings !== 'undefined' && settings.momentsPostMaxInterval) ? settings.momentsPostMaxInterval : 3;
+    const minMs = minH * 3600000;
+    const maxMs = maxH * 3600000;
+
+    // 距离上次发帖不足最小时长，跳过
+    if (now - lastPostTime < minMs) return;
+
+    // 在最短~最长区间内，随机判断是否触发（越接近最长时长概率越高）
+    if (now - lastPostTime < maxMs) {
+      const progress = (now - lastPostTime - minMs) / (maxMs - minMs);
+      if (Math.random() > progress * 0.9 + 0.1) return;
+    }
+
+    localStorage.setItem('moments_last_partner_post', now.toString());
+
+    // 从字卡、表情、颜文字、表情包中随机抽取组合
+    const allCards = [];
+    if (window._customReplies && window._customReplies.length > 0) {
+      allCards.push(...window._customReplies.map(r => ({ type: 'text', value: String(r || '').trim() })).filter(c => c.value));
+    }
+    if (window._kaomojiLibrary && window._kaomojiLibrary.length > 0) {
+      allCards.push(...window._kaomojiLibrary.map(k => ({ type: 'kaomoji', value: String(k || '').trim() })).filter(c => c.value));
+    }
+    if (window._customEmojis && window._customEmojis.length > 0) {
+      allCards.push(...window._customEmojis.map(e => ({ type: 'emoji', value: String(e || '').trim() })).filter(c => c.value));
+    }
+    if (window._stickerLibrary && window._stickerLibrary.length > 0) {
+      allCards.push(...window._stickerLibrary.map(s => ({ type: 'sticker', value: s })).filter(c => c.value));
+    }
+
+    const minCards = (typeof settings !== 'undefined' && settings.momentsPostMinCards) ? settings.momentsPostMinCards : 1;
+    const maxCards = (typeof settings !== 'undefined' && settings.momentsPostMaxCards) ? settings.momentsPostMaxCards : 3;
+    const cardCount = Math.min(allCards.length, minCards + Math.floor(Math.random() * (maxCards - minCards + 1)));
+
+    const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, Math.max(1, cardCount));
+
+    const textParts = [];
+    const stickerParts = [];
+    selected.forEach(c => {
+      if (c.type === 'sticker') {
+        stickerParts.push(c.value);
+      } else {
+        textParts.push(c.value);
+      }
+    });
+
+    const randomText = textParts.length > 0 ? textParts.join(' ') : '分享今日份好心情 ✨';
+    const mainSticker = stickerParts.length > 0 ? stickerParts[0] : undefined;
+
+    // 随机时间在过去 maxH 小时内
+    const randomTime = new Date(now - Math.random() * maxMs);
+    const timeStr = `${randomTime.getFullYear()}-${String(randomTime.getMonth()+1).padStart(2,'0')}-${String(randomTime.getDate()).padStart(2,'0')} ${String(randomTime.getHours()).padStart(2,'0')}:${String(randomTime.getMinutes()).padStart(2,'0')}`;
+
+    const newMoment = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      nickname: partnerName,
+      avatar: partnerAvatar,
+      text: randomText,
+      images: [],
+      sticker: mainSticker,
+      time: timeStr,
+      likes: [],
+      comments: [],
+      likedByMe: false,
+      collected: false
+    };
+    momentsData.unshift(newMoment);
+    saveMomentsToStorageSync();
+    const container = document.getElementById('moments-container');
+    if (container && container.style.display !== 'none') {
+      renderMoments();
+    }
+    showMomentsNotification(partnerName, partnerAvatar, 'post', 1, newMoment.id, randomText);
+  }
+
+  window.triggerMomentsInteraction = triggerMomentsInteraction;
 
   // ========== 暴露全局 API ==========
   window.MomentsApp = {
@@ -3856,132 +4104,13 @@
     updateVisitorBadge,
     clearVisitorBadge,
     stopOnlineVisitorTimer,
+    generateOneVisitorRecord,
     _visitorTouchStart,
     _visitorTouchMove,
     _visitorTouchEnd,
 
-    // 伴侣发朋友圈
-    startPartnerMomentTimer,
-    restartPartnerMomentTimer
+    // 互动触发
+    triggerMomentsInteraction
   };
-
-  // ========== 伴侣发朋友圈 ==========
-  let _partnerMomentTimer = null;
-
-  function _triggerPartnerMoment() {
-    try {
-      const countMax = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
-      const count = Math.min(countMax, 3);
-
-      for (let i = 0; i < count; i++) {
-        const contentPool = [];
-
-        // 1. 收集字卡
-        const replies = window._customReplies || customReplies || [];
-        replies.forEach(r => {
-          const t = String(r || '').trim();
-          if (t) contentPool.push({ type: 'text', content: t });
-        });
-
-        // 2. 收集颜文字
-        const kaomojis = window._kaomojiLibrary || kaomojiLibrary || [];
-        kaomojis.forEach(k => {
-          const t = String(k || '').trim();
-          if (t) contentPool.push({ type: 'kaomoji', content: t });
-        });
-
-        // 3. 收集表情包
-        const stickers = window._stickerLibrary || stickerLibrary || [];
-        stickers.forEach(s => {
-          if (s) contentPool.push({ type: 'sticker', content: s });
-        });
-
-        // 4. 收集 emoji
-        const emojis = window._customEmojis || customEmojis || [];
-        emojis.forEach(e => {
-          const t = String(e || '').trim();
-          if (t) contentPool.push({ type: 'emoji', content: t });
-        });
-
-        if (contentPool.length === 0) return;
-
-        const pick = contentPool[Math.floor(Math.random() * contentPool.length)];
-        const moment = {
-          id: 'partner_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-          text: pick.content,
-          images: pick.type === 'sticker' ? [pick.content] : [],
-          type: pick.type,
-          timestamp: Date.now() - Math.floor(Math.random() * 5 * 60000),
-          author: 'partner',
-          likes: [],
-          comments: [],
-          notified: true
-        };
-
-        // 更新通知
-        let notifList = [];
-        try {
-          notifList = JSON.parse(localStorage.getItem('moments_notifications') || '[]');
-        } catch (e) {}
-        notifList.unshift({
-          id: 'notif_' + Date.now(),
-          momentId: moment.id,
-          type: 'partner_post',
-          time: moment.timestamp,
-          read: false
-        });
-        // 限制通知数量
-        if (notifList.length > 50) notifList = notifList.slice(0, 50);
-        localStorage.setItem('moments_notifications', JSON.stringify(notifList));
-
-        // 更新动态列表
-        let momentList = [];
-        try {
-          momentList = JSON.parse(localStorage.getItem('moments_data') || '[]');
-        } catch (e) {}
-        momentList.unshift(moment);
-        // 限制朋友圈数量
-        if (momentList.length > 100) momentList = momentList.slice(0, 100);
-        localStorage.setItem('moments_data', JSON.stringify(momentList));
-
-        // 通知标记
-        localStorage.setItem('moments_has_new', 'true');
-      }
-
-      // 刷新UI
-      if (typeof renderMoments === 'function') {
-        setTimeout(() => renderMoments(), 300);
-      }
-    } catch (e) {
-      console.warn('伴侣发朋友圈失败:', e);
-    }
-  }
-
-  function startPartnerMomentTimer() {
-    if (_partnerMomentTimer) {
-      clearTimeout(_partnerMomentTimer);
-      _partnerMomentTimer = null;
-    }
-    const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
-    if (!enabled) return;
-    _scheduleNextPartnerMoment();
-  }
-
-  function restartPartnerMomentTimer() {
-    startPartnerMomentTimer();
-  }
-
-  function _scheduleNextPartnerMoment() {
-    if (_partnerMomentTimer) clearTimeout(_partnerMomentTimer);
-    const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
-    if (!enabled) return;
-    const minVal = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
-    const maxVal = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
-    const delayMs = (minVal + Math.random() * (maxVal - minVal)) * 60 * 1000;
-    _partnerMomentTimer = setTimeout(() => {
-      _triggerPartnerMoment();
-      _scheduleNextPartnerMoment();
-    }, delayMs);
-  }
 
 })();

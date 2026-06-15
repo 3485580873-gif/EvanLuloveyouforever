@@ -1,5 +1,5 @@
 /**
- * map.js - 地图模块
+ * map.js - Zmilk地图模块
  * 像素/卡通风格地图，支持位置标记、子地图、路线绘制、地形编辑
  * 依赖：localforage, APP_PREFIX, SESSION_ID, getStorageKey, showNotification
  */
@@ -577,7 +577,7 @@
             // ---- 头部 ----
             + '<div style="display:flex;align-items:center;padding:12px 16px;background:var(--header-bg);border-bottom:1px solid var(--border-color);gap:10px;flex-shrink:0;">'
             +   '<button id="map-back-btn" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--toolbar-btn-bg);color:var(--toolbar-btn-color);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><i class="fas fa-arrow-left"></i></button>'
-            +   '<span style="font-size:17px;font-weight:700;color:var(--text-primary);flex:1;">地图</span>'
+            +   '<span style="font-size:17px;font-weight:700;color:var(--text-primary);flex:1;">Zmilk地图</span>'
             +   '<button id="map-search-btn" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--toolbar-btn-bg);color:var(--toolbar-btn-color);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><i class="fas fa-search"></i></button>'
             +   '<button id="map-settings-btn" style="width:36px;height:36px;border:none;border-radius:50%;background:var(--toolbar-btn-bg);color:var(--toolbar-btn-color);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><i class="fas fa-cog"></i></button>'
             + '</div>'

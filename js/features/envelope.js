@@ -458,7 +458,12 @@ window.viewEnvLetter = function(section, id) {
             origCtx.style.display = 'none';
         }
     }
-    showModal(document.getElementById('envelope-view-modal'));
+    const viewModal = document.getElementById('envelope-view-modal');
+    if (typeof homeShowModal === 'function') {
+        homeShowModal(viewModal);
+    } else {
+        showModal(viewModal);
+    }
 };
 
 window.toggleEnvEdit = function() {

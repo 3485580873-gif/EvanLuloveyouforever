@@ -29,6 +29,7 @@
         let customStatuses = [];
         let customPokeGroups = [];
         let customStatusGroups = [];
+        let myPokes = []; // 表情快捷栏专用拍一拍库
         let customMottos = [];
         let customIntros = []; 
         let currentMajorTab = 'reply'; 
@@ -39,14 +40,16 @@
         let moyuRecords = [];     // 摸鱼小记记录
         let moyuLocations = [];   // 摸鱼地点库
         window.moyuActivities = [];  // 摸鱼活动库（独立管理）
-        let currentMoyuRecord = null; // 当前显示的摸鱼记录
+        window.currentMoyuRecord = null; // 当前显示的摸鱼记录
         let moyuUnread = false; // 摸鱼小记未读标记
-        let moyuWorkSession = null; // 当前工作会话 {startTime, endTime, location, activities: [], totalHours}
+        window.moyuWorkSession = null; // 当前工作会话 {startTime, endTime, location, activities: [], totalHours}
         let stickerLibrary = [];
         let myStickerLibrary = [];
         let customThemes = [];
         let themeSchemes = [];
         window.transferData = null; // 转账数据 { myBalance, systemBalance, records[] }
+        let customVoices = []; // 语音库 { text, audioUrl }[]
+        let customVoiceGroups = []; // 语音分组
 
         const DOMElements = {
             html: document.documentElement,
@@ -166,7 +169,3 @@
                 closeBtn: document.getElementById('close-data')
             }
         };
-
-        // 显式挂到 window，确保其他脚本能访问
-        window.DOMElements = DOMElements;
-        window.settings = settings;

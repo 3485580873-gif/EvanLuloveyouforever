@@ -108,7 +108,9 @@
         if (node === null || node === undefined) return node;
         if (typeof node === 'object' && !Array.isArray(node) && node.__mRef && typeof node.__mRef === 'string') {
             var blob = store[node.__mRef];
-            return blob !== undefined && blob !== null ? blob : node;
+            if (blob !== undefined && blob !== null) return blob;
+            console.warn('[backup] mediaStore 中缺少 __mRef:', node.__mRef);
+            return ''; // 降级为空字符串，避免保留 __mRef 对象
         }
         if (Array.isArray(node)) return node.map(function (x) { return inlineMediaTree(x, store); });
         if (typeof node === 'object') {
@@ -154,6 +156,32 @@
         }
     }
 
+    /**
+     * 直接在 JSON 字符串中替换 __mRef 引用，避免 JSON.parse/stringify 对大 base64 的内存开销
+     */
+    function inlineMediaRefsInJson(jsonStr, store) {
+        if (typeof jsonStr !== 'string' || !jsonStr) return jsonStr;
+        if (!store || typeof store !== 'object') return jsonStr;
+        var result = jsonStr;
+        var refRe = /\{"__mRef":"([^"]+)"\}/g;
+        var match;
+        var replacements = [];
+        while ((match = refRe.exec(jsonStr)) !== null) {
+            var refId = match[1];
+            var blob = store[refId];
+            if (blob !== undefined && blob !== null) {
+                replacements.push({ from: match[0], to: JSON.stringify(blob) });
+            } else {
+                console.warn('[backup] mediaStore 中缺少 __mRef:', refId);
+                replacements.push({ from: match[0], to: '""' });
+            }
+        }
+        for (var i = 0; i < replacements.length; i++) {
+            result = result.split(replacements[i].from).join(replacements[i].to);
+        }
+        return result;
+    }
+
     function inferBackupSessionId(lfKeys, appPrefix) {
         var pfx = appPrefix || (typeof APP_PREFIX !== 'undefined' ? APP_PREFIX : 'CHAT_APP_V3_');
         var skipParts = ['MIGRATION', 'sessionList', 'lastSessionId', 'customThemes', 'themeSchemes'];
@@ -184,8 +212,152 @@
         if (!flags.inclSet) p.push('chatSettings', 'partnerPersonas', 'showPartnerNameInChat');
         if (!flags.inclCustom) p.push('customReplies', 'customPokes', 'customStatuses', 'customMottos', 'customIntros', 'customEmojis', 'customReplyGroups', 'customPokeGroups', 'customStatusGroups');
         if (!flags.inclThemes) p.push('customThemes', 'themeSchemes');
-        if (!flags.inclDg) p.push('dg_custom_data', 'dg_status_pool', 'weekly_fortune', 'daily_fortune', 'customWeather_');
+        if (!flags.inclDg) p.push('dg_custom_data', 'dg_status_pool', 'weekly_fortune', 'daily_fortune', 'customWeather_', 'dg_header_bg', 'dg_overlay_bg', 'dg_overlay_bg_tint', '_dgUserSalt', 'dailyFortuneNotes_');
+        // 新增模块
+        if (!flags.inclHome) p.push('home_page_bg', 'home_card_bg', 'home_icon_color', 'home_icon_color_name', 'home_hero_subtitle', 'home_theme', 'home_theme_custom', 'home_app_icons', 'home_app_order', 'home_session_bind', 'home_avatar_sync', 'home_bg_sync', 'home_card_bg_custom', 'home_page_bg_custom', 'home_profile_', 'profile_me', 'home_avatar_me');
+        if (!flags.inclMoyu) p.push('moyuRecords', 'currentMoyuRecord', 'moyuWorkSession', 'moyuLocations', 'moyuActivities', 'moyuUnread');
+        if (!flags.inclShop) p.push('shop_balance', 'shop_search_history', 'shop_gift_cabinet', 'shop_products', 'shop_cart', 'shop_orders');
+        if (!flags.inclMoments) p.push('moments_data', 'moments_visitor_records', 'moments_friends', 'moments_reply_speed', 'moments_reply_count_min', 'moments_reply_count_max', 'moments_friend_like', 'moments_cover', 'moments_visitor_last_online', 'moments_visitor_last_viewed_count', 'home_avatar_me', 'profile_me');
+        if (!flags.inclMap) p.push('_mapData');
+        if (!flags.inclTaPhone) p.push('ta_phone_collections');
+        if (!flags.inclPet) p.push('petGameState', 'pixelPetGame');
+        if (!flags.inclDiary) p.push('diaryTodos', 'diaryHabits', 'diaryHabitRecords', 'diaryPeriodRecords', 'diaryAnniversaries', 'diaryTodoCategories', 'diaryPeriodLastReminderDate');
+        if (!flags.inclAccounting) p.push('accountingRecords', 'accountingLabels');
+        if (!flags.inclEnvelope) p.push('envelopeData');
+        if (!flags.inclMood) p.push('moodCalendar', 'customMoodOptions', 'moodTrash');
+        if (!flags.inclTarot) p.push('diviHistory', 'customTarotDeck', 'customTarotEnabled');
+        if (!flags.inclCall) p.push('callFeatureEnabled', 'callWindowPos', 'callWindowSize', 'callPillPos', 'callBgImageData');
+        if (!flags.inclGroupChat) p.push('groupChatSettings', 'gca_');
+        if (!flags.inclSpark) p.push('chat_streak_data');
+        if (!flags.inclFeatures) p.push('pokeSym_my', 'pokeSym_partner', 'pokeSym_my_custom', 'pokeSym_partner_custom', 'headerAlwaysClear', 'keepaliveAudioEnabled', 'immersive_mode');
+        if (!flags.inclCoreExtra) p.push('kaomojiGroups', 'kaomojiLibrary', 'customVoices', 'customVoiceGroups', 'customStickerGroups', 'transferData', 'myPokes', 'lastSessionId', 'sessionList', 'disabledStickerItems', 'disabledReplyItems', 'exportReminderLastShown', 'notifEnabled');
+        if (!flags.inclOnboarding) p.push('tiSettings_showAvatar', 'tiSettings_customText', 'splashPledgeSigned_v3', 'tour_seen');
         return p;
+    }
+
+    /**
+     * 将 moments_data 中的 __IDB_IMG__ 和 __IDB__ 引用从 IndexedDB 展开为实际 base64 数据
+     * 这样备份文件包含完整的图片/视频数据，恢复后不依赖 IndexedDB
+     */
+    async function inlineMomentsIdbRefs(momentsJsonStr) {
+        var parsed = JSON.parse(momentsJsonStr);
+        if (!Array.isArray(parsed)) return momentsJsonStr;
+        // 尝试打开 MomentsVideoDB
+        var db = null;
+        try {
+            db = await new Promise(function(resolve, reject) {
+                var req = indexedDB.open('MomentsVideoDB', 2);
+                req.onsuccess = function() { resolve(req.result); };
+                req.onerror = function() { resolve(null); };
+                req.onupgradeneeded = function(e) {
+                    var d = e.target.result;
+                    if (!d.objectStoreNames.contains('videos')) d.createObjectStore('videos');
+                    if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+                };
+            });
+        } catch (e) { db = null; }
+        if (!db) return momentsJsonStr; // IDB 不可用，原样返回
+
+        function getFromStore(storeName, key) {
+            return new Promise(function(resolve) {
+                try {
+                    var tx = db.transaction(storeName, 'readonly');
+                    var req = tx.objectStore(storeName).get(key);
+                    req.onsuccess = function() { resolve(req.result || null); };
+                    req.onerror = function() { resolve(null); };
+                } catch (e) { resolve(null); }
+            });
+        }
+
+        for (var mi = 0; mi < parsed.length; mi++) {
+            var m = parsed[mi];
+            // 展开图片引用
+            if (m.images && Array.isArray(m.images)) {
+                for (var ii = 0; ii < m.images.length; ii++) {
+                    var img = m.images[ii];
+                    if (typeof img === 'string' && img.startsWith('__IDB_IMG__')) {
+                        var imgKey = img.replace('__IDB_IMG__', 'img_');
+                        var data = await getFromStore('images', imgKey);
+                        if (data) {
+                            m.images[ii] = data;
+                        } else {
+                            m.images[ii] = '';
+                        }
+                    }
+                }
+            }
+            // 展开视频引用
+            if (m.video && m.video.url && typeof m.video.url === 'string' && m.video.url.startsWith('__IDB__')) {
+                var vidId = parseInt(m.video.url.replace('__IDB__', ''));
+                if (!isNaN(vidId)) {
+                    var vidData = await getFromStore('videos', 'vid_' + vidId);
+                    if (vidData) {
+                        m.video.url = vidData;
+                    } else {
+                        m.video.url = '';
+                    }
+                }
+            }
+        }
+        try { db.close(); } catch (e) {}
+        return JSON.stringify(parsed);
+    }
+
+    /**
+     * localStorage 容量不足时，将 moments_data 中的大图片/视频移入 IndexedDB 后再保存
+     */
+    async function saveMomentsDataWithIdbFallback(momentsJsonStr) {
+        var IDB_THRESHOLD = 50000; // 与 moments.js 中的阈值一致
+        var parsed = JSON.parse(momentsJsonStr);
+        if (!Array.isArray(parsed)) {
+            localStorage.setItem('moments_data', momentsJsonStr);
+            return;
+        }
+        var db = null;
+        try {
+            db = await new Promise(function(resolve, reject) {
+                var req = indexedDB.open('MomentsVideoDB', 2);
+                req.onsuccess = function() { resolve(req.result); };
+                req.onerror = function() { resolve(null); };
+                req.onupgradeneeded = function(e) {
+                    var d = e.target.result;
+                    if (!d.objectStoreNames.contains('videos')) d.createObjectStore('videos');
+                    if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+                };
+            });
+        } catch (e) { db = null; }
+        if (!db) {
+            localStorage.setItem('moments_data', momentsJsonStr);
+            return;
+        }
+        function putToStore(storeName, key, value) {
+            return new Promise(function(resolve) {
+                try {
+                    var tx = db.transaction(storeName, 'readwrite');
+                    var req = tx.objectStore(storeName).put(value, key);
+                    req.onsuccess = function() { resolve(); };
+                    req.onerror = function() { resolve(); };
+                } catch (e) { resolve(); }
+            });
+        }
+        for (var mi = 0; mi < parsed.length; mi++) {
+            var m = parsed[mi];
+            if (m.images && Array.isArray(m.images)) {
+                for (var ii = 0; ii < m.images.length; ii++) {
+                    var img = m.images[ii];
+                    if (typeof img === 'string' && img.length > IDB_THRESHOLD) {
+                        await putToStore('images', 'img_' + m.id + '_' + ii, img);
+                        m.images[ii] = '__IDB_IMG__' + m.id + '_' + ii;
+                    }
+                }
+            }
+            if (m.video && m.video.url && typeof m.video.url === 'string' && m.video.url.length > 1000) {
+                await putToStore('videos', 'vid_' + m.id, m.video.url);
+                m.video = Object.assign({}, m.video, { url: '__IDB__' + m.id });
+            }
+        }
+        try { db.close(); } catch (e) {}
+        localStorage.setItem('moments_data', JSON.stringify(parsed));
     }
 
     function shouldSkipKeyGroupChat(key, flags) {
@@ -198,10 +370,125 @@
     /**
      * 从当前环境收集备份数据并打包为 v4（紧凑 JSON + mediaStore）
      */
-    async function buildBackupPayload(flags) {
+    /**
+         * 从 ShopDB IndexedDB 读取所有数据
+         */
+        function readAllFromShopDB() {
+            return new Promise(function(resolve) {
+                try {
+                    var req = indexedDB.open('ShopDB', 2);
+                    req.onerror = function() { resolve({}); };
+                    req.onsuccess = function(e) {
+                        var db = e.target.result;
+                        var result = {};
+                        var stores = ['products', 'images'];
+                        var pending = stores.length;
+                        if (pending === 0) { resolve(result); return; }
+                        stores.forEach(function(storeName) {
+                            try {
+                                var tx = db.transaction(storeName, 'readonly');
+                                var store = tx.objectStore(storeName);
+                                var getAll = store.getAll();
+                                getAll.onsuccess = function() {
+                                    var items = getAll.result || [];
+                                    var obj = {};
+                                    items.forEach(function(item) {
+                                        // ShopDB products store 用 keyPath: 'key'
+                                        if (item.key !== undefined) {
+                                            obj[item.key] = item.value;
+                                        } else if (item.productId !== undefined) {
+                                            // images store 用 keyPath: 'productId'
+                                            obj[item.productId] = item;
+                                        }
+                                    });
+                                    result[storeName] = obj;
+                                    if (--pending === 0) resolve(result);
+                                };
+                                getAll.onerror = function() {
+                                    result[storeName] = {};
+                                    if (--pending === 0) resolve(result);
+                                };
+                            } catch (ex) {
+                                result[storeName] = {};
+                                if (--pending === 0) resolve(result);
+                            }
+                        });
+                    };
+                } catch (ex) { resolve({}); }
+            });
+        }
+
+        /**
+         * 将数据写入 ShopDB IndexedDB
+         */
+        function writeAllToShopDB(shopDBData) {
+            return new Promise(function(resolve) {
+                if (!shopDBData || typeof shopDBData !== 'object') { resolve(); return; }
+                try {
+                    var req = indexedDB.open('ShopDB', 2);
+                    req.onerror = function() { resolve(); };
+                    req.onupgradeneeded = function(e) {
+                        var db = e.target.result;
+                        if (!db.objectStoreNames.contains('products')) {
+                            db.createObjectStore('products', { keyPath: 'key' });
+                        }
+                        if (!db.objectStoreNames.contains('images')) {
+                            db.createObjectStore('images', { keyPath: 'productId' });
+                        }
+                    };
+                    req.onsuccess = function(e) {
+                        var db = e.target.result;
+                        var storeNames = Object.keys(shopDBData);
+                        var pending = storeNames.length;
+                        if (pending === 0) { resolve(); return; }
+                        storeNames.forEach(function(storeName) {
+                            try {
+                                var tx = db.transaction(storeName, 'readwrite');
+                                var store = tx.objectStore(storeName);
+                                var data = shopDBData[storeName];
+                                var keys = Object.keys(data);
+                                var done = 0;
+                                if (keys.length === 0) {
+                                    if (--pending === 0) resolve();
+                                    return;
+                                }
+                                keys.forEach(function(k) {
+                                    var val = data[k];
+                                    var putReq;
+                                    if (storeName === 'images') {
+                                        // images store 用 keyPath: 'productId'
+                                        putReq = store.put(val);
+                                    } else {
+                                        // products store 用 keyPath: 'key'
+                                        putReq = store.put({ key: k, value: val });
+                                    }
+                                    putReq.onsuccess = function() {
+                                        if (++done === keys.length && --pending === 0) resolve();
+                                    };
+                                    putReq.onerror = function() {
+                                        if (++done === keys.length && --pending === 0) resolve();
+                                    };
+                                });
+                            } catch (ex) {
+                                if (--pending === 0) resolve();
+                            }
+                        });
+                    };
+                } catch (ex) { resolve(); }
+            });
+        }
+
+        async function buildBackupPayload(flags) {
         flags = flags || {
             inclMsgs: true, inclSet: true, inclCustom: true,
-            inclThemes: true, inclDg: true, inclStickers: false
+            inclThemes: true, inclDg: true, inclStickers: false,
+            inclHome: true,
+            inclMoyu: true, inclShop: true, inclMoments: true,
+            inclMap: true, inclTaPhone: true, inclPet: true,
+            inclDiary: true, inclAccounting: true, inclEnvelope: true,
+            inclMood: true, inclTarot: true, inclCall: true,
+            inclGroupChat: true, inclSpark: true, inclFeatures: true,
+            inclCoreExtra: true, inclOnboarding: true
         };
         var lfData = {};
         var keys = await localforage.keys();
@@ -222,6 +509,24 @@
                 lsData[lk] = localStorage.getItem(lk);
             } catch (e2) {}
         }
+        // 朋友圈 moments_data 中的 __IDB_IMG__ / __IDB__ 引用需要从 IndexedDB 展开为实际数据
+        if (flags.inclMoments && lsData['moments_data']) {
+            try {
+                lsData['moments_data'] = await inlineMomentsIdbRefs(lsData['moments_data']);
+            } catch (e3) { console.warn('[backup] 朋友圈 IDB 引用展开失败', e3); }
+        }
+        // 诊断日志：检查 diary / accounting 数据
+        var diaryKeys = Object.keys(lfData).filter(function(k) { return k.indexOf('diary') !== -1; });
+        var accountingKeys = Object.keys(lfData).filter(function(k) { return k.indexOf('accounting') !== -1; });
+        console.log('[backup] buildBackupPayload diary keys:', diaryKeys.length, diaryKeys);
+        console.log('[backup] buildBackupPayload accounting keys:', accountingKeys.length, accountingKeys);
+        // 收集 ShopDB 数据（商城商品、购物车、订单等）
+        var shopDBData = {};
+        if (flags.inclShop) {
+            try {
+                shopDBData = await readAllFromShopDB();
+            } catch (e4) { console.warn('[backup] ShopDB 读取失败', e4); }
+        }
         var state = { store: {}, map: new Map(), n: 0 };
         var lfOut = {};
         for (var k in lfData) {
@@ -233,9 +538,15 @@
             if (!Object.prototype.hasOwnProperty.call(lsData, k2)) continue;
             lsOut[k2] = processLocalStorageValueForExport(lsData[k2], state);
         }
+        // ShopDB 数据也需要提取媒体引用
+        var shopDBOut = {};
+        for (var sk in shopDBData) {
+            if (!Object.prototype.hasOwnProperty.call(shopDBData, sk)) continue;
+            shopDBOut[sk] = extractMediaTree(shopDBData[sk], state);
+        }
         return {
-            type: 'chatapp-backup-v5',
-            formatVersion: 5,
+            type: 'chatapp-backup-v4',
+            formatVersion: 4,
             appName: 'ChatApp',
             timestamp: new Date().toISOString(),
             sessionId: typeof SESSION_ID !== 'undefined' ? SESSION_ID : null,
@@ -243,7 +554,8 @@
             modules: flags,
             mediaStore: state.store,
             localforage: lfOut,
-            localStorage: lsOut
+            localStorage: lsOut,
+            shopDB: shopDBOut
         };
     }
 
@@ -363,6 +675,7 @@
                     modules: payload.modules,
                     localforage: payload.localforage,
                     localStorage: payload.localStorage,
+                    shopDB: payload.shopDB,
                     mediaIndex: mediaIndex
                 };
                 zip.file('backup.json', '\uFEFF' + JSON.stringify(jsonBody));
@@ -475,39 +788,6 @@
      * @param {object} data 原始备份 JSON
      * @param {{ selective?: boolean, selectedCategoryIds?: string[], categories?: array }} opt
      */
-    // 智能合并两个值：当两者都是对象时，递归合并（备份值优先，但保留备份中不存在的当前属性）
-    function smartMerge(currentVal, backupVal) {
-        // null 检查：如果任一值为 null，直接用备份值（null 表示删除该属性）
-        if (backupVal === null || backupVal === undefined) return backupVal;
-        if (currentVal === null || currentVal === undefined) return backupVal;
-        // 类型检查：如果类型不同，直接用备份值
-        if (typeof backupVal !== 'object' || typeof currentVal !== 'object') return backupVal;
-        // 数组直接替换
-        if (Array.isArray(backupVal) || Array.isArray(currentVal)) return backupVal;
-        // 两者都是普通对象 → 合并
-        var result = {};
-        // 先复制当前值的所有属性（保留新版本独有的属性）
-        for (var k in currentVal) {
-            if (Object.prototype.hasOwnProperty.call(currentVal, k)) {
-                result[k] = currentVal[k];
-            }
-        }
-        // 然后用备份值覆盖（备份中存在的属性以备份为准）
-        for (var k in backupVal) {
-            if (Object.prototype.hasOwnProperty.call(backupVal, k)) {
-                if (Object.prototype.hasOwnProperty.call(result, k) &&
-                    result[k] !== null && backupVal[k] !== null &&
-                    typeof result[k] === 'object' && typeof backupVal[k] === 'object' &&
-                    !Array.isArray(result[k]) && !Array.isArray(backupVal[k])) {
-                    result[k] = smartMerge(result[k], backupVal[k]);
-                } else {
-                    result[k] = backupVal[k];
-                }
-            }
-        }
-        return result;
-    }
-
     async function applyBackupToStorage(data, opt) {
         opt = opt || {};
         var selective = !!opt.selective;
@@ -515,12 +795,12 @@
         var lfRaw = getLfSource(data);
         var lsRaw = data.localStorage || {};
 
-        // 判断是否为旧版本备份（需要智能合并以保留新功能）
-        var isOldBackup = data.formatVersion && data.formatVersion < 5;
+        console.log('[backup] 恢复开始, selective:', selective, 'lsKeys:', Object.keys(lsRaw).length, 'lfKeys:', Object.keys(lfRaw).length, 'shopDBKeys:', data.shopDB ? Object.keys(data.shopDB).length : 0, 'mediaStoreKeys:', Object.keys(mediaStore).length);
 
         if (selective && opt.selectedCategoryIds && opt.categories) {
             lfRaw = filterLfByCategories(lfRaw, opt.selectedCategoryIds, opt.categories);
             lsRaw = filterLsByCategories(lsRaw, opt.selectedCategoryIds, opt.categories);
+            console.log('[backup] 过滤后 lsKeys:', Object.keys(lsRaw).length, 'lfKeys:', Object.keys(lfRaw).length, 'selectedIds:', opt.selectedCategoryIds);
         }
 
         var lfKeys = Object.keys(lfRaw);
@@ -529,19 +809,21 @@
         var appPfx = data.appPrefix || (typeof APP_PREFIX !== 'undefined' ? APP_PREFIX : 'CHAT_APP_V3_');
         var needRemap = backupSid && curSid && backupSid !== curSid;
 
+        // 诊断日志：检查恢复的 diary / accounting 数据
+        var diaryRestoreKeys = lfKeys.filter(function(k) { return k.indexOf('diary') !== -1; });
+        var accountingRestoreKeys = lfKeys.filter(function(k) { return k.indexOf('accounting') !== -1; });
+        console.log('[backup] 恢复 diary keys:', diaryRestoreKeys.length, diaryRestoreKeys);
+        console.log('[backup] 恢复 accounting keys:', accountingRestoreKeys.length, accountingRestoreKeys);
+
         for (var i = 0; i < lfKeys.length; i++) {
             var lk = lfKeys[i];
             var targetKey = needRemap ? remapLfKey(lk, backupSid, curSid, appPfx) : lk;
             var val = inlineMediaTree(lfRaw[lk], mediaStore);
             try {
-                if (isOldBackup && val && typeof val === 'object' && !Array.isArray(val)) {
-                    // 旧备份 → 智能合并，保留当前版本中存在但旧备份中不存在的属性
-                    var curVal = await localforage.getItem(targetKey);
-                    if (curVal && typeof curVal === 'object' && !Array.isArray(curVal)) {
-                        val = smartMerge(curVal, val);
-                    }
-                }
                 await localforage.setItem(targetKey, val);
+                if (lk.indexOf('diary') !== -1 || lk.indexOf('accounting') !== -1) {
+                    console.log('[backup] 已恢复 localforage:', targetKey, '类型:', Array.isArray(val) ? 'array' : typeof val);
+                }
             } catch (e) {
                 console.warn('[backup] 写入失败', targetKey, e);
             }
@@ -551,29 +833,39 @@
             if (!Object.prototype.hasOwnProperty.call(lsRaw, k)) continue;
             var targetLsKey = needRemap ? remapLfKey(k, backupSid, curSid, appPfx) : k;
             try {
-                var lsv = processLocalStorageValueForImport(lsRaw[k], mediaStore);
-                if (typeof lsv === 'string' && lsv.indexOf('data:image/') === 0 && lsv.length > 2000) continue;
-                // 旧备份 → 智能合并 localStorage 中的 JSON 对象
-                if (isOldBackup && typeof lsv === 'string') {
-                    try {
-                        var parsedBackup = JSON.parse(lsv);
-                        if (parsedBackup && typeof parsedBackup === 'object' && !Array.isArray(parsedBackup)) {
-                            var curLsVal = localStorage.getItem(targetLsKey);
-                            if (curLsVal) {
-                                try {
-                                    var parsedCur = JSON.parse(curLsVal);
-                                    if (parsedCur && typeof parsedCur === 'object' && !Array.isArray(parsedCur)) {
-                                        var merged = smartMerge(parsedCur, parsedBackup);
-                                        lsv = JSON.stringify(merged);
-                                    }
-                                } catch (parseCurErr) { /* 当前值不是JSON，直接用备份值 */ }
-                            }
-                        }
-                    } catch (parseErr) { /* 备份值不是JSON，直接用原始值 */ }
+                var rawVal = lsRaw[k];
+                var lsv;
+                // 对 moments_data 直接处理 __mRef，避免 JSON.parse/stringify 循环导致的问题
+                if (targetLsKey === 'moments_data' || targetLsKey.indexOf('moments_data') !== -1) {
+                    lsv = inlineMediaRefsInJson(rawVal, mediaStore);
+                } else {
+                    lsv = processLocalStorageValueForImport(rawVal, mediaStore);
+                }
+                // 检查是否还有未解析的 __mRef（mediaStore 缺失）
+                if (typeof lsv === 'string' && lsv.indexOf('__mRef') !== -1) {
+                    console.error('[backup] 恢复后仍包含未解析的 __mRef:', targetLsKey);
                 }
                 localStorage.setItem(targetLsKey, lsv);
+                if (targetLsKey.indexOf('moments_') !== -1 || targetLsKey.indexOf('shop_') !== -1 || targetLsKey === 'home_avatar_me' || targetLsKey === 'profile_me') {
+                    console.log('[backup] 已恢复 localStorage:', targetLsKey, '长度:', typeof lsv === 'string' ? lsv.length : 'non-string');
+                }
             } catch (e2) {
-                console.warn('[backup] localStorage 恢复失败', targetLsKey, e2);
+                // moments_data 可能因为包含大图片导致 localStorage 容量不足
+                // 尝试将大图片移入 IndexedDB 后再保存
+                if (targetLsKey === 'moments_data' || targetLsKey.indexOf('moments_data') !== -1) {
+                    try {
+                        var fallbackVal = lsRaw[k];
+                        if (typeof fallbackVal === 'string' && fallbackVal.indexOf('__mRef') !== -1) {
+                            fallbackVal = inlineMediaRefsInJson(fallbackVal, mediaStore);
+                        }
+                        await saveMomentsDataWithIdbFallback(fallbackVal);
+                        console.log('[backup] moments_data 已通过 IDB 降级保存');
+                    } catch (e3) {
+                        console.warn('[backup] moments_data 恢复失败（含 IDB 降级）', e3);
+                    }
+                } else {
+                    console.warn('[backup] localStorage 恢复失败', targetLsKey, e2);
+                }
             }
         }
 
@@ -601,27 +893,25 @@
             try { await localforage.setItem(APP_PREFIX + 'lastSessionId', SESSION_ID); } catch (e3) {}
         }
 
-        // 修复导入后 home_app_order / home_app_icons 可能缺少新增应用（如 ta-phone）的问题
-        try {
-            var _validApps = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'ta-phone'];
-            var _savedOrder = localStorage.getItem('home_app_order');
-            if (_savedOrder) {
-                var _order = JSON.parse(_savedOrder);
-                _order = _order.filter(function(a) { return _validApps.indexOf(a) !== -1; });
-                _validApps.forEach(function(a) { if (_order.indexOf(a) === -1) _order.push(a); });
-                localStorage.setItem('home_app_order', JSON.stringify(_order));
+        // 恢复 ShopDB 数据（商城商品、购物车、订单等）
+        var shopDBData = data.shopDB || {};
+        if (Object.keys(shopDBData).length > 0) {
+            // selective 模式下，只在选择了"商城"分类时恢复
+            var shouldRestoreShop = !selective || (opt.selectedCategoryIds && opt.selectedCategoryIds.indexOf('shop') !== -1);
+            if (shouldRestoreShop) {
+                try {
+                    // 先还原 __mRef 引用
+                    for (var storeName in shopDBData) {
+                        if (!Object.prototype.hasOwnProperty.call(shopDBData, storeName)) continue;
+                        shopDBData[storeName] = inlineMediaTree(shopDBData[storeName], mediaStore);
+                    }
+                    await writeAllToShopDB(shopDBData);
+                    console.log('[backup] ShopDB 恢复成功');
+                } catch (e5) {
+                    console.warn('[backup] ShopDB 恢复失败', e5);
+                }
             }
-            var _savedIcons = localStorage.getItem('home_app_icons');
-            if (_savedIcons) {
-                var _icons = JSON.parse(_savedIcons);
-                var _cleanedIcons = {};
-                _validApps.forEach(function(a) { if (_icons[a]) _cleanedIcons[a] = _icons[a]; });
-                localStorage.setItem('home_app_icons', JSON.stringify(_cleanedIcons));
-            }
-            // 触发 UI 更新
-            if (typeof window.renderIconGrid === 'function') window.renderIconGrid();
-            if (typeof window.reorderAppItems === 'function') window.reorderAppItems();
-        } catch (_fixE) { console.warn('[backup] 导入后修复 home 配置失败:', _fixE); }
+        }
     }
 
     function isFullBackupShape(d) {

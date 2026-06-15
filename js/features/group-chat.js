@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
 if (exportAllBtn) {
         exportAllBtn.addEventListener('click', async function() {
             const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
             overlay.innerHTML = `
                 <div style="background:var(--secondary-bg);border-radius:20px;padding:24px;width:88%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalContentSlideIn 0.3s ease forwards;">
                     <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:4px;display:flex;align-items:center;gap:8px;">
@@ -304,6 +304,56 @@ if (exportAllBtn) {
                             <i class="fas fa-sticky-note" style="color:var(--accent-color);width:16px;text-align:center;"></i>
                             <span>表情库 <span style="font-size:11px;color:var(--text-secondary);">(默认关，勾选后去重打包)</span></span>
                         </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_home" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-home" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>Home美化</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_moyu" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-briefcase" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>摸鱼小记</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_shop" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-shopping-bag" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>商城 / 礼物柜</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_moments" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-camera" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>朋友圈 / 访客记录</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_map" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-map-marked-alt" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>Zmilk地图</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_taphone" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-mobile-alt" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>TA的手机</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_pet" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-paw" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>萌宠屋 / 像素宠物</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_diary" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-book" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>朝夕心记</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_accounting" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-calculator" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>同心记账</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
+                            <input type="checkbox" id="_bk_envelope" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
+                            <i class="fas fa-envelope" style="color:var(--accent-color);width:16px;text-align:center;"></i>
+                            <span>信封投递</span>
+                        </label>
                     </div>
                     <div style="display:flex;gap:10px;">
                         <button id="_bk_cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:none;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">取消</button>
@@ -328,8 +378,20 @@ if (exportAllBtn) {
                 const inclThemes  = document.getElementById('_bk_themes').checked;
                 const inclDg      = document.getElementById('_bk_dg').checked;
                 const inclStickers = document.getElementById('_bk_stickers') && document.getElementById('_bk_stickers').checked;
+                const inclMoyu    = document.getElementById('_bk_moyu').checked;
+                const inclHome    = document.getElementById('_bk_home').checked;
+                const inclShop    = document.getElementById('_bk_shop').checked;
+                const inclMoments = document.getElementById('_bk_moments').checked;
+                const inclMap     = document.getElementById('_bk_map').checked;
+                const inclTaPhone = document.getElementById('_bk_taphone').checked;
+                const inclPet     = document.getElementById('_bk_pet').checked;
+                const inclDiary   = document.getElementById('_bk_diary').checked;
+                const inclAccounting = document.getElementById('_bk_accounting').checked;
+                const inclEnvelope = document.getElementById('_bk_envelope').checked;
 
-                if (!inclMsgs && !inclSet && !inclCustom && !inclAnn && !inclThemes && !inclDg && !inclStickers) {
+                if (!inclMsgs && !inclSet && !inclCustom && !inclAnn && !inclThemes && !inclDg && !inclStickers &&
+                    !inclHome && !inclMoyu && !inclShop && !inclMoments && !inclMap && !inclTaPhone && !inclPet &&
+                    !inclDiary && !inclAccounting && !inclEnvelope) {
                     showNotification('请至少选择一项', 'error');
                     return;
                 }
@@ -344,7 +406,17 @@ if (exportAllBtn) {
                             inclAnn: inclAnn,
                             inclThemes: inclThemes,
                             inclDg: inclDg,
-                            inclStickers: inclStickers
+                            inclStickers: inclStickers,
+                            inclHome: inclHome,
+                            inclMoyu: inclMoyu,
+                            inclShop: inclShop,
+                            inclMoments: inclMoments,
+                            inclMap: inclMap,
+                            inclTaPhone: inclTaPhone,
+                            inclPet: inclPet,
+                            inclDiary: inclDiary,
+                            inclAccounting: inclAccounting,
+                            inclEnvelope: inclEnvelope
                         });
                         const jsonString = ChatBackup.serializeBackupV4(payload);
                         const dateStr = new Date().toISOString().slice(0, 10);

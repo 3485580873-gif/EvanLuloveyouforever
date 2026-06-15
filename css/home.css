@@ -8,7 +8,7 @@
     background-image: 
 radial-gradient(circle at 20% 80%, rgba(184, 169, 201, 0.08) 0%, transparent 50%),
 radial-gradient(circle at 80% 20%, rgba(200, 200, 200, 0.1) 0%, transparent 50%);
-    z-index: -1;
+    z-index: 1;
     transition: background 0.5s ease;
 }
 
@@ -31,6 +31,8 @@ body.home-active {
     display: none; /* 默认隐藏 */
     align-self: center;
     flex-shrink: 0;
+    position: relative;
+    z-index: 3;
 }
 
 .home-container.active {
@@ -435,12 +437,14 @@ inset 0 1px 0 rgba(255, 255, 255, 0.8);
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    padding: 8px 14px;
+    padding: 8px 10px;
     border-radius: 20px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     z-index: 1;
+    flex: 1;
+    min-width: 0;
 }
 
 .home-nav-item:active {
@@ -472,6 +476,28 @@ inset 0 2px 4px rgba(0, 0, 0, 0.05),
 
 .home-nav-item.active .home-nav-icon i {
     transform: translateY(-2px);
+}
+
+.home-nav-icon {
+    position: relative;
+}
+
+.home-nav-icon .nav-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: #ff4d4f;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .home-nav-label {

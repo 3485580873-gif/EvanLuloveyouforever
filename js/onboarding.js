@@ -132,7 +132,7 @@
 
 (function() {
     var PLEDGE_KEY = 'splashPledgeSigned_v3';
-    var TOTAL = 6;
+    var TOTAL = 7;
     var PLEDGE_TEXT = '我绝不盈利、造谣、污蔑或嘲讽，并对自己的使用行为负完全责任';
     var cur = 0;
 
@@ -140,9 +140,18 @@
         var splash = document.getElementById('splash-declaration');
         if (!splash) return;
 
-        localStorage.removeItem('splashPledgeSigned_v2');
-        localStorage.removeItem('splashPledgeSigned_v1');
-        localStorage.removeItem('splashPledgeSigned');
+        // 迁移旧版本签名到 v3（避免用户重复签名）
+        if (!localStorage.getItem(PLEDGE_KEY)) {
+            if (localStorage.getItem('splashPledgeSigned_v2') === 'true' ||
+                localStorage.getItem('splashPledgeSigned_v1') === 'true' ||
+                localStorage.getItem('splashPledgeSigned') === 'true') {
+                localStorage.setItem(PLEDGE_KEY, 'true');
+                // 清除旧版本签名
+                localStorage.removeItem('splashPledgeSigned_v2');
+                localStorage.removeItem('splashPledgeSigned_v1');
+                localStorage.removeItem('splashPledgeSigned');
+            }
+        }
 
         if (localStorage.getItem(PLEDGE_KEY) === 'true') {
             splash.style.display = 'none';

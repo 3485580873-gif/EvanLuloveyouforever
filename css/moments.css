@@ -382,22 +382,21 @@
 
 /* ========== Moment Sticker ========== */
 .moments-container .moment-sticker {
-  margin-top: 8px;
+  margin-top: 12px;
   display: inline-block;
-  max-width: 120px;
-  border-radius: 12px;
+  max-width: 150px;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  background: transparent;
+  background: #f5f5f5;
 }
 
 .moments-container .moment-sticker img {
   width: 100%;
   height: auto;
   display: block;
-  max-height: 150px;
+  max-height: 200px;
   object-fit: contain;
-  border-radius: 12px;
 }
 
 /* ========== Moment Actions ========== */
@@ -520,6 +519,12 @@
 .moments-container .comment-item .reply-arrow {
   color: #999;
   margin: 0 3px;
+}
+
+.moments-container .comment-item.comment-nested {
+  padding-left: 20px;
+  border-left: 2px solid #e8e8e8;
+  margin-left: 4px;
 }
 
 /* ========== Notification Card (inside card) ========== */
@@ -1365,12 +1370,11 @@
 .moments-container .publish-sticker-item {
   position: relative;
   display: inline-block;
-  width: 100px;
-  height: 100px;
-  border-radius: 12px;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
   overflow: hidden;
-  background: var(--secondary-bg, #f5f5f5);
-  border: 2px solid var(--border-color, #e8e8e8);
+  background: #f5f5f5;
 }
 
 .moments-container .publish-sticker-item img {
@@ -1530,25 +1534,50 @@
 .moments-container .publish-sticker-body {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.moments-container .publish-sticker-body .moments-sticker-subtabs {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+
+.moments-container .publish-sticker-body .moments-sticker-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-auto-rows: max-content;
+  gap: 6px;
   align-content: start;
+  min-height: 0;
 }
 
 .moments-container .publish-sticker-select-item {
-  aspect-ratio: 1;
-  border-radius: 8px;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 2px solid #e5e5e5;
   overflow: hidden;
   cursor: pointer;
   background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .moments-container .publish-sticker-select-item img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  display: block;
 }
 
 .moments-container .publish-sticker-empty {
@@ -1751,9 +1780,51 @@
 }
 
 .moments-container .comment-emoji-body.sticker-mode {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: unset;
+}
+
+.moments-container .comment-emoji-body.kaomoji-mode {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: unset;
+  gap: 2px;
+}
+
+.moments-container .comment-emoji-body.kaomoji-mode .comment-emoji-item.kaomoji-item {
+  width: 100%;
+  height: auto;
+  min-height: 36px;
+  justify-content: flex-start;
+  padding: 6px 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  text-align: left;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.moments-container .comment-emoji-body .moments-sticker-subtabs {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+
+.moments-container .comment-emoji-body .moments-sticker-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+  display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 12px;
+  grid-auto-rows: max-content;
+  gap: 6px;
+  align-content: start;
+  min-height: 0;
 }
 
 .moments-container .comment-emoji-content .emoji-item,
@@ -1777,24 +1848,14 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: var(--secondary-bg, #f5f5f5);
-  border-radius: 10px;
-  border: 1.5px solid var(--border-color, #e8e8e8);
+  border-radius: 12px;
+  border: 2px solid #e5e5e5;
   overflow: hidden;
+  background: #f5f5f5;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s;
-}
-
-.moments-container .comment-emoji-item.sticker-item:hover {
-  border-color: #576b95;
-  transform: scale(1.05);
-}
-
-.moments-container .comment-emoji-item.sticker-item:active {
-  transform: scale(0.95);
 }
 
 .moments-container .comment-emoji-item.sticker-item img {
@@ -2914,6 +2975,10 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.moments-container.dark-mode .comment-item.comment-nested {
+  border-left-color: #555;
+}
+
 .moments-container.dark-mode .action-btn .heart-icon {
   stroke: #8a9dc8;
 }
@@ -3448,9 +3513,8 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.moments-container.dark-mode .comment-emoji-item.sticker-item {
+.moments-container.dark-mode .comment-emoji-item.sticker-mode {
   background: #333;
-  border-color: #444;
 }
 
 /* 自定义面板 */
@@ -3884,33 +3948,6 @@
     margin-left: 8px;
     vertical-align: middle;
     font-weight: 500;
-}
-
-/* 访客动作标签 */
-.moments-container .visitor-action-tag {
-    display: inline-block;
-    font-size: 11px;
-    padding: 1px 6px;
-    border-radius: 8px;
-    margin-left: 6px;
-    vertical-align: middle;
-    font-weight: 500;
-}
-.moments-container .visitor-action-like {
-    background: rgba(255, 107, 107, 0.12);
-    color: #ff6b6b;
-}
-.moments-container .visitor-action-comment {
-    background: rgba(80, 160, 255, 0.12);
-    color: #50a0ff;
-}
-.moments-container.dark-mode .visitor-action-like {
-    background: rgba(255, 107, 107, 0.2);
-    color: #ff8a8a;
-}
-.moments-container.dark-mode .visitor-action-comment {
-    background: rgba(80, 160, 255, 0.2);
-    color: #7ab8ff;
 }
 
 /* 日期分组标题 */

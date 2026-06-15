@@ -294,6 +294,15 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
         };
         window.throttledSaveData = throttledSaveData;
 
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
 async function applyCustomFont(url) {
     if (!url || !url.trim()) {
         document.documentElement.style.removeProperty('--font-family');
@@ -385,7 +394,25 @@ async function exportAllData() {
                 inclCustom: true,
                 inclThemes: true,
                 inclDg: true,
-                inclStickers: true
+                inclStickers: true,
+                inclHome: true,
+                inclMoyu: true,
+                inclShop: true,
+                inclMoments: true,
+                inclMap: true,
+                inclTaPhone: true,
+                inclPet: true,
+                inclDiary: true,
+                inclAccounting: true,
+                inclEnvelope: true,
+                inclMood: true,
+                inclTarot: true,
+                inclCall: true,
+                inclGroupChat: true,
+                inclSpark: true,
+                inclFeatures: true,
+                inclCoreExtra: true,
+                inclOnboarding: true
             });
             const jsonString = ChatBackup.serializeBackupV4(payload);
             const dateStr = new Date().toISOString().slice(0, 10);
@@ -455,24 +482,9 @@ async function importAllData(file) {
             },
             {
                 id: 'themes',
-                label: '主题 / 外观 / 装扮 / 朋友圈',
+                label: '主题 / 外观 / 图库',
                 indexedDBNeedles: ['customThemes', 'themeSchemes', 'backgroundGallery', 'chatBackground', 'partnerAvatar', 'myAvatar', 'partnerPersonas'],
-                localStorageNeedles: [
-                    'home_card_bg', 'home_card_bg_custom', 'home_card_bg_presets',
-                    'home_page_bg', 'home_page_bg_custom', 'home_page_bg_presets',
-                    'home_theme', 'home_theme_custom',
-                    'home_icon_color', 'home_icon_color_name', 'home_nav_colors',
-                    'home_app_icons', 'home_app_order',
-                    'home_avatar_me', 'home_avatar_sync',
-                    'home_bg_sync', 'home_session_bind',
-                    'profile_me', 'profile_partner',
-                    'moments_cover', 'moments_data', 'moments_friends',
-                    'moments_friend_like', 'moments_reply_speed',
-                    'moments_reply_count_min', 'moments_reply_count_max',
-                    'moments_visitor_records', 'moments_last_viewed',
-                    'moments_last_online_me', 'moments_last_online_partner',
-                    'ta_phone_collections'
-                ]
+                localStorageNeedles: []
             },
             {
                 id: 'dg',
@@ -480,13 +492,43 @@ async function importAllData(file) {
                 indexedDBNeedles: [],
                 localStorageNeedles: ['dg_custom_data', 'dg_status_pool', 'weekly_fortune', 'daily_fortune'],
                 localStoragePrefixes: ['customWeather_']
+            },
+            {
+                id: 'moments',
+                label: '朋友圈',
+                indexedDBNeedles: [],
+                localStorageNeedles: ['moments_data', 'moments_visitor_records', 'moments_friends', 'moments_reply_speed', 'moments_reply_count_min', 'moments_reply_count_max', 'moments_friend_like', 'moments_cover', 'moments_visitor_last_online', 'moments_visitor_last_viewed_count', 'home_avatar_me', 'profile_me']
+            },
+            {
+                id: 'shop',
+                label: '商城',
+                indexedDBNeedles: [],
+                localStorageNeedles: ['shop_balance', 'shop_search_history', 'shop_gift_cabinet', 'shop_products', 'shop_cart', 'shop_orders']
+            },
+            {
+                id: 'diary',
+                label: '朝夕心记',
+                indexedDBNeedles: ['diaryTodos', 'diaryHabits', 'diaryHabitRecords', 'diaryPeriodRecords', 'diaryAnniversaries', 'diaryTodoCategories'],
+                localStorageNeedles: ['diaryPeriodLastReminderDate']
+            },
+            {
+                id: 'accounting',
+                label: '同心记账',
+                indexedDBNeedles: ['accountingRecords', 'accountingLabels'],
+                localStorageNeedles: []
+            },
+            {
+                id: 'taPhone',
+                label: 'TA的手机',
+                indexedDBNeedles: [],
+                localStorageNeedles: ['ta_phone_collections']
             }
         ];
 
         const pickSelected = () => new Promise((resolve) => {
             const overlay = document.createElement('div');
             overlay.style.cssText = `
-                position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);
+                position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.6);
                 backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;
             `;
             overlay.innerHTML = `

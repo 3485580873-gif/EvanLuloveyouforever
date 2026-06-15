@@ -35,11 +35,14 @@ let accountingEditingId = null;        // 正在编辑的记录ID
 /* ========== 数据初始化 ========== */
 async function initAccountingData() {
     try {
+        const recordsKey = getStorageKey('accountingRecords');
+        console.log('[同心记账] initAccountingData 读取 key:', recordsKey);
         const [records, labels] = await Promise.allSettled([
-            localforage.getItem(getStorageKey('accountingRecords')),
+            localforage.getItem(recordsKey),
             localforage.getItem(getStorageKey('accountingLabels'))
         ]);
 
+        console.log('[同心记账] accountingRecords:', records.status, records.value ? records.value.length : 0);
         if (records.status === 'fulfilled' && Array.isArray(records.value)) {
             accountingRecords = records.value;
         }
@@ -515,7 +518,10 @@ function showAccountingRecordForm(type, recordId = null) {
         document.getElementById('accounting-form-note').value = '';
     }
 
-    // 以弹窗形式显示
+    // 以弹窗形式显示（移到 body 末尾确保在最顶层）
+    if (formPanel.parentElement !== document.body) {
+        document.body.appendChild(formPanel);
+    }
     formPanel.style.display = 'flex';
 }
 
@@ -640,6 +646,13 @@ function showAccountingLabelForm(type, labelId = null) {
     `;
 
     document.body.appendChild(modal);
+
+    // 点击遮罩层关闭弹窗
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeAccountingLabelForm();
+        }
+    });
 }
 
 function closeAccountingLabelForm() {

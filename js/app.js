@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', async () => {
     const loaderBar = document.getElementById('loader-tech-bar');
     const welcomeSubtitle = document.querySelector('.welcome-subtitle-scramble');
@@ -84,16 +83,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updateLoader('连接成功，欢迎回来。', '100%');
         setTimeout(hideWelcomeScreen, 3500);
-
-        // 安全保底：无论如何 8 秒后强制隐藏加载动画，防止卡死
-        setTimeout(() => {
-            const ws = document.getElementById('welcome-animation');
-            if (ws && ws.style.display !== 'none') {
-                console.warn('[boot] 加载动画超时，强制隐藏');
-                ws.style.display = 'none';
-                if (typeof window.showHomePage === 'function') window.showHomePage();
-            }
-        }, 8000);
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
@@ -213,12 +202,19 @@ const stickerInput = document.getElementById('sticker-file-input');
                         try {
                             const base64 = await optimizeImage(file, 300, 0.8);
                             stickerLibrary.push(base64);
+                            // 同步更新全局变量
+                            window._stickerLibrary = stickerLibrary;
                             successCount++;
                         } catch (err) {
                             console.error(err);
                             failCount++;
                         }
                     }
+
+                    // 通知其他模块表情包已更新
+                    try {
+                        window.dispatchEvent(new CustomEvent('stickerLibraryUpdated', { detail: { count: stickerLibrary.length } }));
+                    } catch(e) {}
 
                     throttledSaveData();
                     renderReplyLibrary();
@@ -251,6 +247,7 @@ if (myStickerQuickUpload) {
             } catch(err) { fail++; }
         }
         throttledSaveData();
+        if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         showNotification(fail > 0 ? `上传完成：${ok} 成功 ${fail} 失败` : `✓ 已添加 ${ok} 张到我的表情库`, fail > 0 ? 'warning' : 'success');
         e.target.value = '';

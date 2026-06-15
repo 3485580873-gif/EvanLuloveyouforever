@@ -1,4 +1,3 @@
-
 (function () {
     'use strict';
 
@@ -479,9 +478,22 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         document.body.appendChild(root);
     }
 
-    // 视频通话按钮已收纳至收纳面板（collapsed-call-btn），不再注入工具栏
     function injectToolbarBtn() {
-        return;
+        if (document.getElementById('call-toolbar-btn')) return;
+        const anchor = document.getElementById('attachment-btn');
+        if (!anchor) return;
+        const btn = document.createElement('button');
+        btn.id = 'call-toolbar-btn';
+        btn.title = '视频通话';
+        btn.className = 'input-btn collapse-hideable';
+        btn.style.display = S.enabled ? '' : 'none';
+        btn.innerHTML = '<i class="fas fa-video"></i>';
+        btn.addEventListener('click', () => {
+            if (!S.enabled) return;
+            if (S.active) { restoreWindow(); return; }
+            startCall(false);
+        });
+        anchor.parentNode.insertBefore(btn, anchor);
     }
 
     function fmt(ms) {
@@ -547,6 +559,20 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     function sendCallEvent(icon, label, detail) {
         if (typeof window._addCallEvent === 'function') {
             window._addCallEvent(icon, label, detail);
+        } else if (typeof window.messages !== 'undefined') {
+            // 降级：直接写入 messages 数组（适用于 beforeunload 等异步不可用场景）
+            window.messages.push({
+                id: Date.now() + Math.random(),
+                sender: 'system',
+                text: label + (detail ? ' · ' + detail : ''),
+                timestamp: new Date(),
+                status: 'received',
+                type: 'call-event',
+                callIcon: icon || 'fa-video',
+                callDetail: detail || null,
+                favorited: false,
+                note: null,
+            });
         } else {
             let tries = 0;
             const t = setInterval(() => {
@@ -882,53 +908,20 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
 
     window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow };
 
-    // ========== 页面刷新/闪退时自动挂断并留记录 ==========
-    function saveCallInterrupted() {
-        if (S.active && S.startTime) {
-            var dur = Date.now() - S.startTime;
-            var partnerName = getName();
-            var myName = (typeof settings !== 'undefined' && settings.myName) || '我';
-            localStorage.setItem('callInterrupted', JSON.stringify({
-                duration: dur,
-                timestamp: Date.now(),
-                partnerName: partnerName,
-                myName: myName
-            }));
-        }
-    }
-    window.addEventListener('beforeunload', function () {
-        saveCallInterrupted();
-    });
-    // 页面可见性变化时（如切换标签页导致浏览器回收），也保存通话状态
-    document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'hidden' && S.active && S.startTime) {
-            saveCallInterrupted();
-        }
-    });
-    // 页面恢复时检查是否有中断的通话，插入聊天记录
-    function checkCallInterrupted() {
-        var raw = localStorage.getItem('callInterrupted');
-        if (!raw) return;
-        localStorage.removeItem('callInterrupted');
-        try {
-            var data = JSON.parse(raw);
-            var dur = data.duration;
-            if (!dur || dur < 1000) return;
-            var timeStr = (typeof fmt === 'function') ? fmt(dur) : Math.floor(dur / 1000) + '秒';
-            var text = data.myName + ' 与 ' + data.partnerName + ' 的视频通话已中断 · ' + timeStr;
-            if (typeof addMessage === 'function') {
-                addMessage({
-                    id: 'call_interrupted_' + Date.now(),
-                    sender: 'system',
-                    text: text,
-                    timestamp: new Date(data.timestamp || Date.now()),
-                    status: 'sent',
-                    type: 'system'
-                });
+    // 页面刷新/关闭时，如果正在通话则自动挂断并保存记录
+    window.addEventListener('beforeunload', function() {
+        if (S.active) {
+            const dur = S.elapsed;
+            S.active = false; S.startTime = null;
+            cancelAnimationFrame(S.timerRAF);
+            clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
+            sendCallMsg(dur);
+            // 确保同步保存，不依赖 throttledSaveData 的 500ms 延迟
+            if (typeof window._backupCriticalData === 'function') {
+                window._backupCriticalData();
             }
-            if (typeof renderMessages === 'function') renderMessages();
-        } catch (e) { /* ignore */ }
-    }
+        }
+    });
 
     function init() {
         injectCSS();
@@ -956,8 +949,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                     }
                 }).observe(chatModal, { attributes: true, attributeFilter: ['style'] });
             }
-            // 页面恢复后检查是否有中断的通话记录
-            setTimeout(checkCallInterrupted, 1200);
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(late, 800));
         else setTimeout(late, 800);

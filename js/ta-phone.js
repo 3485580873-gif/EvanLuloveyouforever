@@ -35,13 +35,17 @@
     }
 
     // 添加收藏
-    function addCollection(type, content, originalTime) {
+    function addCollection(type, content, originalTime, extra) {
         const item = {
             id: Date.now() + Math.random(),
             content: content,
             originalTime: originalTime || Date.now(),
             collectedTime: Date.now()
         };
+        if (extra) {
+            if (extra.msgType) item.msgType = extra.msgType;
+            if (extra.shareData) item.shareData = extra.shareData;
+        }
         collections[type].unshift(item);
         saveCollections();
     }
@@ -54,32 +58,55 @@
         renderList(type);
     }
 
-    // 尝试收藏聊天消息
-    function tryCollectChat(text, timestamp) {
-        if (!text || text.trim().length === 0) return;
+    // 尝试收藏聊天消息（返回是否收藏成功）
+    function tryCollectChat(text, timestamp, msgRef) {
+        if (!text || text.trim().length === 0) return false;
         if (Math.random() < CHAT_CHANCE) {
-            addCollection('chat', text.trim(), timestamp);
+            var extra = null;
+            if (msgRef && typeof msgRef === 'object') {
+                msgRef.taPhoneCollected = true;
+                if (msgRef.type === 'share' && msgRef.shareData) {
+                    extra = { msgType: msgRef.type, shareData: msgRef.shareData };
+                }
+            }
+            addCollection('chat', text.trim(), timestamp, extra);
+            return true;
         }
+        return false;
     }
 
-    // 尝试收藏朋友圈
-    function tryCollectMoment(text, timestamp) {
-        if (!text || text.trim().length === 0) return;
+    // 尝试收藏朋友圈（返回是否收藏成功）
+    function tryCollectMoment(text, timestamp, momentRef) {
+        if (!text || text.trim().length === 0) return false;
         if (Math.random() < MOMENTS_CHANCE) {
             addCollection('moments', text.trim(), timestamp);
+            // 在原始朋友圈上打标记
+            if (momentRef && typeof momentRef === 'object') {
+                momentRef.taPhoneCollected = true;
+            }
+            return true;
         }
+        return false;
     }
 
-    // 扫描历史内容
+    // 扫描历史内容（只扫描未标记的消息）
     function scanHistory() {
         if (typeof messages !== 'undefined' && Array.isArray(messages)) {
             messages.forEach(msg => {
+                // 跳过已标记的消息
+                if (msg.taPhoneCollected) return;
                 if (msg.sender === 'user' && msg.text && msg.text.trim()) {
                     const alreadyCollected = collections.chat.some(c =>
                         c.content === msg.text.trim() && c.originalTime === msg.timestamp.getTime()
                     );
                     if (!alreadyCollected && Math.random() < CHAT_HISTORY_CHANCE) {
-                        addCollection('chat', msg.text.trim(), msg.timestamp.getTime());
+                        var extra = null;
+                        if (msg.type === 'share' && msg.shareData) {
+                            extra = { msgType: msg.type, shareData: msg.shareData };
+                        }
+                        addCollection('chat', msg.text.trim(), msg.timestamp.getTime(), extra);
+                        // 打标记
+                        msg.taPhoneCollected = true;
                     }
                 }
             });
@@ -87,12 +114,16 @@
 
         if (typeof momentsData !== 'undefined' && Array.isArray(momentsData)) {
             momentsData.forEach(moment => {
+                // 跳过已标记的朋友圈
+                if (moment.taPhoneCollected) return;
                 if (moment.text && moment.text.trim()) {
                     const alreadyCollected = collections.moments.some(c =>
                         c.content === moment.text.trim() && c.originalTime === moment.time
                     );
                     if (!alreadyCollected && Math.random() < MOMENTS_HISTORY_CHANCE) {
                         addCollection('moments', moment.text.trim(), moment.time);
+                        // 打标记
+                        moment.taPhoneCollected = true;
                     }
                 }
             });
@@ -132,11 +163,16 @@
 
         listEl.innerHTML = items.map(item => {
             const meta = `发送于: ${formatTime(item.originalTime)} | 收藏于: ${formatTime(item.collectedTime)}`;
+            // 商品消息显示为【商品：xxx】
+            var displayText = item.content;
+            if (item.msgType === 'share' && item.shareData && item.shareData.name) {
+                displayText = '【商品：' + item.shareData.name + '】';
+            }
             return `
                 <div class="ta-phone-item">
                     <button class="ta-phone-item-delete" onclick="window.TaPhoneApp.deleteCollection('${type}', ${item.id})" title="删除">×</button>
                     <div class="ta-phone-item-time">${formatTime(item.originalTime)}</div>
-                    <div class="ta-phone-item-text">${escapeHtml(item.content)}</div>
+                    <div class="ta-phone-item-text">${escapeHtml(displayText)}</div>
                     <div class="ta-phone-item-meta">${meta}</div>
                 </div>
             `;
@@ -450,9 +486,12 @@
             }
             .ta-phone-item-text {
                 font-size: 0.88rem;
-                color: var(--text, #e0e0e0);
+                color: #000000;
                 line-height: 1.5;
                 word-break: break-all;
+            }
+            html[data-theme="dark"] .ta-phone-item-text {
+                color: #ffffff;
             }
             .ta-phone-item-meta {
                 font-size: 0.72rem;
@@ -489,11 +528,16 @@
         document.head.appendChild(style);
     }
 
+    let _historyScanned = false;
+
     // 初始化
     function init() {
         injectStyles();
         loadCollections();
-        setTimeout(scanHistory, 2000);
+        if (!_historyScanned) {
+            _historyScanned = true;
+            setTimeout(scanHistory, 2000);
+        }
     }
 
     // 暴露到全局

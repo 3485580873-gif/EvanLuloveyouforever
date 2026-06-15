@@ -1,18 +1,23 @@
 function setupEventListeners() {
-    const safe = (fn, name) => { try { fn(); } catch(e) { console.error(`[listeners] ${name} 失败:`, e); } };
-    safe(initCoreListeners, 'initCoreListeners');
-    safe(initModalListeners, 'initModalListeners');
-    safe(initChatActionListeners, 'initChatActionListeners');
-    safe(initHeaderAndSettingsListeners, 'initHeaderAndSettingsListeners');
-    safe(initDataManagementListeners, 'initDataManagementListeners');
-    safe(initNewFeatureListeners, 'initNewFeatureListeners');
-    safe(setupTutorialListeners, 'setupTutorialListeners');
-    safe(initMoodListeners, 'initMoodListeners');
-    safe(initDecisionModule, 'initDecisionModule');
-    safe(initThemeEditor, 'initThemeEditor');
-    safe(initThemeSchemes, 'initThemeSchemes');
-    if (typeof window.initMoyu === 'function') safe(window.initMoyu, 'initMoyu');
-    safe(initComboMenu, 'initComboMenu');
+    try {
+        initCoreListeners();
+        initModalListeners();
+        initChatActionListeners();
+        initHeaderAndSettingsListeners();
+        initDataManagementListeners();
+        initNewFeatureListeners();
+        setupTutorialListeners();
+        initMoodListeners();
+        initDecisionModule(); 
+        initThemeEditor(); 
+        initThemeSchemes();
+        if (typeof window.initMoyu === 'function') window.initMoyu();
+        
+        initComboMenu(); 
+        
+    } catch (e) {
+        console.error("事件绑定过程中发生错误:", e);
+    }
 }
 
 function initChatActionListeners() {
@@ -198,21 +203,6 @@ if (target.classList.contains('delete-btn')) {
                 });
             }
 
-            // 设置弹窗关闭按钮
-            if (DOMElements.settingsModal.cancel) {
-                DOMElements.settingsModal.cancel.addEventListener('click', () => {
-                    hideModal(DOMElements.settingsModal.modal);
-                });
-            }
-
-            // 高级功能弹窗关闭按钮
-            if (DOMElements.advancedModal.closeBtn) {
-                DOMElements.advancedModal.closeBtn.addEventListener('click', () => {
-                    hideModal(DOMElements.advancedModal.modal);
-                });
-            }
-
-            // 数据管理弹窗关闭按钮（ID可能不存在，容错处理）
             const closeDataBtn = document.getElementById('close-data');
             if (closeDataBtn) {
                 closeDataBtn.addEventListener('click', () => {
@@ -237,15 +227,19 @@ if (target.classList.contains('delete-btn')) {
 
                 if (shouldSaveToLibrary) {
                     try {
-                        if (!Array.isArray(customPokes)) customPokes = [];
-                        const exists = customPokes.some(r => String(r) === String(pokeText));
+                        // 保存到表情快捷栏独立的 myPokes 库，不再同步到氛围感拍一拍
+                        if (!Array.isArray(myPokes)) myPokes = [];
+                        const exists = myPokes.some(r => String(r) === String(pokeText));
                         if (!exists) {
-                            customPokes.unshift(pokeText);
+                            myPokes.unshift(pokeText);
                             if (typeof throttledSaveData === 'function') throttledSaveData();
-                            if (typeof renderReplyLibrary === 'function') renderReplyLibrary();
+                            if (typeof showNotification === 'function') showNotification('✓ 已保存到快捷栏', 'success');
+                        } else {
+                            if (typeof showNotification === 'function') showNotification('该拍一拍已存在', 'info');
                         }
                     } catch (e) {
-                        console.warn('拍一拍保存到库失败:', e);
+                        console.warn('拍一拍保存到快捷栏失败:', e);
+                        if (typeof showNotification === 'function') showNotification('保存失败', 'error');
                     }
                 }
                 hideModal(DOMElements.pokeModal.modal);
@@ -471,119 +465,11 @@ fileInput.addEventListener('change', function(e) {
                 settings.isDarkMode = !settings.isDarkMode; throttledSaveData(); updateUI(); showNotification(`已切换到${settings.isDarkMode ? '夜': '昼'}模式`,
                     'success');
             });
-            console.log('[listeners] settingsBtn:', DOMElements.settingsModal.settingsBtn);
-            if (DOMElements.settingsModal.settingsBtn) {
-                DOMElements.settingsModal.settingsBtn.addEventListener('click', () => {
-                    console.log('[listeners] settings-btn clicked!');
-                    showModal(DOMElements.settingsModal.modal);
-                });
-            } else {
-                console.error('[listeners] settingsBtn is null! Cannot attach click handler.');
-            }
+            DOMElements.settingsModal.settingsBtn.addEventListener('click', () => {
+                showModal(DOMElements.settingsModal.modal);
+            });
             // 群聊设置按钮已合并到会话管理中
 
-            // ===== 聊天设置卡片点击：打开聊天设置弹窗 =====
-            const _chatSettingsEl = document.getElementById('chat-settings');
-            if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
-                hideModal(DOMElements.settingsModal.modal);
-                
-                const toggleSyncMap = {
-                    '#reply-toggle': { prop: 'replyEnabled', name: '引用回复' },
-                    '#sound-toggle': { prop: 'soundEnabled', name: '音效' },
-                    '#read-receipts-toggle': { prop: 'readReceiptsEnabled', name: '已读回执' },
-                    '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
-                    '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
-                    '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
-                    '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入' },
-                    '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
-                };
-                for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
-                    const el = document.querySelector(selector);
-                    const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
-                    if (el) el.classList.toggle('active', val);
-                }
-                const svSlider = document.getElementById('sound-volume-slider');
-                const svVal = document.getElementById('sound-volume-value');
-                if (svSlider) { svSlider.value = Math.round((settings.soundVolume || 0.15) * 100); if (svVal) svVal.textContent = svSlider.value + '%'; }
-                const legacyCustom = (settings.customSoundUrl || '').trim();
-                
-                const setSelect = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = val || 'tone_low';
-                };
-                const setInput = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = val || '';
-                };
-                const setSoundUrlInput = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (!el) return;
-                    if (val && val.startsWith('data:audio')) {
-                        el.value = '[本地文件（已上传）]';
-                    } else {
-                        el.value = val || '';
-                    }
-                };
-                
-                setSelect('sound-my-send-preset', settings.mySendSoundPreset || 'tone_low');
-                setSoundUrlInput('sound-my-send-custom-url', (settings.mySendCustomSoundUrl || '').trim() || legacyCustom);
-                
-                setSelect('sound-partner-message-preset', settings.partnerMessageSoundPreset || 'tone_low');
-                setSoundUrlInput('sound-partner-message-custom-url', (settings.partnerMessageCustomSoundUrl || '').trim() || legacyCustom);
-                
-                setSelect('sound-my-poke-preset', settings.myPokeSoundPreset || 'tone_low');
-                setSoundUrlInput('sound-my-poke-custom-url', (settings.myPokeCustomSoundUrl || '').trim() || legacyCustom);
-                
-                setSelect('sound-partner-poke-preset', settings.partnerPokeSoundPreset || 'tone_low');
-                setSoundUrlInput('sound-partner-poke-custom-url', (settings.partnerPokeCustomSoundUrl || '').trim() || legacyCustom);
-                
-                document.querySelectorAll('.time-fmt-opt').forEach(opt => {
-                    opt.classList.toggle('active', opt.dataset.fmt === (settings.timeFormat || 'HH:mm'));
-                });
-                
-                const autoToggle = document.getElementById('auto-send-toggle');
-                if (autoToggle) autoToggle.classList.toggle('active', !!settings.autoSendEnabled);
-                if (typeof updateAutoSendUI === 'function') updateAutoSendUI();
-                if (typeof updateDelayUI === 'function') updateDelayUI();
-                const immToggle = document.getElementById('immersive-toggle');
-                if (immToggle) immToggle.classList.toggle('active', document.body.classList.contains('immersive-mode'));
-                
-                // 同步信封相关开关
-                const envAutoToggle = document.getElementById('envelope-auto-send-toggle');
-                if (envAutoToggle) envAutoToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
-                const envCustomToggle = document.getElementById('envelope-custom-rule-toggle');
-                if (envCustomToggle) envCustomToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
-                if (typeof updateEnvelopeSettingsUI === 'function') updateEnvelopeSettingsUI();
-                
-                // 同步摸鱼显示详情开关
-                const moyuDetailToggle = document.getElementById('moyu-show-detail-toggle');
-                if (moyuDetailToggle) moyuDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
-                
-                // 同步底部栏收纳开关
-                const collapseToggle = document.getElementById('bottom-collapse-cs-toggle');
-                if (collapseToggle) collapseToggle.classList.toggle('active', !!settings.bottomCollapseMode);
-                
-                // 同步摸鱼自动生成开关
-                const moyuAutoToggle = document.getElementById('moyu-auto-generate-toggle');
-                if (moyuAutoToggle) moyuAutoToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
-                if (typeof updateMoyuAutoGenerateUI === 'function') updateMoyuAutoGenerateUI();
-                
-                const rrStyle = settings.readReceiptStyle || 'icon';
-                const rrIconBtn = document.getElementById('rr-style-icon');
-                const rrTextBtn = document.getElementById('rr-style-text');
-                if (rrIconBtn) { rrIconBtn.className = rrStyle === 'icon' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrIconBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
-                if (rrTextBtn) { rrTextBtn.className = rrStyle === 'text' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrTextBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
-                
-                showModal(DOMElements.chatModal.modal);
-                if (typeof setupAvatarFrameSettings === 'function') setupAvatarFrameSettings();
-            });
-
-            // ===== 高级功能卡片点击：打开高级功能弹窗 =====
-            const _advancedEl = document.getElementById('advanced-settings');
-            if (_advancedEl) _advancedEl.addEventListener('click', () => {
-                hideModal(DOMElements.settingsModal.modal);
-                showModal(DOMElements.advancedModal.modal);
-            });
 
 window.setReadReceiptStyle = function(style) {
     settings.readReceiptStyle = style;
@@ -596,6 +482,99 @@ window.setReadReceiptStyle = function(style) {
     showNotification('已读回执样式已更新', 'success');
 };
 
+const _chatSettingsEl = document.getElementById('chat-settings');
+if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
+    hideModal(DOMElements.settingsModal.modal);
+    
+    const toggleSyncMap = {
+        '#reply-toggle': { prop: 'replyEnabled', name: '引用回复' },
+        '#sound-toggle': { prop: 'soundEnabled', name: '音效' },
+        '#read-receipts-toggle': { prop: 'readReceiptsEnabled', name: '已读回执' },
+        '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
+        '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
+        '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
+        '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入' },
+        '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
+    };
+    for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
+        const el = document.querySelector(selector);
+        const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
+        if (el) el.classList.toggle('active', val);
+    }
+    const svSlider = document.getElementById('sound-volume-slider');
+    const svVal = document.getElementById('sound-volume-value');
+    if (svSlider) { svSlider.value = Math.round((settings.soundVolume || 0.15) * 100); if (svVal) svVal.textContent = svSlider.value + '%'; }
+    const legacyCustom = (settings.customSoundUrl || '').trim();
+
+    const setSelect = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || 'tone_low';
+    };
+    const setInput = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+    };
+    // 音频自定义值显示：base64 数据只显示友好文字
+    const setSoundUrlInput = (id, val) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (val && val.startsWith('data:audio')) {
+            el.value = '[本地文件（已上传）]';
+        } else {
+            el.value = val || '';
+        }
+    };
+
+    setSelect('sound-my-send-preset', settings.mySendSoundPreset || 'tone_low');
+    setSoundUrlInput('sound-my-send-custom-url', (settings.mySendCustomSoundUrl || '').trim() || legacyCustom);
+
+    setSelect('sound-partner-message-preset', settings.partnerMessageSoundPreset || 'tone_low');
+    setSoundUrlInput('sound-partner-message-custom-url', (settings.partnerMessageCustomSoundUrl || '').trim() || legacyCustom);
+
+    setSelect('sound-my-poke-preset', settings.myPokeSoundPreset || 'tone_low');
+    setSoundUrlInput('sound-my-poke-custom-url', (settings.myPokeCustomSoundUrl || '').trim() || legacyCustom);
+
+    setSelect('sound-partner-poke-preset', settings.partnerPokeSoundPreset || 'tone_low');
+    setSoundUrlInput('sound-partner-poke-custom-url', (settings.partnerPokeCustomSoundUrl || '').trim() || legacyCustom);
+    document.querySelectorAll('.time-fmt-opt').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.fmt === (settings.timeFormat || 'HH:mm'));
+    });
+    const autoToggle = document.getElementById('auto-send-toggle');
+    if (autoToggle) autoToggle.classList.toggle('active', !!settings.autoSendEnabled);
+    updateAutoSendUI();
+    updateDelayUI();
+    const immToggle = document.getElementById('immersive-toggle');
+    if (immToggle) immToggle.classList.toggle('active', document.body.classList.contains('immersive-mode'));
+    // 同步信封相关开关
+    const envAutoToggle = document.getElementById('envelope-auto-send-toggle');
+    if (envAutoToggle) envAutoToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
+    const envCustomToggle = document.getElementById('envelope-custom-rule-toggle');
+    if (envCustomToggle) envCustomToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
+    if (typeof updateEnvelopeSettingsUI === 'function') updateEnvelopeSettingsUI();
+    // 同步摸鱼显示详情开关
+    const moyuDetailToggle = document.getElementById('moyu-show-detail-toggle');
+    if (moyuDetailToggle) moyuDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
+    // 同步底部栏收纳开关
+    const collapseToggle = document.getElementById('bottom-collapse-cs-toggle');
+    if (collapseToggle) collapseToggle.classList.toggle('active', !!settings.bottomCollapseMode);
+    // 同步摸鱼自动生成开关
+    const moyuAutoToggle = document.getElementById('moyu-auto-generate-toggle');
+    if (moyuAutoToggle) moyuAutoToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
+    if (typeof updateMoyuAutoGenerateUI === 'function') updateMoyuAutoGenerateUI();
+    const rrStyle = settings.readReceiptStyle || 'icon';
+    const rrIconBtn = document.getElementById('rr-style-icon');
+    const rrTextBtn = document.getElementById('rr-style-text');
+    if (rrIconBtn) { rrIconBtn.className = rrStyle === 'icon' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrIconBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
+    if (rrTextBtn) { rrTextBtn.className = rrStyle === 'text' ? 'modal-btn modal-btn-primary' : 'modal-btn modal-btn-secondary'; rrTextBtn.style.cssText = 'padding:5px 12px;font-size:12px;'; }
+    
+    showModal(DOMElements.chatModal.modal);
+    setupAvatarFrameSettings();
+});
+            const _advancedEl = document.getElementById('advanced-settings');
+            if (_advancedEl) _advancedEl.addEventListener('click', () => {
+                hideModal(DOMElements.settingsModal.modal);
+                showModal(DOMElements.advancedModal.modal);
+            });
 
             const _dataSettingsEl = document.getElementById('data-settings');
             if (_dataSettingsEl) _dataSettingsEl.addEventListener('click', () => {
@@ -675,28 +654,13 @@ window.setReadReceiptStyle = function(style) {
             const fontUrlInput = document.getElementById('custom-font-url');
             const applyFontBtn = document.getElementById('apply-font-btn');
             
-            if (fontUrlInput) {
-                if (settings.customFontUrl && settings.customFontUrl.startsWith('data:')) {
-                    // 本地上传的字体，显示文件名而非base64
-                    fontUrlInput.value = settings.customFontFileName || '本地字体文件';
-                } else {
-                    fontUrlInput.value = settings.customFontUrl || "";
-                }
-            }
-            if (localFontFileName && settings.customFontFileName) {
-                localFontFileName.textContent = settings.customFontFileName;
-            }
+            if (fontUrlInput) fontUrlInput.value = settings.customFontUrl || "";
 
             if (applyFontBtn) {
                 applyFontBtn.addEventListener('click', () => {
                     const url = fontUrlInput.value.trim();
                     settings.customFontUrl = url;
-                    // 清除本地字体文件名标记（如果用户手动输入URL）
-                    if (settings.customFontFileName && !url.startsWith('data:')) {
-                        delete settings.customFontFileName;
-                    }
-                    if (localFontFileName) localFontFileName.textContent = '';
-
+                    
                     showNotification('正在尝试加载字体...', 'info', 1000);
                     applyCustomFont(url).then(() => {
                         throttledSaveData();
@@ -706,10 +670,91 @@ window.setReadReceiptStyle = function(style) {
                 });
             }
 
+            // 本地上传字体文件
+            const uploadFontBtn = document.getElementById('upload-font-btn');
+            const localFontInput = document.getElementById('local-font-input');
+            const localFontName = document.getElementById('local-font-name');
+            
+            if (uploadFontBtn && localFontInput) {
+                uploadFontBtn.addEventListener('click', () => {
+                    localFontInput.click();
+                });
+                
+                localFontInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    // 检查文件类型
+                    const validExts = ['.ttf', '.otf', '.woff', '.woff2'];
+                    const ext = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!validExts.includes(ext)) {
+                        showNotification('请选择 TTF/OTF/WOFF/WOFF2 格式的字体文件', 'error');
+                        return;
+                    }
+                    
+                    showNotification('正在加载本地字体...', 'info', 1500);
+                    
+                    try {
+                        // 读取文件为 ArrayBuffer，存到 localforage
+                        const arrayBuffer = await file.arrayBuffer();
+                        const base64 = arrayBufferToBase64(arrayBuffer);
+                        
+                        // 保存到 localforage
+                        await localforage.setItem(getStorageKey('localFontFile'), {
+                            name: file.name,
+                            data: base64,
+                            mime: file.type || 'font/' + ext.slice(1)
+                        });
+                        
+                        settings.customFontUrl = '__local__';
+                        settings.localFontName = file.name;
+                        
+                        // 创建 Blob URL 加载字体
+                        const blob = new Blob([arrayBuffer], { type: file.type || 'font/' + ext.slice(1) });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        await applyCustomFont(blobUrl);
+                        
+                        // 更新显示
+                        if (fontUrlInput) fontUrlInput.value = '__local__';
+                        if (localFontName) {
+                            localFontName.textContent = '✅ 已加载: ' + file.name;
+                        }
+                        
+                        throttledSaveData();
+                        showNotification('本地字体已应用: ' + file.name, 'success');
+                    } catch (err) {
+                        console.error('本地字体加载失败:', err);
+                        showNotification('字体加载失败，请检查文件是否有效', 'error');
+                    }
+                    
+                    // 清空 input 以便重复选择同一文件
+                    localFontInput.value = '';
+                });
+            }
+            
+            // 恢复上次的本地字体（如果有）
+            (async () => {
+                try {
+                    const saved = await localforage.getItem(getStorageKey('localFontFile'));
+                    if (saved && saved.data && settings.customFontUrl === '__local__') {
+                        const binaryStr = atob(saved.data);
+                        const bytes = new Uint8Array(binaryStr.length);
+                        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+                        const blob = new Blob([bytes], { type: saved.mime || 'font/ttf' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        await applyCustomFont(blobUrl);
+                        if (localFontName) {
+                            localFontName.textContent = '✅ 已加载: ' + saved.name;
+                        }
+                    }
+                } catch(e) {}
+            })();
+
             
             const followSystemBtn = document.getElementById('follow-system-font-btn');
             if (followSystemBtn) {
-                followSystemBtn.addEventListener('click', () => {
+                followSystemBtn.addEventListener('click', async () => {
                     
                     const systemFontStack = 'system-ui, -apple-system, sans-serif';
                     
@@ -718,15 +763,23 @@ window.setReadReceiptStyle = function(style) {
                     
                     
                     settings.customFontUrl = "";
-                    delete settings.customFontFileName;
-                    if (localFontFileName) localFontFileName.textContent = "";
+                    settings.localFontName = "";
+                    
+                    // 清除本地字体缓存
+                    await localforage.removeItem(getStorageKey('localFontFile'));
                     
                     
                     settings.messageFontFamily = systemFontStack;
                     
                     
+                    document.documentElement.style.removeProperty('--font-family');
+                    document.documentElement.style.removeProperty('--message-font-family');
                     document.documentElement.style.setProperty('--font-family', systemFontStack);
                     document.documentElement.style.setProperty('--message-font-family', systemFontStack);
+                    
+                    // 隐藏本地字体名称
+                    const lnf = document.getElementById('local-font-name');
+                    if (lnf) lnf.textContent = '';
                     
                     
                     throttledSaveData();
@@ -737,101 +790,7 @@ window.setReadReceiptStyle = function(style) {
                     showNotification('已应用跟随系统字体', 'success');
                 });
             }
-
-            // 本地字体文件上传
-            const localFontUploadBtn = document.getElementById('local-font-upload-btn');
-            const localFontFileInput = document.getElementById('local-font-file-input');
-            const localFontFileName = document.getElementById('local-font-file-name');
-            const localFontClearBtn = document.getElementById('local-font-clear-btn');
-
-            // 页面加载时，如果有已保存的本地字体，显示文件名和清除按钮
-            if (settings.customFontFileName && localFontFileName) {
-                localFontFileName.textContent = settings.customFontFileName;
-            }
-            if (localFontClearBtn && settings.customFontUrl && settings.customFontUrl.startsWith('data:')) {
-                localFontClearBtn.style.display = 'inline-block';
-            }
-
-            if (localFontUploadBtn && localFontFileInput) {
-                localFontUploadBtn.addEventListener('click', () => {
-                    localFontFileInput.click();
-                });
-
-                localFontFileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    // 检查文件类型
-                    const validExts = ['.ttf', '.woff', '.woff2', '.otf', '.eot'];
-                    const fileName = file.name.toLowerCase();
-                    const isValid = validExts.some(ext => fileName.endsWith(ext));
-                    if (!isValid) {
-                        showNotification('不支持的字体格式，请上传 TTF/WOFF/WOFF2/OTF 文件', 'error');
-                        return;
-                    }
-
-                    // 显示文件名
-                    if (localFontFileName) localFontFileName.textContent = file.name;
-
-                    // 读取文件为 base64
-                    const reader = new FileReader();
-                    reader.onload = function(ev) {
-                        const base64Url = ev.target.result;
-                        // 更新字体URL输入框显示文件名
-                        if (fontUrlInput) fontUrlInput.value = file.name;
-                        // 保存完整的 base64 URL 到 settings
-                        settings.customFontUrl = base64Url;
-                        settings.customFontFileName = file.name;
-
-                        showNotification('正在加载本地字体...', 'info', 1500);
-                        applyCustomFont(base64Url).then(() => {
-                            throttledSaveData();
-                            showNotification('本地字体已应用: ' + file.name, 'success');
-                        }).catch(err => {
-                            console.error('本地字体加载失败:', err);
-                            showNotification('本地字体加载失败，请检查文件是否有效', 'error');
-                        });
-                    };
-                    reader.onerror = function() {
-                        showNotification('读取字体文件失败', 'error');
-                    };
-                    reader.readAsDataURL(file);
-                });
-
-                // 清除本地字体按钮
-                if (localFontClearBtn) {
-                    localFontClearBtn.addEventListener('click', () => {
-                        // 清除字体设置
-                        if (fontUrlInput) fontUrlInput.value = '';
-                        settings.customFontUrl = '';
-                        settings.customFontFileName = '';
-                        settings.messageFontFamily = '';
-                        if (localFontFileName) localFontFileName.textContent = '';
-                        localFontClearBtn.style.display = 'none';
-                        // 恢复默认字体
-                        document.documentElement.style.removeProperty('--font-family');
-                        document.documentElement.style.removeProperty('--message-font-family');
-                        // 移除自定义字体
-                        document.fonts.forEach(f => {
-                            if (f.family === 'UserCustomFont') document.fonts.delete(f);
-                        });
-                        const styleEl = document.getElementById('custom-font-face-style');
-                        if (styleEl) styleEl.remove();
-                        throttledSaveData();
-                        showNotification('已恢复默认字体', 'success');
-                    });
-                }
-
-                // 字体上传后也显示清除按钮
-                localFontFileInput.addEventListener('change', function() {
-                    setTimeout(function() {
-                        if (settings.customFontUrl && settings.customFontUrl.startsWith('data:') && localFontClearBtn) {
-                            localFontClearBtn.style.display = 'inline-block';
-                        }
-                    }, 500);
-                });
-            }
-
+            
             const cssTextarea = document.getElementById('custom-bubble-css');
             const applyCssBtn = document.getElementById('apply-css-btn');
             const resetCssBtn = document.getElementById('reset-css-btn');
@@ -1237,6 +1196,100 @@ window.setReadReceiptStyle = function(style) {
             }
             updateDelayUI();
 
+            // 朋友圈：对方主动发朋友圈开关
+            const momentsAutoPostToggle = document.getElementById('moments-auto-post-toggle');
+            const momentsAutoPostSettings = document.getElementById('moments-auto-post-settings');
+            if (momentsAutoPostToggle) {
+                momentsAutoPostToggle.classList.toggle('active', !!settings.momentsAutoPostEnabled);
+            }
+            if (momentsAutoPostSettings) {
+                momentsAutoPostSettings.style.display = settings.momentsAutoPostEnabled ? 'block' : 'none';
+            }
+
+            // 初始化朋友圈时长滑块（单位：小时）
+            const momentsMinIntervalSlider = document.getElementById('moments-post-min-interval-slider');
+            const momentsMinIntervalValue = document.getElementById('moments-post-min-interval-value');
+            if (momentsMinIntervalSlider) {
+                const val = settings.momentsPostMinInterval || 1;
+                momentsMinIntervalSlider.value = val;
+                momentsMinIntervalValue.textContent = val + '小时';
+            }
+            const momentsMaxIntervalSlider = document.getElementById('moments-post-max-interval-slider');
+            const momentsMaxIntervalValue = document.getElementById('moments-post-max-interval-value');
+            if (momentsMaxIntervalSlider) {
+                const val = settings.momentsPostMaxInterval || 3;
+                momentsMaxIntervalSlider.value = val;
+                momentsMaxIntervalValue.textContent = val + '小时';
+            }
+            // 初始化朋友圈字卡滑块（1-8条）
+            const momentsMinCardsSlider = document.getElementById('moments-post-min-cards-slider');
+            const momentsMinCardsValue = document.getElementById('moments-post-min-cards-value');
+            if (momentsMinCardsSlider) {
+                const val = settings.momentsPostMinCards || 1;
+                momentsMinCardsSlider.value = val;
+                momentsMinCardsValue.textContent = val + '条';
+            }
+            const momentsMaxCardsSlider = document.getElementById('moments-post-max-cards-slider');
+            const momentsMaxCardsValue = document.getElementById('moments-post-max-cards-value');
+            if (momentsMaxCardsSlider) {
+                const val = settings.momentsPostMaxCards || 3;
+                momentsMaxCardsSlider.value = val;
+                momentsMaxCardsValue.textContent = val + '条';
+            }
+
+            // 朋友圈：最短时长事件监听
+            if (momentsMinIntervalSlider) {
+                momentsMinIntervalSlider.addEventListener('input', (e) => {
+                    let val = parseFloat(e.target.value);
+                    if (val > (settings.momentsPostMaxInterval || 3)) {
+                        val = settings.momentsPostMaxInterval || 3;
+                        momentsMinIntervalSlider.value = val;
+                    }
+                    settings.momentsPostMinInterval = val;
+                    momentsMinIntervalValue.textContent = val + '小时';
+                });
+                momentsMinIntervalSlider.addEventListener('change', () => { throttledSaveData(); });
+            }
+            // 朋友圈：最长时长事件监听
+            if (momentsMaxIntervalSlider) {
+                momentsMaxIntervalSlider.addEventListener('input', (e) => {
+                    let val = parseFloat(e.target.value);
+                    if (val < (settings.momentsPostMinInterval || 1)) {
+                        val = settings.momentsPostMinInterval || 1;
+                        momentsMaxIntervalSlider.value = val;
+                    }
+                    settings.momentsPostMaxInterval = val;
+                    momentsMaxIntervalValue.textContent = val + '小时';
+                });
+                momentsMaxIntervalSlider.addEventListener('change', () => { throttledSaveData(); });
+            }
+            // 朋友圈：最少字卡事件监听
+            if (momentsMinCardsSlider) {
+                momentsMinCardsSlider.addEventListener('input', (e) => {
+                    let val = parseInt(e.target.value);
+                    if (val > (settings.momentsPostMaxCards || 3)) {
+                        val = settings.momentsPostMaxCards || 3;
+                        momentsMinCardsSlider.value = val;
+                    }
+                    settings.momentsPostMinCards = val;
+                    momentsMinCardsValue.textContent = val + '条';
+                });
+                momentsMinCardsSlider.addEventListener('change', () => { throttledSaveData(); });
+            }
+            // 朋友圈：最多字卡事件监听
+            if (momentsMaxCardsSlider) {
+                momentsMaxCardsSlider.addEventListener('input', (e) => {
+                    let val = parseInt(e.target.value);
+                    if (val < (settings.momentsPostMinCards || 1)) {
+                        val = settings.momentsPostMinCards || 1;
+                        momentsMaxCardsSlider.value = val;
+                    }
+                    settings.momentsPostMaxCards = val;
+                    momentsMaxCardsValue.textContent = val + '条';
+                });
+                momentsMaxCardsSlider.addEventListener('change', () => { throttledSaveData(); });
+            }
+
             minDelaySlider.addEventListener('input', (e) => {
                 settings.replyDelayMin = parseInt(e.target.value, 10);
                 if (settings.replyDelayMin > settings.replyDelayMax) {
@@ -1270,7 +1323,8 @@ window.setReadReceiptStyle = function(style) {
                     '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
                     '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情混入消息' },
                     '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入消息' },
-                    '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
+                    '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' },
+                    '#pinyin-card-toggle': { prop: 'pinyinCardEnabled', name: '拼字卡' }
 };
 
             // 以下开关已有独立的 click 处理器，只需在初始化时同步 UI 状态
@@ -1304,6 +1358,8 @@ window.setReadReceiptStyle = function(style) {
                     element.classList.toggle('active', !!settings[prop]);
                     if (prop !== 'soundEnabled') renderMessages(true);
                     showNotification(`${name}已${settings[prop] ? '开启': '关闭'}`, 'success');
+                    // 拼字卡开关时展开/收起设置面板
+                    if (prop === 'pinyinCardEnabled') updatePinyinCardUI();
                 });
             }
 
@@ -1413,8 +1469,8 @@ window.setReadReceiptStyle = function(style) {
             if (_appearanceEl) _appearanceEl.addEventListener('click', () => {
                 hideModal(DOMElements.settingsModal.modal);
                 window.hideAppearancePanel && window.hideAppearancePanel();
-                renderBackgroundGallery();
-                renderThemeSchemesList();
+                try { renderBackgroundGallery(); } catch(e) { console.error('[appearance] renderBackgroundGallery出错:', e); }
+                try { renderThemeSchemesList(); } catch(e) { console.error('[appearance] renderThemeSchemesList出错:', e); }
                 
                 const fontSizeSliderEl = document.getElementById('font-size-slider');
                 const fontSizeValueEl = document.getElementById('font-size-value');
@@ -1471,7 +1527,7 @@ window.setReadReceiptStyle = function(style) {
                         });
                         saveBackgroundGallery();
                         renderBackgroundGallery();
-                        applyBackground(base64);
+                        window.applyBackground && window.applyBackground(base64);
                         localforage.setItem(getStorageKey('chatBackground'), base64);
                         showNotification('新背景已添加并应用', 'success');
                     };
@@ -1517,81 +1573,53 @@ autoSendSlider.addEventListener('change', () => {
     throttledSaveData();
 });
 
-// ========== 伴侣发朋友圈设置 ==========
-const partnerMomentToggle = document.getElementById('partner-moment-toggle');
-const partnerMomentControl = document.getElementById('partner-moment-control');
-const partnerMomentMinSlider = document.getElementById('partner-moment-min-slider');
-const partnerMomentMaxSlider = document.getElementById('partner-moment-max-slider');
-const partnerMomentCountSlider = document.getElementById('partner-moment-count-slider');
-const partnerMomentMinValue = document.getElementById('partner-moment-min-value');
-const partnerMomentMaxValue = document.getElementById('partner-moment-max-value');
-const partnerMomentCountValue = document.getElementById('partner-moment-count-value');
+// 拼字卡设置
+const pinyinCardSettings = document.getElementById('pinyin-card-settings');
+const pinyinCardMinSlider = document.getElementById('pinyin-card-min-slider');
+const pinyinCardMinValue = document.getElementById('pinyin-card-min-value');
+const pinyinCardMaxSlider = document.getElementById('pinyin-card-max-slider');
+const pinyinCardMaxValue = document.getElementById('pinyin-card-max-value');
 
-var _partnerMomentEnabled = localStorage.getItem('partner_moment_enabled') === 'true';
+const updatePinyinCardUI = () => {
+    if (pinyinCardSettings) pinyinCardSettings.style.display = settings.pinyinCardEnabled ? 'block' : 'none';
+    if (pinyinCardMinSlider) {
+        const minVal = settings.pinyinCardMin || 2;
+        pinyinCardMinSlider.value = minVal;
+        pinyinCardMinValue.textContent = minVal + '句';
+    }
+    if (pinyinCardMaxSlider) {
+        const maxVal = settings.pinyinCardMax || 3;
+        pinyinCardMaxSlider.value = maxVal;
+        pinyinCardMaxValue.textContent = maxVal + '句';
+    }
+};
+updatePinyinCardUI();
 
-function updatePartnerMomentUI() {
-    if (partnerMomentToggle) partnerMomentToggle.classList.toggle('active', _partnerMomentEnabled);
-    if (partnerMomentControl) partnerMomentControl.style.display = _partnerMomentEnabled ? 'block' : 'none';
-    var minVal = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
-    var maxVal = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
-    var cntVal = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
-    if (partnerMomentMinSlider) partnerMomentMinSlider.value = minVal;
-    if (partnerMomentMaxSlider) partnerMomentMaxSlider.value = maxVal;
-    if (partnerMomentCountSlider) partnerMomentCountSlider.value = cntVal;
-    if (partnerMomentMinValue) partnerMomentMinValue.textContent = minVal + '分钟';
-    if (partnerMomentMaxValue) partnerMomentMaxValue.textContent = maxVal + '分钟';
-    if (partnerMomentCountValue) partnerMomentCountValue.textContent = cntVal + '条';
-}
-updatePartnerMomentUI();
-
-if (partnerMomentToggle) {
-    partnerMomentToggle.addEventListener('click', function() {
-        _partnerMomentEnabled = !_partnerMomentEnabled;
-        localStorage.setItem('partner_moment_enabled', _partnerMomentEnabled);
-        updatePartnerMomentUI();
-        // 通知 moments.js 重启定时器
-        if (_partnerMomentEnabled) {
-            if (typeof window.MomentsApp !== 'undefined' && typeof window.MomentsApp.startPartnerMomentTimer === 'function') {
-                window.MomentsApp.startPartnerMomentTimer();
-            }
+if (pinyinCardMinSlider) {
+    pinyinCardMinSlider.addEventListener('input', (e) => {
+        let val = parseInt(e.target.value);
+        if (val > (settings.pinyinCardMax || 3)) {
+            val = settings.pinyinCardMax || 3;
+            pinyinCardMinSlider.value = val;
         }
-        if (typeof showNotification === 'function') showNotification('伴侣发朋友圈已' + (_partnerMomentEnabled ? '开启' : '关闭'), 'success');
+        settings.pinyinCardMin = val;
+        pinyinCardMinValue.textContent = val + '句';
     });
+    pinyinCardMinSlider.addEventListener('change', () => { throttledSaveData(); });
 }
 
-function _savePartnerMomentInterval() {
-    var minV = partnerMomentMinSlider ? parseInt(partnerMomentMinSlider.value) : 30;
-    var maxV = partnerMomentMaxSlider ? parseInt(partnerMomentMaxSlider.value) : 120;
-    var cntV = partnerMomentCountSlider ? parseInt(partnerMomentCountSlider.value) : 1;
-    if (maxV < minV) maxV = minV;
-    localStorage.setItem('partner_moment_interval_min', minV);
-    localStorage.setItem('partner_moment_interval_max', maxV);
-    localStorage.setItem('partner_moment_count_max', cntV);
-    updatePartnerMomentUI();
-    if (_partnerMomentEnabled) {
-        if (typeof window.MomentsApp !== 'undefined' && typeof window.MomentsApp.restartPartnerMomentTimer === 'function') {
-            window.MomentsApp.restartPartnerMomentTimer();
+if (pinyinCardMaxSlider) {
+    pinyinCardMaxSlider.addEventListener('input', (e) => {
+        let val = parseInt(e.target.value);
+        if (val < (settings.pinyinCardMin || 2)) {
+            val = settings.pinyinCardMin || 2;
+            pinyinCardMaxSlider.value = val;
         }
-    }
+        settings.pinyinCardMax = val;
+        pinyinCardMaxValue.textContent = val + '句';
+    });
+    pinyinCardMaxSlider.addEventListener('change', () => { throttledSaveData(); });
 }
-
-if (partnerMomentMinSlider) { partnerMomentMinSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentMinSlider.addEventListener('input', function() { partnerMomentMinValue.textContent = partnerMomentMinSlider.value + '分钟'; }); }
-if (partnerMomentMaxSlider) { partnerMomentMaxSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentMaxSlider.addEventListener('input', function() { partnerMomentMaxValue.textContent = partnerMomentMaxSlider.value + '分钟'; }); }
-if (partnerMomentCountSlider) { partnerMomentCountSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentCountSlider.addEventListener('input', function() { partnerMomentCountValue.textContent = partnerMomentCountSlider.value + '条'; }); }
-
-// ========== 聊天输入框表情包预览 ==========
-(function initStickerPreview() {
-    var cancelBtn = document.getElementById('sticker-preview-cancel');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', function() {
-            var previewArea = document.getElementById('sticker-review-area');
-            var previewImg = document.getElementById('sticker-review-img');
-            if (previewArea) previewArea.style.display = 'none';
-            if (previewImg) previewImg.src = '';
-            window._pendingChatSticker = null;
-        });
-    }
-})();
 
 // 摸鱼自动生成设置
 const moyuAutoGenerateToggle = document.getElementById('moyu-auto-generate-toggle');
@@ -1746,6 +1774,45 @@ const updateEnvelopeSettingsUI = () => {
 
 updateEnvelopeSettingsUI();
 
+// 朋友圈：对方主动发朋友圈开关
+const momentsAutoPostToggleGlobal = document.getElementById('moments-auto-post-toggle');
+const momentsAutoPostSettingsGlobal = document.getElementById('moments-auto-post-settings');
+
+if (momentsAutoPostToggleGlobal) {
+    momentsAutoPostToggleGlobal.addEventListener('click', () => {
+        settings.momentsAutoPostEnabled = !settings.momentsAutoPostEnabled;
+        momentsAutoPostToggleGlobal.classList.toggle('active', !!settings.momentsAutoPostEnabled);
+        if (momentsAutoPostSettingsGlobal) {
+            momentsAutoPostSettingsGlobal.style.display = settings.momentsAutoPostEnabled ? 'block' : 'none';
+        }
+        throttledSaveData();
+        showNotification(`对方主动发朋友圈已${settings.momentsAutoPostEnabled ? '开启' : '关闭'}`, 'success');
+    });
+}
+
+// 表情包快捷栏按钮（复用 user-sticker-picker 面板）
+const stickerBarBtn = document.getElementById('sticker-bar-btn');
+if (stickerBarBtn) {
+    stickerBarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const popover = document.getElementById('user-sticker-picker');
+        if (!popover) return;
+        const isActive = popover.classList.contains('active');
+        if (isActive) {
+            popover.classList.remove('active');
+        } else {
+            // 默认显示"我"的标签
+            if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
+            // 激活"我"的标签按钮
+            const tabs = popover.querySelectorAll('.combo-tab-btn');
+            tabs.forEach(t => t.classList.remove('active'));
+            const myTab = popover.querySelector('[data-tab="my-sticker"]');
+            if (myTab) myTab.classList.add('active');
+            popover.classList.add('active');
+        }
+    });
+}
+
 if (envelopeAutoSendToggle) {
     envelopeAutoSendToggle.addEventListener('click', () => {
         settings.envelopeAutoSendEnabled = !settings.envelopeAutoSendEnabled;
@@ -1867,7 +1934,7 @@ if (envelopeReplyMaxSentencesSlider) {
             const resetBgBtn = document.getElementById('reset-default-bg');
             if (resetBgBtn) {
                 resetBgBtn.addEventListener('click', () => {
-                    removeBackground();
+                    window.removeBackground && window.removeBackground();
                     renderBackgroundGallery();
                     showNotification('已移除背景图', 'success');
                 });
@@ -2110,6 +2177,7 @@ if (sessionId === currentSessionId) {
             });
 
             DOMElements.sendBtn.addEventListener('click', () => isBatchMode ? addToBatch(): sendMessage());
+
             // 回车键发送功能
             DOMElements.messageInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -2439,11 +2507,29 @@ window.toggleCollapsedExtras = function() {
         const primary = document.getElementById(primaryId);
         if (extra && primary && !extra._linked) {
             extra._linked = true;
-            extra.addEventListener('click', (e) => { e.stopPropagation(); primary.click(); });
+            extra.addEventListener('click', (e) => {
+                e.stopPropagation();
+                primary.click();
+                // 点击后自动收起收纳栏
+                panel.style.display = 'none';
+                if (btn) btn.classList.remove('open');
+            });
         }
     }
     wireExtra('combo-btn-extra', 'combo-btn');
     wireExtra('batch-btn-extra', 'batch-btn');
+
+    // 为相册按钮添加点击后自动收起
+    const attachExtra = document.getElementById('attachment-btn-extra');
+    if (attachExtra && !attachExtra._autoCollapse) {
+        attachExtra._autoCollapse = true;
+        attachExtra.addEventListener('click', () => {
+            setTimeout(() => {
+                panel.style.display = 'none';
+                if (btn) btn.classList.remove('open');
+            }, 50);
+        });
+    }
 };
 
 window.exitCollapseMode = function() {
@@ -2466,113 +2552,4 @@ window.exitCollapseMode = function() {
     } else {
         setTimeout(tryApply, 400);
     }
-})();
-
-// ========== 功能图标自定义面板 ==========
-(function initAppIconsPanel() {
-    var DEFAULT_ICONS = [
-        { id: 'chat',    name: '聊天',     icon: '<i class=\"fas fa-comment-alt\"></i>',  page: 0 },
-        { id: 'mailbox', name: '信封投递',  icon: '<i class=\"fas fa-envelope\"></i>',     page: 0 },
-        { id: 'moyu',    name: '摸鱼小记',  icon: '<i class=\"fas fa-fish\"></i>',         page: 0 },
-        { id: 'diary',   name: '朝夕心记',  icon: '<i class=\"fas fa-clipboard-list\"></i>',page: 0 },
-        { id: 'fortune', name: '运势占卜',  icon: '<i class=\"fas fa-star-and-crescent\"></i>', page: 0 },
-        { id: 'mood',    name: '心晴手帐',  icon: '<i class=\"fas fa-calendar-day\"></i>',  page: 0 },
-        { id: 'calendar',name: '日历',      icon: '<i class=\"fas fa-calendar-alt\"></i>',  page: 0 },
-        { id: 'decide',  name: '抉择',      icon: '<i class=\"fas fa-balance-scale\"></i>', page: 0 },
-        { id: 'stats',   name: '消息统计',  icon: '<i class=\"fas fa-chart-bar\"></i>',     page: 1 },
-        { id: 'accounting', name: '同心记账', icon: '<i class=\"fas fa-coins\"></i>',       page: 1 },
-        { id: 'map',     name: '地图',      icon: '<i class=\"fas fa-map-marked-alt\"></i>', page: 1 },
-        { id: 'pet',     name: '萌宠屋',    icon: '<i class=\"fas fa-paw\"></i>',           page: 1 },
-        { id: 'shop',    name: '商城',      icon: '<i class=\"fas fa-store\"></i>',         page: 1 },
-        { id: 'ta-phone',  name: 'TA的手机', icon: '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\"><rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2.5\"/><line x1=\"10\" y1=\"18\" x2=\"14\" y2=\"18\"/></svg>', page: 1 },
-        { id: 'moments', name: '朋友圈',    icon: '<i class=\"fas fa-camera-retro\"></i>',   page: 2 },
-        { id: 'gift-cabinet', name: '礼物柜', icon: '<i class=\"fas fa-gift\"></i>',        page: 2 },
-        { id: 'music',   name: '音乐',      icon: '<i class=\"fas fa-music\"></i>',         page: 2 },
-        { id: 'todolist', name: '待办清单',  icon: '<i class=\"fas fa-tasks\"></i>',        page: 2 },
-        { id: 'dream',   name: '梦境',      icon: '<i class=\"fas fa-cloud-moon\"></i>',    page: 2 },
-        { id: 'game',    name: '小游戏',    icon: '<i class=\"fas fa-gamepad\"></i>',       page: 2 }
-    ];
-
-    function loadIconsConfig() {
-        try {
-            var saved = JSON.parse(localStorage.getItem('app_icons_config') || 'null');
-            if (saved && Array.isArray(saved) && saved.length === DEFAULT_ICONS.length) return saved;
-        } catch(e) {}
-        return DEFAULT_ICONS.map(function(d) { return { id: d.id, visible: true, iconHtml: d.icon }; });
-    }
-
-    function saveIconsConfig(config) { localStorage.setItem('app_icons_config', JSON.stringify(config)); }
-
-    function applyIconsConfig(config) {
-        config.forEach(function(c, i) {
-            var el = document.querySelector('.app-icon[data-app=\"' + c.id + '\"]');
-            if (!el) return;
-            // 控制显示/隐藏
-            var item = el.closest('.app-item');
-            if (item) item.style.display = c.visible ? '' : 'none';
-            // 更新图标 HTML
-            if (c.iconHtml && el.innerHTML.indexOf(c.iconHtml.substring(0, 5)) === -1) {
-                // 保留 badge
-                var badge = el.querySelector('.app-badge');
-                el.innerHTML = c.iconHtml;
-                if (badge) el.appendChild(badge);
-            }
-        });
-        // 重新计算分页布局
-        if (typeof window.switchAppsPage === 'function') window.switchAppsPage(0);
-    }
-
-    function renderIconsPanel() {
-        var container = document.getElementById('app-icons-config-list');
-        if (!container) return;
-        var config = loadIconsConfig();
-        var html = '';
-        config.forEach(function(c, i) {
-            var def = DEFAULT_ICONS.find(function(d) { return d.id === c.id; });
-            if (!def) return;
-            html += '<div class=\"app-icon-config-row\" style=\"display:flex;align-items:center;gap:10px;background:var(--primary-bg);border:1px solid var(--border-color);border-radius:12px;padding:10px 14px;\">';
-            html += '<div style=\"width:36px;height:36px;border-radius:10px;background:rgba(var(--accent-color-rgb),0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;\">' + (c.iconHtml || def.icon) + '</div>';
-            html += '<span style=\"flex:1;font-size:13px;font-weight:500;color:var(--text-primary);\">' + def.name + '</span>';
-            html += '<div class=\"app-icon-toggle\" data-index=\"' + i + '\" style=\"width:44px;height:24px;border-radius:24px;background:' + (c.visible ? 'var(--accent-color)' : 'var(--border-color)') + ';position:relative;cursor:pointer;transition:background 0.3s;flex-shrink:0;\">';
-            html += '<div style=\"position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;' + (c.visible ? 'right:3px' : 'right:23px') + ';transition:right 0.25s;box-shadow:0 1px 3px rgba(0,0,0,0.2);\"></div>';
-            html += '</div>';
-            html += '</div>';
-        });
-        container.innerHTML = html;
-
-        // 绑定切换事件
-        container.querySelectorAll('.app-icon-toggle').forEach(function(toggle) {
-            toggle.addEventListener('click', function() {
-                var idx = parseInt(this.getAttribute('data-index'));
-                var config = loadIconsConfig();
-                config[idx].visible = !config[idx].visible;
-                saveIconsConfig(config);
-                applyIconsConfig(config);
-                renderIconsPanel();
-            });
-        });
-    }
-
-    // 恢复默认按钮
-    var resetBtn = document.getElementById('reset-app-icons-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function() {
-            var config = DEFAULT_ICONS.map(function(d) { return { id: d.id, visible: true, iconHtml: d.icon }; });
-            saveIconsConfig(config);
-            applyIconsConfig(config);
-            renderIconsPanel();
-            if (typeof window.showNotification === 'function') window.showNotification('功能图标已恢复默认', 'success');
-        });
-    }
-
-    // 首次加载应用配置
-    var config = loadIconsConfig();
-    applyIconsConfig(config);
-
-    // 在打开面板时刷新渲染
-    var origShowPanel = window.showAppearancePanel;
-    window.showAppearancePanel = function(panel) {
-        origShowPanel(panel);
-        if (panel === 'icons') setTimeout(renderIconsPanel, 100);
-    };
 })();

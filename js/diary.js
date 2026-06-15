@@ -27,6 +27,8 @@ let diaryTodoSubTab = 'all';  // 待办分类二级标签页
 /* ========== 数据初始化 ========== */
 async function initDiaryData() {
     try {
+        const key = getStorageKey('diaryTodos');
+        console.log('[朝夕心记] initDiaryData 读取 key:', key);
         const [todos, habits, habitRecords, periodRecords, anniversaries, categories] = await Promise.allSettled([
             localforage.getItem(getStorageKey('diaryTodos')),
             localforage.getItem(getStorageKey('diaryHabits')),
@@ -36,6 +38,7 @@ async function initDiaryData() {
             localforage.getItem(getStorageKey('diaryTodoCategories'))
         ]);
 
+        console.log('[朝夕心记] diaryTodos:', todos.status, todos.value ? todos.value.length : 0);
         if (todos.status === 'fulfilled' && Array.isArray(todos.value)) diaryTodos = todos.value;
         if (habits.status === 'fulfilled' && Array.isArray(habits.value)) diaryHabits = habits.value;
         if (categories.status === 'fulfilled' && categories.value && Array.isArray(categories.value) && categories.value.length > 0) {

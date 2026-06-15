@@ -135,6 +135,7 @@
     };
 
     const defaultAppIcons = {
+        shop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
         chat: '<i class="fas fa-comment-alt"></i>',
         mailbox: '<i class="fas fa-envelope"></i>',
         moyu: '<i class="fas fa-fish"></i>',
@@ -143,21 +144,15 @@
         mood: '<i class="fas fa-calendar-day"></i>',
         calendar: '<i class="fas fa-calendar-alt"></i>',
         decide: '<i class="fas fa-balance-scale"></i>',
+        'gift-cabinet': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>',
         stats: '<i class="fas fa-chart-bar"></i>',
         accounting: '<i class="fas fa-coins"></i>',
+        pet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3.1-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/><path d="M8 14v1"/><path d="M16 14v1"/><path d="M12 14v1"/><path d="M12 18c1.5 0 2-1 2-1"/></svg>',
         'ta-phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg>',
-        pet: '<i class="fas fa-paw"></i>',
-        shop: '<i class="fas fa-store"></i>',
-        map: '<i class="fas fa-map-marked-alt"></i>',
-        moments: '<i class="fas fa-camera-retro"></i>',
-        music: '<i class="fas fa-music"></i>',
-        todolist: '<i class="fas fa-tasks"></i>',
-        dream: '<i class="fas fa-cloud-moon"></i>',
-        game: '<i class="fas fa-gamepad"></i>',
-        'gift-cabinet': '<i class="fas fa-gift"></i>'
+        map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>'
     };
 
-    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'map', 'pet', 'shop', 'ta-phone', 'moments', 'gift-cabinet', 'music', 'todolist', 'dream', 'game'];
+    const defaultAppOrder = ['shop', 'chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'gift-cabinet', 'stats', 'accounting', 'pet', 'ta-phone', 'map'];
     let appOrder = [...defaultAppOrder];
     let isEditMode = false;
 
@@ -230,6 +225,7 @@
         const chatArea = document.querySelector('.main-chat-area');
         const header = document.querySelector('.header');
         const inputArea = document.querySelector('.input-area-wrapper');
+        const pageBg = document.getElementById('home-page-bg');
 
         // 允许 body 滚动
         document.body.classList.add('home-active');
@@ -238,6 +234,7 @@
             homeContainer.classList.add('active');
             homeContainer.style.display = 'flex';
         }
+        if (pageBg) pageBg.style.display = 'block';
         if (chatArea) chatArea.style.display = 'none';
         if (header) header.style.display = 'none';
         if (inputArea) inputArea.style.display = 'none';
@@ -254,6 +251,7 @@
         const chatArea = document.querySelector('.main-chat-area');
         const header = document.querySelector('.header');
         const inputArea = document.querySelector('.input-area-wrapper');
+        const pageBg = document.getElementById('home-page-bg');
 
         // 恢复 body 不滚动
         document.body.classList.remove('home-active');
@@ -262,6 +260,7 @@
             homeContainer.classList.remove('active');
             homeContainer.style.display = 'none';
         }
+        if (pageBg) pageBg.style.display = 'none';
         if (chatArea) chatArea.style.display = '';
         if (header) header.style.display = '';
         if (inputArea) inputArea.style.display = '';
@@ -434,8 +433,6 @@
     window.openCustomizePanel = function() {
         const overlay = document.getElementById('customize-overlay');
         if (overlay) overlay.classList.add('active');
-        // 每次打开面板都刷新图标格子，确保图标不会消失
-        renderIconGrid();
         // 更新主页绑定会话开关UI
         window.updateHomeSessionBindUI && window.updateHomeSessionBindUI();
     };
@@ -761,6 +758,15 @@
             toggle.classList.toggle('active', bgSyncEnabled);
         }
         localStorage.setItem('home_bg_sync', bgSyncEnabled ? 'true' : 'false');
+
+        // 关闭绑定时，清除 chatContainer 上残留的内联背景样式
+        // 以免遮挡后续通过外观设置更改的 --chat-bg-image
+        if (!bgSyncEnabled) {
+            const chatContainer = document.getElementById('chat-container');
+            if (chatContainer) {
+                chatContainer.style.removeProperty('background');
+            }
+        }
     };
 
     // ========== 主页绑定会话开关 ==========
@@ -790,7 +796,7 @@
     function syncBgToChat(bgValue) {
         if (!bgSyncEnabled) return;
         
-        // 保存到聊天设置的背景
+        // 保存到聊天设置的背景（仅保存设置，不直接修改 DOM）
         if (window.settings) {
             window.settings.chatBackground = bgValue;
             // 触发保存
@@ -799,11 +805,9 @@
             }
         }
         
-        // 直接更新聊天界面背景
-        const chatContainer = document.getElementById('chat-container');
-        if (chatContainer) {
-            chatContainer.style.background = bgValue;
-        }
+        // 不再直接修改 chatContainer.style.background，
+        // 避免内联样式优先级过高，遮挡外观设置中的 --chat-bg-image
+        // 聊天页背景由外观设置独立控制
         
         // 更新聊天设置中的背景显示
         const chatBgPreview = document.getElementById('chat-bg-preview');
@@ -1171,7 +1175,7 @@
         if (!grid) return;
 
         grid.innerHTML = '';
-        const nameMap = { chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', stats:'统计', accounting:'记账', pet:'萌宠屋', 'ta-phone':'TA的手机', shop:'商城', map:'地图', moments:'朋友圈', 'gift-cabinet':'礼物柜', music:'音乐', todolist:'待办', dream:'梦境', game:'小游戏' };
+        const nameMap = { shop:'商城', chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', 'gift-cabinet':'礼物柜', stats:'统计', accounting:'记账', pet:'萌宠屋', 'ta-phone':'TA的手机', map:'Zmilk地图' };
 
         Object.keys(defaultAppIcons).forEach(app => {
             const item = document.createElement('div');
@@ -1452,6 +1456,11 @@
         }
         // 强制显示在最上层
         modalElement.style.cssText = 'display: flex !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; align-items: center !important; justify-content: center !important; background-color: rgba(0, 0, 0, 0.6) !important;';
+        // 隐藏 header 和 input-area，彻底避免遮挡
+        const header = document.querySelector('.header');
+        if (header) header.style.visibility = 'hidden';
+        const inputArea = document.querySelector('.input-area-wrapper');
+        if (inputArea) inputArea.style.visibility = 'hidden';
         // 重置内容动画 - 先重置为初始状态，然后触发动画
         const content = modalElement.querySelector('.modal-content');
         if (content) {
@@ -1507,7 +1516,10 @@
             },
             'mailbox': () => {
                 const modal = document.getElementById('envelope-modal');
-                if (modal) homeShowModal(modal);
+                if (modal) {
+                    if (typeof renderEnvelopeLists === 'function') renderEnvelopeLists();
+                    homeShowModal(modal);
+                }
             },
             'moyu': () => {
                 // 隐藏摸鱼小记小红点
@@ -1542,6 +1554,7 @@
                 }
             },
             'fortune': () => {
+                if (typeof generateFortune === 'function') generateFortune();
                 const modal = document.getElementById('fortune-lenormand-modal');
                 if (modal) homeShowModal(modal);
             },
@@ -1566,8 +1579,12 @@
                 if (modal) homeShowModal(modal);
             },
             'accounting': () => {
-                const modal = document.getElementById('accounting-modal');
-                if (modal) homeShowModal(modal);
+                if (typeof window.openAccountingModal === 'function') {
+                    window.openAccountingModal();
+                } else {
+                    const modal = document.getElementById('accounting-modal');
+                    if (modal) homeShowModal(modal);
+                }
             },
             'pet': () => {
                 // 切换到萌宠屋页面（内嵌，非跳转）
@@ -1578,38 +1595,17 @@
                     window.TaPhoneApp.showTaPhone();
                 } else {
                     (window.showNotification || function(){})('TA的手机加载中...', 'info');
-                    // 先确保容器已注入
-                    if (!document.getElementById('ta-phone-container')) {
-                        window._pendingTaPhoneShow = true;
-                    }
                     const script = document.createElement('script');
-                    // 多路径尝试：支持根目录和 js/ 子目录两种部署方式
                     var basePath = window.location.pathname.replace(/\/[^\/]*$/, '/') || '/';
-                    var tryPaths = [
-                        basePath + 'ta-phone.js',
-                        basePath + 'js/ta-phone.js',
-                        './ta-phone.js',
-                        './js/ta-phone.js'
-                    ];
-                    var pathIndex = 0;
-                    function tryNextPath() {
-                        if (pathIndex >= tryPaths.length) {
-                            (window.showNotification || function(){})('TA的手机加载失败，请检查文件是否存在', 'error');
-                            return;
-                        }
-                        var s = document.createElement('script');
-                        s.src = tryPaths[pathIndex++];
-                        s.onload = function() {
-                            if (typeof window.TaPhoneApp !== 'undefined') {
-                                window.TaPhoneApp.showTaPhone();
-                            } else {
-                                tryNextPath();
-                            }
-                        };
-                        s.onerror = function() { tryNextPath(); };
-                        document.head.appendChild(s);
-                    }
-                    tryNextPath();
+                    script.src = basePath + 'js/ta-phone.js';
+                    script.onload = function() {
+                        if (typeof window.TaPhoneApp !== 'undefined') window.TaPhoneApp.showTaPhone();
+                        else (window.showNotification || function(){})('TA的手机加载失败', 'error');
+                    };
+                    script.onerror = function() {
+                        (window.showNotification || function(){})('TA的手机加载失败', 'error');
+                    };
+                    document.head.appendChild(script);
                 }
             },
             'shop': () => {
@@ -1675,29 +1671,7 @@
                         })
                         .catch(err => console.error('加载朋友圈失败:', err));
                 }
-            },
-            'gift-cabinet': () => {
-                if (typeof window.GiftCabinetApp !== 'undefined') {
-                    window.GiftCabinetApp.show();
-                } else {
-                    (window.showNotification || function(){})('礼物柜加载中...', 'info');
-                    const script = document.createElement('script');
-                    var basePath = window.location.pathname.replace(/\/[^\/]*$/, '/') || '/';
-                    script.src = basePath + 'js/gift-cabinet.js';
-                    script.onload = function() {
-                        if (typeof window.GiftCabinetApp !== 'undefined') window.GiftCabinetApp.show();
-                        else (window.showNotification || function(){})('礼物柜加载失败', 'error');
-                    };
-                    script.onerror = function() {
-                        (window.showNotification || function(){})('礼物柜模块开发中...', 'info');
-                    };
-                    document.head.appendChild(script);
-                }
-            },
-            'music': () => (window.showNotification || function(){})('音乐模块开发中...', 'info'),
-            'todolist': () => (window.showNotification || function(){})('待办清单模块开发中...', 'info'),
-            'dream': () => (window.showNotification || function(){})('梦境模块开发中...', 'info'),
-            'game': () => (window.showNotification || function(){})('小游戏模块开发中...', 'info')
+            }
         };
 
         if (appActions[app]) {
@@ -1720,7 +1694,10 @@
             },
             'cards': () => {
                 const modal = document.getElementById('custom-replies-modal');
-                if (modal) homeShowModal(modal);
+                if (modal) {
+                    if (typeof renderReplyLibrary === 'function') renderReplyLibrary();
+                    homeShowModal(modal);
+                }
             },
             'chat': () => {
                 // 聊天设置 - 直接打开聊天设置弹窗
@@ -2115,6 +2092,13 @@
     window.initHomePage = async function() {
         // 清理旧的底部栏颜色设置（已废弃）
         localStorage.removeItem('home_nav_colors');
+
+        // 清理 chatContainer 上可能残留的内联背景样式
+        // （之前版本 syncBgToChat 会设置此样式，现在已由外观设置独立控制）
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+            chatContainer.style.removeProperty('background');
+        }
 
         await loadSavedSettings();
 
@@ -2558,103 +2542,14 @@
 
     // 暴露给外部调用（由 core.js 的 loadData 完成后调用）
     // DOM 加载完成后只初始化时间更新，设置加载等 loadData 完成后再执行
-
-    // ========== 伴侣朋友圈设置 ==========
-    function initPartnerMomentSettings() {
-        const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
-        const toggle = document.getElementById('partner-moment-toggle');
-        if (toggle) toggle.classList.toggle('active', enabled);
-
-        const detailSection = document.getElementById('partner-moment-interval-settings');
-        if (detailSection) detailSection.style.display = enabled ? 'block' : 'none';
-
-        const intervalMin = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
-        const intervalMax = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
-        const countMax = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
-
-        const minSlider = document.getElementById('partner-moment-interval-min-slider');
-        const minVal = document.getElementById('partner-moment-interval-min-value');
-        const maxSlider = document.getElementById('partner-moment-interval-max-slider');
-        const maxVal = document.getElementById('partner-moment-interval-max-value');
-        const countSlider = document.getElementById('partner-moment-count-slider');
-        const countVal = document.getElementById('partner-moment-count-value');
-
-        if (minSlider) { minSlider.value = intervalMin; if (minVal) minVal.textContent = intervalMin + '分钟'; }
-        if (maxSlider) { maxSlider.value = intervalMax; if (maxVal) maxVal.textContent = intervalMax + '分钟'; }
-        if (countSlider) { countSlider.value = countMax; if (countVal) countVal.textContent = countMax + '条'; }
-
-        if (toggle) {
-            toggle.addEventListener('click', function() {
-                const current = localStorage.getItem('partner_moment_enabled') === 'true';
-                const newVal = !current;
-                localStorage.setItem('partner_moment_enabled', newVal ? 'true' : 'false');
-                toggle.classList.toggle('active', newVal);
-                const detail = document.getElementById('partner-moment-interval-settings');
-                if (detail) detail.style.display = newVal ? 'block' : 'none';
-                if (typeof window.MomentsApp !== 'undefined') {
-                    if (newVal) window.MomentsApp.startPartnerMomentTimer();
-                    else window.MomentsApp.stopPartnerMomentTimer();
-                }
-            });
-        }
-
-        if (minSlider) minSlider.addEventListener('input', function() { localStorage.setItem('partner_moment_interval_min', this.value); if (minVal) minVal.textContent = this.value + '分钟'; });
-        if (maxSlider) maxSlider.addEventListener('input', function() { localStorage.setItem('partner_moment_interval_max', this.value); if (maxVal) maxVal.textContent = this.value + '分钟'; });
-        if (countSlider) countSlider.addEventListener('input', function() { localStorage.setItem('partner_moment_count_max', this.value); if (countVal) countVal.textContent = this.value + '条'; });
-    }
-
-    // ========== 拼字卡设置 ==========
-    function initPartnerCardSpliceSettings() {
-        const enabled = localStorage.getItem('partner_card_splice_enabled') === 'true';
-        const toggle = document.getElementById('partner-card-splice-toggle');
-        if (toggle) toggle.classList.toggle('active', enabled);
-
-        const detailSection = document.getElementById('partner-card-splice-settings');
-        if (detailSection) detailSection.style.display = enabled ? 'block' : 'none';
-
-        const prob = parseInt(localStorage.getItem('partner_card_splice_probability')) || 30;
-        const spMin = parseInt(localStorage.getItem('partner_card_splice_min')) || 2;
-        const spMax = parseInt(localStorage.getItem('partner_card_splice_max')) || 4;
-
-        const probSlider = document.getElementById('partner-card-splice-prob-slider');
-        const probVal = document.getElementById('partner-card-splice-prob-value');
-        const minSlider = document.getElementById('partner-card-splice-min-slider');
-        const minVal = document.getElementById('partner-card-splice-min-value');
-        const maxSlider = document.getElementById('partner-card-splice-max-slider');
-        const maxVal = document.getElementById('partner-card-splice-max-value');
-
-        if (probSlider) { probSlider.value = prob; if (probVal) probVal.textContent = prob + '%'; }
-        if (minSlider) { minSlider.value = spMin; if (minVal) minVal.textContent = spMin + '条'; }
-        if (maxSlider) { maxSlider.value = spMax; if (maxVal) maxVal.textContent = spMax + '条'; }
-
-        if (toggle) {
-            toggle.addEventListener('click', function() {
-                const current = localStorage.getItem('partner_card_splice_enabled') === 'true';
-                const newVal = !current;
-                localStorage.setItem('partner_card_splice_enabled', newVal ? 'true' : 'false');
-                toggle.classList.toggle('active', newVal);
-                const detail = document.getElementById('partner-card-splice-settings');
-                if (detail) detail.style.display = newVal ? 'block' : 'none';
-            });
-        }
-
-        if (probSlider) probSlider.addEventListener('input', function() { localStorage.setItem('partner_card_splice_probability', this.value); if (probVal) probVal.textContent = this.value + '%'; });
-        if (minSlider) minSlider.addEventListener('input', function() { localStorage.setItem('partner_card_splice_min', this.value); if (minVal) minVal.textContent = this.value + '条'; });
-        if (maxSlider) maxSlider.addEventListener('input', function() { localStorage.setItem('partner_card_splice_max', this.value); if (maxVal) maxVal.textContent = this.value + '条'; });
-    }
-
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             updateTime();
             setInterval(updateTime, 1000);
-            initPartnerMomentSettings();
-            initPartnerCardSpliceSettings();
         });
     } else {
         updateTime();
         setInterval(updateTime, 1000);
-        initPartnerMomentSettings();
-        initPartnerCardSpliceSettings();
     }
 
     // 主题预设点击 - 直接绑定到 document 确保一定能触发

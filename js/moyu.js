@@ -116,7 +116,7 @@ window.renderMoyuCurrent = function () {
     if (!panel) return;
 
     // 如果没有当前记录，显示提示
-    if (!currentMoyuRecord) {
+    if (!window.currentMoyuRecord) {
         panel.innerHTML = `
             <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
                 <i class="fas fa-fish" style="font-size: 36px; margin-bottom: 12px; opacity: 0.3;"></i>
@@ -136,8 +136,8 @@ window.renderMoyuCurrent = function () {
         return;
     }
 
-    const record = currentMoyuRecord;
-    const session = moyuWorkSession;
+    const record = window.currentMoyuRecord;
+    const session = window.moyuWorkSession;
 
     // 构建活动列表（分条显示）
     let activitiesHtml = '';

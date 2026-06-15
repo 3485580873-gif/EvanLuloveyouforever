@@ -2195,7 +2195,7 @@ transform: scale(1.2);
 .accounting-form-overlay {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 99999999 !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2532,7 +2532,7 @@ transform: scale(1.2);
 .accounting-label-form-modal {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 99999999 !important;
     display: flex;
     align-items: center;
     justify-content: center;
