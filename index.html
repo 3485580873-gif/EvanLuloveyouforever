@@ -4319,5 +4319,110 @@
     console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 本地字体上传 | 电话挂断记录 | 聊天设置修复');
 })();
 </script>
+
+<script>
+// ========== Splash 页面翻页逻辑 ==========
+(function() {
+    var slides = document.querySelectorAll('#splash-slides .splash-slide');
+    var prevBtn = document.getElementById('splash-prev-btn');
+    var nextBtn = document.getElementById('splash-next-btn');
+    var enterBtn = document.getElementById('splash-enter-btn');
+    var pageNum = document.getElementById('splash-page-num');
+    var dotsContainer = document.getElementById('splash-dots');
+    var pledgeInput = document.getElementById('splash-pledge-input');
+    var pledgeHint = document.getElementById('splash-pledge-hint');
+    var pledgeText = document.getElementById('splash-pledge-text');
+    var total = slides.length;
+    var current = 0;
+
+    // 生成圆点指示器
+    if (dotsContainer) {
+        for (var i = 0; i < total; i++) {
+            var dot = document.createElement('div');
+            dot.className = 'splash-dot' + (i === 0 ? ' active' : '');
+            dot.setAttribute('data-index', i);
+            dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:' + (i === 0 ? 'rgba(var(--accent-color-rgb,197,164,126),0.9)' : 'rgba(255,255,255,0.3)') + ';cursor:pointer;transition:all 0.3s;';
+            (function(idx) {
+                dot.addEventListener('click', function() { goTo(idx); });
+            })(i);
+            dotsContainer.appendChild(dot);
+        }
+    }
+
+    function updateDots() {
+        var dots = dotsContainer ? dotsContainer.querySelectorAll('.splash-dot') : [];
+        for (var i = 0; i < dots.length; i++) {
+            dots[i].style.background = i === current ? 'rgba(var(--accent-color-rgb,197,164,126),0.9)' : 'rgba(255,255,255,0.3)';
+        }
+    }
+
+    function goTo(idx) {
+        if (idx < 0 || idx >= total) return;
+        slides[current].classList.remove('active');
+        current = idx;
+        slides[current].classList.add('active');
+        if (pageNum) pageNum.textContent = (current + 1) + ' / ' + total;
+        if (prevBtn) prevBtn.disabled = current === 0;
+        if (nextBtn) nextBtn.style.display = current === total - 1 ? 'none' : '';
+        if (enterBtn) enterBtn.style.display = current === total - 1 ? '' : 'none';
+        updateDots();
+        // 最后一页聚焦输入框
+        if (current === total - 1 && pledgeInput) {
+            setTimeout(function() { pledgeInput.focus(); }, 300);
+            checkPledge();
+        }
+    }
+
+    function checkPledge() {
+        if (!pledgeInput || !pledgeText || !pledgeHint || !enterBtn) return;
+        var required = pledgeText.textContent.trim();
+        var typed = pledgeInput.value.trim();
+        if (typed === required) {
+            pledgeHint.textContent = '✓ 承诺已确认，可以进入';
+            pledgeHint.style.color = 'rgba(76,175,80,0.9)';
+            enterBtn.disabled = false;
+            enterBtn.style.opacity = '1';
+            enterBtn.style.pointerEvents = 'auto';
+        } else {
+            var remain = required.length - typed.length;
+            pledgeHint.textContent = '请完整输入上方承诺后方可进入' + (typed.length > 0 ? '（还需输入 ' + (required.substring(typed.length) || '完毕') + '）' : '');
+            pledgeHint.style.color = '';
+            enterBtn.disabled = true;
+            enterBtn.style.opacity = '0.5';
+            enterBtn.style.pointerEvents = 'none';
+        }
+    }
+
+    // 绑定按钮事件
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() { goTo(current - 1); });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() { goTo(current + 1); });
+    }
+    if (pledgeInput) {
+        pledgeInput.addEventListener('input', checkPledge);
+    }
+    if (enterBtn) {
+        enterBtn.addEventListener('click', function() {
+            var splash = document.getElementById('splash-declaration');
+            if (splash) {
+                splash.style.opacity = '0';
+                splash.style.transition = 'opacity 0.6s';
+                setTimeout(function() {
+                    splash.style.display = 'none';
+                    // 触发欢迎动画
+                    var welcome = document.getElementById('welcome-animation');
+                    if (welcome) welcome.style.display = '';
+                }, 600);
+            }
+        });
+    }
+
+    // 初始化
+    goTo(0);
+})();
+</script>
+
 </body>
 </html>
