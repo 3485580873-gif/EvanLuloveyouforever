@@ -137,6 +137,7 @@
     var cur = 0;
 
     function initSplash() {
+        return; // 跳过使用声明和教程
         var splash = document.getElementById('splash-declaration');
         if (!splash) return;
 
