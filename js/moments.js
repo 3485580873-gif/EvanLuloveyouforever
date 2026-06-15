@@ -1393,9 +1393,14 @@
     return visitorRecords.filter(r => getRecordDateStr(r.timestamp) === today).length;
   }
 
-  function generateOneVisitorRecord(timestamp) {
+  function generateOneVisitorRecord(timestamp, type, content) {
     const ts = timestamp || Date.now();
-    visitorRecords.unshift({ id: ts.toString(36) + Math.random().toString(36).substr(2,5), timestamp: ts });
+    visitorRecords.unshift({
+      id: ts.toString(36) + Math.random().toString(36).substr(2,5),
+      timestamp: ts,
+      type: type || 'visit',
+      content: content || ''
+    });
     visitorUnreadCount++;
     saveVisitorRecords();
     updateVisitorBadge();
@@ -1528,13 +1533,28 @@
       // 显示具体访问时间（时分）
       const visitDate = new Date(record.timestamp);
       const visitTimeStr = `${String(visitDate.getHours()).padStart(2,'0')}:${String(visitDate.getMinutes()).padStart(2,'0')}`;
+      
+      // 根据类型显示不同行为描述
+      const recordType = record.type || 'visit';
+      let actionIcon = '', actionText = '';
+      if (recordType === 'like') {
+        actionIcon = '<i class="fas fa-heart" style="color:#ff6b81;font-size:11px;margin-right:4px;"></i>';
+        actionText = '赞了你的朋友圈';
+      } else if (recordType === 'comment') {
+        actionIcon = '<i class="fas fa-comment-dots" style="color:#4a90e2;font-size:11px;margin-right:4px;"></i>';
+        actionText = record.content || '评论了你的朋友圈';
+      } else {
+        actionIcon = '<i class="fas fa-eye" style="color:#999;font-size:11px;margin-right:4px;"></i>';
+        actionText = '偷偷来访';
+      }
+
       html += `
         <div class="visitor-item" data-visitor-id="${record.id}">
           <div class="visitor-item-inner" ontouchstart="MomentsApp._visitorTouchStart(event,'${record.id}')" ontouchmove="MomentsApp._visitorTouchMove(event,'${record.id}')" ontouchend="MomentsApp._visitorTouchEnd(event,'${record.id}')">
             <img class="visitor-avatar" src="${partnerAvatar}" alt="${partnerName}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=c0aede'">
             <div class="visitor-info">
               <div class="visitor-name">${partnerName}${streakTag}</div>
-              <div class="visitor-time">${visitTimeStr}</div>
+              <div class="visitor-time">${actionIcon}${actionText} · ${visitTimeStr}</div>
             </div>
           </div>
           <div class="visitor-delete-btn" onclick="MomentsApp.deleteVisitorRecord('${record.id}')">删除</div>
@@ -1652,9 +1672,13 @@
       previewImage
     });
 
-    // 评论/点赞时同时生成访客记录
-    if (type === 'comment' || type === 'like') {
-      generateOneVisitorRecord(Date.now());
+    // 评论/点赞时同时生成访客记录（带详细类型）
+    if (type === 'comment') {
+      const commentPreview = content || '发表了评论';
+      const shortContent = commentPreview.length > 20 ? commentPreview.substring(0, 20) + '...' : commentPreview;
+      generateOneVisitorRecord(Date.now(), 'comment', shortContent);
+    } else if (type === 'like') {
+      generateOneVisitorRecord(Date.now(), 'like', '赞了你的朋友圈');
     }
 
     // 更新小红点
