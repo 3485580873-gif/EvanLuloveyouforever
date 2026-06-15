@@ -124,10 +124,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         window.addEventListener('pagehide', () => {
             try { _backupCriticalData(); } catch (e) {}
+            try { typeof saveData === 'function' && saveData(); } catch (e) {}
+            // 同步备份 settings 到 localStorage，防止异步 saveData 未完成导致设置丢失
+            try {
+                if (typeof settings !== 'undefined') {
+                    localStorage.setItem('__pending_settings__', JSON.stringify(settings));
+                }
+            } catch (e) {}
         });
 
         window.addEventListener('beforeunload', () => {
             try { _backupCriticalData(); } catch (e) {}
+            try { typeof saveData === 'function' && saveData(); } catch (e) {}
+            // 同步备份 settings 到 localStorage，防止异步 saveData 未完成导致设置丢失
+            try {
+                if (typeof settings !== 'undefined') {
+                    localStorage.setItem('__pending_settings__', JSON.stringify(settings));
+                }
+            } catch (e) {}
         });
 
         setInterval(() => {

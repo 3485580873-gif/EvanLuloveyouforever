@@ -418,6 +418,22 @@ const loadData = async () => {
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
         if (savedSettings) Object.assign(settings, savedSettings);
+
+        // 紧急恢复：若 localStorage 中存在 __pending_settings__（beforeunload 时同步备份的），
+        // 则用它覆盖当前 settings，防止异步 saveData 未完成导致设置丢失
+        try {
+            const pending = localStorage.getItem('__pending_settings__');
+            if (pending) {
+                const pendingObj = JSON.parse(pending);
+                if (pendingObj && typeof pendingObj === 'object') {
+                    Object.assign(settings, pendingObj);
+                    console.log('[loadData] 已从 __pending_settings__ 恢复设置');
+                }
+            }
+        } catch (e) {
+            console.warn('[loadData] __pending_settings__ 恢复失败:', e);
+        }
+
         window.settings = settings; // 暴露到 window，供 home.js 等模块读取
 
         if (settings.showPartnerNameInChat !== undefined) {

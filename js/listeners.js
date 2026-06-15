@@ -1583,7 +1583,7 @@ const pinyinCardMaxValue = document.getElementById('pinyin-card-max-value');
 const updatePinyinCardUI = () => {
     if (pinyinCardSettings) pinyinCardSettings.style.display = settings.pinyinCardEnabled ? 'block' : 'none';
     if (pinyinCardMinSlider) {
-        const minVal = settings.pinyinCardMin || 2;
+        const minVal = settings.pinyinCardMin || 1;
         pinyinCardMinSlider.value = minVal;
         pinyinCardMinValue.textContent = minVal + '句';
     }
@@ -1598,8 +1598,8 @@ updatePinyinCardUI();
 if (pinyinCardMinSlider) {
     pinyinCardMinSlider.addEventListener('input', (e) => {
         let val = parseInt(e.target.value);
-        if (val > (settings.pinyinCardMax || 3)) {
-            val = settings.pinyinCardMax || 3;
+        if (val > (settings.pinyinCardMax || 5)) {
+            val = settings.pinyinCardMax || 5;
             pinyinCardMinSlider.value = val;
         }
         settings.pinyinCardMin = val;
