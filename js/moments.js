@@ -2193,14 +2193,12 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 只要伴侣在这个朋友圈出现过（发布者或已评论），你发评论后对方100%自动回复
+      // 你发评论后对方自动回复（只要伴侣已配置）
       const partnerName = getPartnerName();
-      const partnerInvolved = m.nickname === partnerName || m.comments.some(c => c.name === partnerName);
-      console.log('[DEBUG] submitComment partnerName=' + partnerName + ' m.nickname=' + m.nickname + ' partnerInvolved=' + partnerInvolved + ' commentsCount=' + m.comments.length);
-      if (partnerInvolved) {
+      if (partnerName) {
         const replySpeed = getReplySpeed();
         const delay = Math.random() * replySpeed * 1000;
-        console.log('[DEBUG] 将在 ' + (delay/1000).toFixed(1) + ' 秒后触发自动回复');
+        console.log('[DEBUG] 将在 ' + (delay/1000).toFixed(1) + ' 秒后触发自动回复, partnerName=' + partnerName);
         setTimeout(() => {
           console.log('[DEBUG] 开始执行 triggerAutoReply');
           triggerAutoReply(currentCommentMomentId, true);
