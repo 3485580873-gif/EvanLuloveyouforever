@@ -487,6 +487,12 @@ async function importAllData(file) {
                 localStorageNeedles: []
             },
             {
+                id: 'home',
+                label: '首页 / 图标美化 / 布局',
+                indexedDBNeedles: ['home_app_icons', 'home_page_bg', 'home_card_bg', 'home_icon_color', 'home_hero_subtitle', 'home_theme', 'home_app_order', 'home_session_bind', 'home_avatar_sync', 'home_bg_sync', 'home_card_bg_custom', 'home_page_bg_custom', 'home_profile_', 'home_avatar_me'],
+                localStorageNeedles: ['profile_me']
+            },
+            {
                 id: 'dg',
                 label: '每日公告 / 运势 / 天气',
                 indexedDBNeedles: [],
