@@ -467,18 +467,19 @@
     };
 
     window.handlePageBgUpload = function(event) {
-        const file = event.target.files[0];
+        const file = event.target.files;
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             const url = e.target.result;
             const bgValue = `url(${url}) center/cover no-repeat`;
             const pageBg = document.getElementById('home-page-bg');
             if (pageBg) pageBg.style.background = bgValue;
 
             document.querySelectorAll('#page-bg-presets .bg-preset').forEach(el => el.classList.remove('active'));
-            homeSetItem('home_page_bg_custom', url);
+            // 改用大容量存储，避免 localStorage 被清除
+            await homeSetLargeItem('home_page_bg_custom_large', url);
             homeSetItem('home_page_bg', 'custom');
             
             // 同步到聊天界面
@@ -498,8 +499,9 @@
             return;
         }
         
-        // 获取当前自定义背景URL
-        let savedCustomUrl = homeGetItem('home_page_bg_custom');
+        // 获取当前自定义背景URL（优先从大容量存储读取）
+        let savedCustomUrl = await homeGetLargeItem('home_page_bg_custom_large');
+        if (!savedCustomUrl) savedCustomUrl = homeGetItem('home_page_bg_custom');
         if (!savedCustomUrl && currentBg.includes('url(')) {
             const match = currentBg.match(/url\(["']?([^"')]+)["']?\)/);
             if (match) savedCustomUrl = match[1];
@@ -593,9 +595,11 @@
             const preset = document.createElement('div');
             preset.className = 'bg-preset bg-preset-custom';
             preset.style.background = `url(${url}) center/cover no-repeat`;
-            preset.onclick = function() {
+            preset.onclick = async function() {
                 const pageBg = document.getElementById('home-page-bg');
                 if (pageBg) pageBg.style.background = `url(${url}) center/cover no-repeat`;
+                // 同时存到大容量存储和 localStorage（兼容旧逻辑）
+                await homeSetLargeItem('home_page_bg_custom_large', url);
                 homeSetItem('home_page_bg_custom', url);
                 homeSetItem('home_page_bg', 'custom');
                 document.querySelectorAll('#page-bg-presets .bg-preset').forEach(el => el.classList.remove('active'));
@@ -1858,7 +1862,9 @@
         // 页面背景
         const savedPageBg = homeGetItem('home_page_bg');
         if (savedPageBg === 'custom') {
-            const customUrl = homeGetItem('home_page_bg_custom');
+            // 优先从大容量存储读取，降级到 localStorage
+            const customUrl = await homeGetLargeItem('home_page_bg_custom_large')
+                              || homeGetItem('home_page_bg_custom');
             if (customUrl) {
                 const pageBg = document.getElementById('home-page-bg');
                 if (pageBg) pageBg.style.background = `url(${customUrl}) center/cover no-repeat`;
