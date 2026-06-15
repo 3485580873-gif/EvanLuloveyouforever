@@ -323,12 +323,38 @@
                         <div class="app-icon" data-app="accounting"><i class="fas fa-coins"></i></div>
                         <span class="app-name">同心记账</span>
                     </div>
+                    <div class="app-item" onclick="openApp('map')">
+                        <div class="app-icon" data-app="map"><i class="fas fa-map-marked-alt"></i></div>
+                        <span class="app-name">Zmilk地图</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('shop')">
+                        <div class="app-icon" data-app="shop"><i class="fas fa-shopping-bag"></i></div>
+                        <span class="app-name">商城</span>
+                    </div>
+                </div>
+            </div>
+            <div class="apps-page" id="apps-page-3">
+                <div class="apps-grid">
+                    <div class="app-item" onclick="openApp('pet')">
+                        <div class="app-icon" data-app="pet"><i class="fas fa-paw"></i></div>
+                        <span class="app-name">萌宠屋</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('ta-phone')">
+                        <div class="app-icon" data-app="ta-phone">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
+                                <rect x="5" y="2" width="14" height="20" rx="2.5"/>
+                                <line x1="10" y1="18" x2="14" y2="18"/>
+                            </svg>
+                        </div>
+                        <span class="app-name">TA的手机</span>
+                    </div>
                 </div>
             </div>
             <!-- 翻页指示器 -->
             <div class="apps-dots" id="apps-dots">
                 <span class="apps-dot active" onclick="switchAppsPage(0)"></span>
                 <span class="apps-dot" onclick="switchAppsPage(1)"></span>
+                <span class="apps-dot" onclick="switchAppsPage(2)"></span>
             </div>
         </div>
 
