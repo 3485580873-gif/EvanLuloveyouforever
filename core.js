@@ -1693,6 +1693,7 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     } else if (isRedPacket) {
         content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">红包消息</div>';
     } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+        if (msg.sticker) content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:100px; border-radius:10px; margin-top:" + (msg.text ? '6px' : '0') + "; cursor:pointer;" onclick="viewImage('${msg.sticker}')">`;
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -2175,13 +2176,14 @@ const addMessage = (message) => {
                 showNotification('图片大小不能超过5MB', 'error'); DOMElements.imageInput.value = ''; return;
             }
 
-            const createMessage = (imgSrc = null) => {
+            const createMessage = (imgSrc = null, stickerSrc = null) => {
                 const messageData = {
                     id: Date.now(),
                     sender: 'user',
                     text: text || '',
                     timestamp: new Date(),
                     image: imgSrc,
+                    sticker: stickerSrc || (window._pendingChatSticker || null),
                     status: 'sent',
                     favorited: false,
                     note: null,
@@ -2194,6 +2196,13 @@ const addMessage = (message) => {
                 if (type !== 'system') playSound('send');
                 currentReplyTo = null;
                 updateReplyPreview();
+
+                // 发送后清理待发表情包
+                window._pendingChatSticker = null;
+                var previewArea = document.getElementById('sticker-review-area');
+                var previewImg = document.getElementById('sticker-review-img');
+                if (previewArea) previewArea.style.display = 'none';
+                if (previewImg) previewImg.src = '';
 
                 // TA的手机：实时收藏用户发送的消息
                 if (text && (type === 'normal' || type === 'share')) {

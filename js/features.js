@@ -498,23 +498,18 @@ function showEmojiTab() {
                 updateBatchPreview();
                 showNotification('已添加到批量发送', 'success', 1200);
             } else {
-                addMessage({
-                    id: Date.now(),
-                    sender: 'user',
-                    text: '',
-                    timestamp: new Date(),
-                    image: src,
-                    status: 'sent',
-                    type: 'normal'
-                });
-                playSound('send');
-                
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-                if (window._pendingReplyTimer) clearTimeout(window._pendingReplyTimer);
-                window._pendingReplyTimer = setTimeout(() => { window._pendingReplyTimer = null; simulateReply(); }, randomDelay);
+                // 显示表情包预览，等待与文字一起发送
+                var previewArea = document.getElementById('sticker-preview-area');
+                var previewImg = document.getElementById('sticker-preview-img');
+                if (previewArea && previewImg) {
+                    previewImg.src = src;
+                    previewArea.style.display = 'flex';
+                    window._pendingChatSticker = src;
+                    var input = document.getElementById('message-input');
+                    if (input) input.focus();
+                }
             }
-            document.getElementById('user-sticker-picker').classList.remove('active');
+            // 不关闭面板，允许继续选文字
         };
         area.appendChild(item);
     });

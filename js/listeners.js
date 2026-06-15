@@ -1537,6 +1537,20 @@ if (partnerMomentMinSlider) { partnerMomentMinSlider.addEventListener('change', 
 if (partnerMomentMaxSlider) { partnerMomentMaxSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentMaxSlider.addEventListener('input', function() { partnerMomentMaxValue.textContent = partnerMomentMaxSlider.value + '分钟'; }); }
 if (partnerMomentCountSlider) { partnerMomentCountSlider.addEventListener('change', _savePartnerMomentInterval); partnerMomentCountSlider.addEventListener('input', function() { partnerMomentCountValue.textContent = partnerMomentCountSlider.value + '条'; }); }
 
+// ========== 聊天输入框表情包预览 ==========
+(function initStickerPreview() {
+    var cancelBtn = document.getElementById('sticker-preview-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            var previewArea = document.getElementById('sticker-review-area');
+            var previewImg = document.getElementById('sticker-review-img');
+            if (previewArea) previewArea.style.display = 'none';
+            if (previewImg) previewImg.src = '';
+            window._pendingChatSticker = null;
+        });
+    }
+})();
+
 // 摸鱼自动生成设置
 const moyuAutoGenerateToggle = document.getElementById('moyu-auto-generate-toggle');
 const moyuAutoGenerateControl = document.getElementById('moyu-auto-generate-control');

@@ -1308,6 +1308,13 @@
     <div class="input-area-wrapper">
         <div class="batch-preview" id="batch-preview"></div>
         <div id="reply-preview-container"></div>
+        <div id="sticker-preview-area" style="display:none;padding:4px 12px;background:var(--secondary-bg);border-top:1px solid var(--border-color);">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:11px;color:var(--text-secondary);">待发送表情包:</div>
+                <img id="sticker-preview-img" src="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);">
+                <button id="sticker-preview-cancel" style="background:rgba(255,80,80,0.15);border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;color:#ff5050;font-size:12px;display:flex;align-items:center;justify-content:center;">×</button>
+            </div>
+        </div>
         <div id="collapsed-extras-panel" style="display:none;">
             <div class="collapsed-extras-inner" style="padding:12px; background:var(--secondary-bg); border-top:1px solid var(--border-color);">
                 <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
