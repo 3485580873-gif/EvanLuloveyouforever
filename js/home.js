@@ -1114,6 +1114,16 @@
     }
 
     // ========== 功能图标替换 ==========
+    // 保存自定义图标（使用 localforage 避免 localStorage 5MB 限制）
+    async function saveAppIcons() {
+        const k = homeKey('home_app_icons');
+        if (typeof localforage !== 'undefined') {
+            await localforage.setItem(k, JSON.stringify(customAppIcons));
+        }
+        // 同时清除旧的 localStorage 版本（迁移用）
+        localStorage.removeItem(k);
+    }
+
     window.selectIconTarget = function(app) {
         currentIconTarget = app;
         renderIconGrid();
@@ -1121,12 +1131,12 @@
         if (input) input.click();
     };
 
-    window.handleAppIconUpload = function(event) {
+    window.handleAppIconUpload = async function(event) {
         const file = event.target.files[0];
         if (!file || !currentIconTarget) return;
 
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             const url = e.target.result;
             customAppIcons[currentIconTarget] = url;
 
@@ -1136,13 +1146,14 @@
             }
 
             renderIconGrid();
-            homeSetItem('home_app_icons', JSON.stringify(customAppIcons));
+            // 使用 localforage 存储（避免 localStorage 5MB 限制导致大图丢失）
+            await saveAppIcons();
             currentIconTarget = null;
         };
         reader.readAsDataURL(file);
     };
 
-    window.resetAppIcon = function(app) {
+    window.resetAppIcon = async function(app) {
         if (!app || !customAppIcons[app]) return;
         delete customAppIcons[app];
 
@@ -1152,10 +1163,10 @@
         }
 
         renderIconGrid();
-        homeSetItem('home_app_icons', JSON.stringify(customAppIcons));
+        await saveAppIcons();
     };
 
-    window.resetAllAppIcons = function() {
+    window.resetAllAppIcons = async function() {
         if (Object.keys(customAppIcons).length === 0) return;
         customAppIcons = {};
 
@@ -1167,7 +1178,7 @@
         });
 
         renderIconGrid();
-        homeRemoveItem('home_app_icons');
+        await saveAppIcons();
     };
 
     function renderIconGrid() {
@@ -1977,8 +1988,15 @@
             }
         }
 
-        // 自定义功能图标
-        const savedIcons = homeGetItem('home_app_icons');
+        // 自定义功能图标（优先 localforage，回退 localStorage）
+        let savedIcons = await homeGetLargeItem('home_app_icons');
+        if (!savedIcons) {
+            savedIcons = homeGetItem('home_app_icons');
+            // 迁移旧 localStorage 数据到 localforage
+            if (savedIcons && typeof localforage !== 'undefined') {
+                await localforage.setItem(homeKey('home_app_icons'), savedIcons);
+            }
+        }
         if (savedIcons) {
             try {
                 customAppIcons = JSON.parse(savedIcons);
