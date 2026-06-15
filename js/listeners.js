@@ -2349,3 +2349,103 @@ window.exitCollapseMode = function() {
         setTimeout(tryApply, 400);
     }
 })();
+
+// ========== 功能图标自定义面板 ==========
+(function initAppIconsPanel() {
+    var DEFAULT_ICONS = [
+        { id: 'chat',    name: '聊天',     icon: '<i class=\"fas fa-comment-alt\"></i>',  page: 0 },
+        { id: 'mailbox', name: '信封投递',  icon: '<i class=\"fas fa-envelope\"></i>',     page: 0 },
+        { id: 'moyu',    name: '摸鱼小记',  icon: '<i class=\"fas fa-fish\"></i>',         page: 0 },
+        { id: 'diary',   name: '朝夕心记',  icon: '<i class=\"fas fa-clipboard-list\"></i>',page: 0 },
+        { id: 'fortune', name: '运势占卜',  icon: '<i class=\"fas fa-star-and-crescent\"></i>', page: 0 },
+        { id: 'mood',    name: '心晴手帐',  icon: '<i class=\"fas fa-calendar-day\"></i>',  page: 0 },
+        { id: 'calendar',name: '日历',      icon: '<i class=\"fas fa-calendar-alt\"></i>',  page: 0 },
+        { id: 'decide',  name: '抉择',      icon: '<i class=\"fas fa-balance-scale\"></i>', page: 0 },
+        { id: 'stats',   name: '消息统计',  icon: '<i class=\"fas fa-chart-bar\"></i>',     page: 1 },
+        { id: 'accounting', name: '同心记账', icon: '<i class=\"fas fa-coins\"></i>',       page: 1 },
+        { id: 'ta-phone',  name: 'TA的手机', icon: '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\"><rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2.5\"/><line x1=\"10\" y1=\"18\" x2=\"14\" y2=\"18\"/></svg>', page: 1 }
+    ];
+
+    function loadIconsConfig() {
+        try {
+            var saved = JSON.parse(localStorage.getItem('app_icons_config') || 'null');
+            if (saved && Array.isArray(saved) && saved.length === DEFAULT_ICONS.length) return saved;
+        } catch(e) {}
+        return DEFAULT_ICONS.map(function(d) { return { id: d.id, visible: true, iconHtml: d.icon }; });
+    }
+
+    function saveIconsConfig(config) { localStorage.setItem('app_icons_config', JSON.stringify(config)); }
+
+    function applyIconsConfig(config) {
+        config.forEach(function(c, i) {
+            var el = document.querySelector('.app-icon[data-app=\"' + c.id + '\"]');
+            if (!el) return;
+            // 控制显示/隐藏
+            var item = el.closest('.app-item');
+            if (item) item.style.display = c.visible ? '' : 'none';
+            // 更新图标 HTML
+            if (c.iconHtml && el.innerHTML.indexOf(c.iconHtml.substring(0, 5)) === -1) {
+                // 保留 badge
+                var badge = el.querySelector('.app-badge');
+                el.innerHTML = c.iconHtml;
+                if (badge) el.appendChild(badge);
+            }
+        });
+        // 重新计算分页布局
+        if (typeof window.switchAppsPage === 'function') window.switchAppsPage(0);
+    }
+
+    function renderIconsPanel() {
+        var container = document.getElementById('app-icons-config-list');
+        if (!container) return;
+        var config = loadIconsConfig();
+        var html = '';
+        config.forEach(function(c, i) {
+            var def = DEFAULT_ICONS.find(function(d) { return d.id === c.id; });
+            if (!def) return;
+            html += '<div class=\"app-icon-config-row\" style=\"display:flex;align-items:center;gap:10px;background:var(--primary-bg);border:1px solid var(--border-color);border-radius:12px;padding:10px 14px;\">';
+            html += '<div style=\"width:36px;height:36px;border-radius:10px;background:rgba(var(--accent-color-rgb),0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;\">' + (c.iconHtml || def.icon) + '</div>';
+            html += '<span style=\"flex:1;font-size:13px;font-weight:500;color:var(--text-primary);\">' + def.name + '</span>';
+            html += '<div class=\"app-icon-toggle\" data-index=\"' + i + '\" style=\"width:44px;height:24px;border-radius:24px;background:' + (c.visible ? 'var(--accent-color)' : 'var(--border-color)') + ';position:relative;cursor:pointer;transition:background 0.3s;flex-shrink:0;\">';
+            html += '<div style=\"position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;' + (c.visible ? 'right:3px' : 'right:23px') + ';transition:right 0.25s;box-shadow:0 1px 3px rgba(0,0,0,0.2);\"></div>';
+            html += '</div>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
+
+        // 绑定切换事件
+        container.querySelectorAll('.app-icon-toggle').forEach(function(toggle) {
+            toggle.addEventListener('click', function() {
+                var idx = parseInt(this.getAttribute('data-index'));
+                var config = loadIconsConfig();
+                config[idx].visible = !config[idx].visible;
+                saveIconsConfig(config);
+                applyIconsConfig(config);
+                renderIconsPanel();
+            });
+        });
+    }
+
+    // 恢复默认按钮
+    var resetBtn = document.getElementById('reset-app-icons-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            var config = DEFAULT_ICONS.map(function(d) { return { id: d.id, visible: true, iconHtml: d.icon }; });
+            saveIconsConfig(config);
+            applyIconsConfig(config);
+            renderIconsPanel();
+            if (typeof window.showNotification === 'function') window.showNotification('功能图标已恢复默认', 'success');
+        });
+    }
+
+    // 首次加载应用配置
+    var config = loadIconsConfig();
+    applyIconsConfig(config);
+
+    // 在打开面板时刷新渲染
+    var origShowPanel = window.showAppearancePanel;
+    window.showAppearancePanel = function(panel) {
+        origShowPanel(panel);
+        if (panel === 'icons') setTimeout(renderIconsPanel, 100);
+    };
+})();

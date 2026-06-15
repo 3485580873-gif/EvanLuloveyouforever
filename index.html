@@ -323,22 +323,6 @@
                         <div class="app-icon" data-app="accounting"><i class="fas fa-coins"></i></div>
                         <span class="app-name">同心记账</span>
                     </div>
-                    <div class="app-item" onclick="openApp('map')">
-                        <div class="app-icon" data-app="map"><i class="fas fa-map-marked-alt"></i></div>
-                        <span class="app-name">Zmilk地图</span>
-                    </div>
-                    <div class="app-item" onclick="openApp('shop')">
-                        <div class="app-icon" data-app="shop"><i class="fas fa-shopping-bag"></i></div>
-                        <span class="app-name">商城</span>
-                    </div>
-                </div>
-            </div>
-            <div class="apps-page" id="apps-page-3">
-                <div class="apps-grid">
-                    <div class="app-item" onclick="openApp('pet')">
-                        <div class="app-icon" data-app="pet"><i class="fas fa-paw"></i></div>
-                        <span class="app-name">萌宠屋</span>
-                    </div>
                     <div class="app-item" onclick="openApp('ta-phone')">
                         <div class="app-icon" data-app="ta-phone">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;">
@@ -354,7 +338,6 @@
             <div class="apps-dots" id="apps-dots">
                 <span class="apps-dot active" onclick="switchAppsPage(0)"></span>
                 <span class="apps-dot" onclick="switchAppsPage(1)"></span>
-                <span class="apps-dot" onclick="switchAppsPage(2)"></span>
             </div>
         </div>
 
@@ -1727,6 +1710,9 @@
     <div class="settings-card" onclick="showAppearancePanel('avatar')" style="cursor:pointer;">
         <i class="fas fa-user-circle"></i><span>聊天头像</span>
     </div>
+    <div class="settings-card" onclick="showAppearancePanel('icons')" style="cursor:pointer;">
+        <i class="fas fa-th"></i><span>功能图标</span>
+    </div>
 </div>
 
 <div id="appearance-panel-container" style="display:none;">
@@ -2075,6 +2061,19 @@
                 </div>
             </div>
             <div id="global-css-status" style="display:none;margin-top:8px;font-size:11px;color:var(--text-secondary);padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border-radius:8px;"></div>
+        </div>
+    </div>
+
+    <div id="appearance-panel-icons" class="appearance-sub-panel" style="display:none;">
+        <div class="settings-section">
+            <div class="settings-section-title"><i class="fas fa-th"></i>功能图标自定义</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;opacity:0.75;">隐藏不需要的功能或更换图标样式</div>
+            <div id="app-icons-config-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="margin-top:14px;text-align:center;">
+                <button class="modal-btn modal-btn-secondary" id="reset-app-icons-btn" style="font-size:12px;padding:6px 14px;">
+                    <i class="fas fa-undo"></i> 恢复默认
+                </button>
+            </div>
         </div>
     </div>
 </div>
