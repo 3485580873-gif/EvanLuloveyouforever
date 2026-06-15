@@ -106,16 +106,74 @@
 
   // ========== Sample Data (从 localStorage 恢复，或初始化为空) ==========
   const momentsData = [];
-  (function loadMomentsFromStorage() {
-    try {
-      const saved = localStorage.getItem('moments_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          parsed.forEach(m => momentsData.push(m));
+  // ========== moments_data 用 IndexedDB 持久化（避免 localStorage 5MB 限制）==========
+  const MOMENTS_DB_NAME = 'MomentsDataDB';
+  const MOMENTS_DB_STORE = 'moments';
+  const MOMENTS_DB_KEY = 'moments_data';
+
+  function openMomentsDataDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(MOMENTS_DB_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(MOMENTS_DB_STORE)) {
+          db.createObjectStore(MOMENTS_DB_STORE);
         }
-      }
-    } catch(e) {}
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e);
+    });
+  }
+
+  function saveMomentsToIDB(data) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = await openMomentsDataDB();
+        const tx = db.transaction(MOMENTS_DB_STORE, 'readwrite');
+        tx.objectStore(MOMENTS_DB_STORE).put(JSON.stringify(data), MOMENTS_DB_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      } catch(e) { reject(e); }
+    });
+  }
+
+  function loadMomentsFromIDB() {
+    return new Promise(async (resolve) => {
+      try {
+        const db = await openMomentsDataDB();
+        const tx = db.transaction(MOMENTS_DB_STORE, 'readonly');
+        const req = tx.objectStore(MOMENTS_DB_STORE).get(MOMENTS_DB_KEY);
+        req.onsuccess = () => {
+          try {
+            const parsed = JSON.parse(req.result || 'null');
+            resolve(Array.isArray(parsed) ? parsed : null);
+          } catch(e) { resolve(null); }
+        };
+        req.onerror = () => resolve(null);
+      } catch(e) { resolve(null); }
+    });
+  }
+
+  (async function loadMomentsFromStorage() {
+    // 优先从 IndexedDB 读取
+    let parsed = await loadMomentsFromIDB();
+    if (parsed) {
+      parsed.forEach(m => momentsData.push(m));
+    } else {
+      // 降级：从 localStorage 读取（兼容旧数据）
+      try {
+        const saved = localStorage.getItem('moments_data');
+        if (saved) {
+          parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(m => momentsData.push(m));
+            // 读到旧数据后，写入 IndexedDB，然后清除 localStorage
+            await saveMomentsToIDB(momentsData);
+            try { localStorage.removeItem('moments_data'); } catch(e) {}
+          }
+        }
+      } catch(e) {}
+    }
 
     // 数据加载完成后，触发 TA的手机 历史扫描
     setTimeout(() => {
@@ -239,40 +297,47 @@
     });
   }
 
-  // 同步保存朋友圈数据到 localStorage（确保不丢失）
-  // 保留所有原始数据，不做任何修改
-  function saveMomentsToStorageSync() {
+  // 同步保存朋友圈数据（优先存 IndexedDB，失败再降级 localStorage）
+  async function saveMomentsToStorageSync() {
+    const dataToSave = momentsData.map(m => ({
+      ...m,
+      images: [...m.images],
+      comments: m.comments ? [...m.comments] : [],
+      likes: m.likes ? [...m.likes] : []
+    }));
     try {
-      const dataToSave = momentsData.map(m => ({
-        ...m,
-        images: [...m.images],
-        comments: m.comments ? [...m.comments] : [],
-        likes: m.likes ? [...m.likes] : []
-      }));
-      const jsonStr = JSON.stringify(dataToSave);
-      localStorage.setItem('moments_data', jsonStr);
-      console.log('[Moments] 同步保存成功，共', momentsData.length, '条，大小', Math.round(jsonStr.length / 1024), 'KB');
-    } catch(e) {
-      console.warn('[Moments] 同步保存失败:', e);
-      // 存储超限时，尝试将大图片替换为 IDB 引用后保存
+      // 优先存 IndexedDB
+      await saveMomentsToIDB(dataToSave);
+      console.log('[Moments] IndexedDB 保存成功，共', momentsData.length, '条');
+      // 同时写一份到 localStorage（兼容旧版），超大小就忽略
       try {
-        const reduced = momentsData.map(m => {
-          const saved = { ...m, images: [...m.images] };
-          for (let ii = 0; ii < saved.images.length; ii++) {
-            const img = saved.images[ii];
-            if (typeof img === 'string' && img.length > IDB_IMAGE_THRESHOLD && !img.startsWith('__IDB_IMG__')) {
-              saved.images[ii] = '__IDB_IMG__' + m.id + '_' + ii;
-            }
-          }
-          if (saved.video && saved.video.url && saved.video.url.length > 1000 && !saved.video.url.startsWith('__IDB__')) {
-            saved.video = { ...saved.video, url: '__IDB__' + m.id };
-          }
-          return saved;
-        });
-        localStorage.setItem('moments_data', JSON.stringify(reduced));
-        console.warn('[Moments] 已降级保存（大图片替换为IDB引用）');
+        localStorage.setItem('moments_data', JSON.stringify(dataToSave));
+      } catch(e) { /* 忽略，IndexedDB 已成功 */ }
+    } catch(e) {
+      console.warn('[Moments] IndexedDB 保存失败，降级 localStorage:', e);
+      // 降级：直接存 localStorage，超限则裁剪大图
+      try {
+        localStorage.setItem('moments_data', JSON.stringify(dataToSave));
       } catch(e2) {
-        console.error('[Moments] 降级保存也失败:', e2);
+        try {
+          const reduced = dataToSave.map(m => {
+            const saved = { ...m, images: [...m.images] };
+            for (let ii = 0; ii < saved.images.length; ii++) {
+              if (typeof saved.images[ii] === 'string' && saved.images[ii].length > IDB_IMAGE_THRESHOLD) {
+                saved.images[ii] = '__IDB_IMG__' + m.id + '_' + ii;
+              }
+            }
+            if (saved.video && saved.video.url && saved.video.url.length > 1000) {
+              saveVideoToIDB(m.id, saved.video.url);
+              saved.video = { ...saved.video, url: '__IDB__' + m.id };
+            }
+            return saved;
+          });
+          localStorage.setItem('moments_data', JSON.stringify(reduced));
+          console.warn('[Moments] 已降级保存（大图片替换为IDB引用）');
+        } catch(e3) {
+          console.error('[Moments] 降级保存也失败:', e3);
+        }
       }
     }
   }
