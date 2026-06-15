@@ -1,0 +1,10 @@
+# WorkBuddy workspace data
+.workbuddy/
+2026-06-14-11-56-37/
+
+# Third-party tools
+Claw/
+
+# System files
+.DS_Store
+Thumbs.db
