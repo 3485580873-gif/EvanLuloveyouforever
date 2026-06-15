@@ -1136,6 +1136,17 @@
     const m = momentsData.find(x => x.id === momentId);
     if (!m) { console.log('[DEBUG] 未找到朋友圈'); return; }
 
+    // forceCurrent 时，找到"我"的最后一条评论作为回复引用目标
+    let replyToUser = null;
+    if (forceCurrent) {
+      for (let i = m.comments.length - 1; i >= 0; i--) {
+        if (m.comments[i].name === userConfig.name) {
+          replyToUser = userConfig.name;
+          break;
+        }
+      }
+    }
+
     // 刷新系统（伴侣）信息缓存
     await loadPartnerInfo();
 
@@ -1268,7 +1279,8 @@
           m.comments.push({
             name: plan.name,
             text: '',
-            sticker: sticker
+            sticker: sticker,
+            replyTo: replyToUser || undefined
           });
           showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
           continue;
@@ -1301,7 +1313,8 @@
 
         m.comments.push({
           name: plan.name,
-          text: replyText
+          text: replyText,
+          replyTo: replyToUser || undefined
         });
         console.log('[DEBUG] 自动回复成功: ' + plan.name + ' -> ' + replyText);
         showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
