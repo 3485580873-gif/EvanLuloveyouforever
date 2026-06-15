@@ -145,10 +145,19 @@
         decide: '<i class="fas fa-balance-scale"></i>',
         stats: '<i class="fas fa-chart-bar"></i>',
         accounting: '<i class="fas fa-coins"></i>',
-        'ta-phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg>'
+        'ta-phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><rect x="5" y="2" width="14" height="20" rx="2.5"/><line x1="10" y1="18" x2="14" y2="18"/></svg>',
+        pet: '<i class="fas fa-paw"></i>',
+        shop: '<i class="fas fa-store"></i>',
+        map: '<i class="fas fa-map-marked-alt"></i>',
+        moments: '<i class="fas fa-camera-retro"></i>',
+        music: '<i class="fas fa-music"></i>',
+        todolist: '<i class="fas fa-tasks"></i>',
+        dream: '<i class="fas fa-cloud-moon"></i>',
+        game: '<i class="fas fa-gamepad"></i>',
+        'gift-cabinet': '<i class="fas fa-gift"></i>'
     };
 
-    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'map'];
+    const defaultAppOrder = ['chat', 'mailbox', 'moyu', 'diary', 'fortune', 'mood', 'calendar', 'decide', 'stats', 'accounting', 'map', 'pet', 'shop', 'ta-phone', 'moments', 'gift-cabinet', 'music', 'todolist', 'dream', 'game'];
     let appOrder = [...defaultAppOrder];
     let isEditMode = false;
 
@@ -1162,7 +1171,7 @@
         if (!grid) return;
 
         grid.innerHTML = '';
-        const nameMap = { chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', stats:'统计', accounting:'记账', pet:'萌宠屋', 'ta-phone':'TA的手机', shop:'商城', map:'地图', moments:'朋友圈', music:'音乐', todolist:'待办', dream:'梦境', game:'小游戏' };
+        const nameMap = { chat:'聊天', mailbox:'信封', moyu:'摸鱼', diary:'朝夕心记', fortune:'运势', mood:'心晴', calendar:'日历', decide:'抉择', stats:'统计', accounting:'记账', pet:'萌宠屋', 'ta-phone':'TA的手机', shop:'商城', map:'地图', moments:'朋友圈', 'gift-cabinet':'礼物柜', music:'音乐', todolist:'待办', dream:'梦境', game:'小游戏' };
 
         Object.keys(defaultAppIcons).forEach(app => {
             const item = document.createElement('div');
@@ -1666,7 +1675,29 @@
                         })
                         .catch(err => console.error('加载朋友圈失败:', err));
                 }
-            }
+            },
+            'gift-cabinet': () => {
+                if (typeof window.GiftCabinetApp !== 'undefined') {
+                    window.GiftCabinetApp.show();
+                } else {
+                    (window.showNotification || function(){})('礼物柜加载中...', 'info');
+                    const script = document.createElement('script');
+                    var basePath = window.location.pathname.replace(/\/[^\/]*$/, '/') || '/';
+                    script.src = basePath + 'js/gift-cabinet.js';
+                    script.onload = function() {
+                        if (typeof window.GiftCabinetApp !== 'undefined') window.GiftCabinetApp.show();
+                        else (window.showNotification || function(){})('礼物柜加载失败', 'error');
+                    };
+                    script.onerror = function() {
+                        (window.showNotification || function(){})('礼物柜模块开发中...', 'info');
+                    };
+                    document.head.appendChild(script);
+                }
+            },
+            'music': () => (window.showNotification || function(){})('音乐模块开发中...', 'info'),
+            'todolist': () => (window.showNotification || function(){})('待办清单模块开发中...', 'info'),
+            'dream': () => (window.showNotification || function(){})('梦境模块开发中...', 'info'),
+            'game': () => (window.showNotification || function(){})('小游戏模块开发中...', 'info')
         };
 
         if (appActions[app]) {

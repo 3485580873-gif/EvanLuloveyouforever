@@ -1,0 +1,166 @@
+/* ========== 火花功能样式 ========== */
+.spark-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    margin-left: 4px;
+    transition: all 0.3s ease;
+}
+.spark-icon:hover {
+    background: rgba(255,255,255,0.08);
+}
+.spark-icon.active .spark-flame {
+    filter: drop-shadow(0 0 6px rgba(255, 140, 0, 0.5));
+}
+.spark-icon.inactive .spark-flame {
+    filter: grayscale(100%) brightness(0.5);
+    opacity: 0.6;
+}
+.spark-flame {
+    font-size: 18px;
+}
+.spark-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 8px;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* 火花弹窗遮罩 */
+.spark-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: sparkModalBgFadeIn 0.3s ease;
+}
+@keyframes sparkModalBgFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* 火花弹窗主体 */
+.spark-modal {
+    width: 300px;
+    background: var(--secondary-bg, #ffffff);
+    border-radius: 20px;
+    padding: 28px 20px;
+    text-align: center;
+    border: 1px solid var(--surface-border, #e0e0e0);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24), 0 2px 10px rgba(0, 0, 0, 0.10);
+    animation: sparkModalSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+}
+@keyframes sparkModalSlideIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.spark-modal-flame {
+    font-size: 56px;
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+.spark-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 6px;
+}
+.spark-modal-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary, #666666);
+    margin-bottom: 20px;
+}
+
+/* 统计卡片网格 */
+.spark-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.spark-stat-card {
+    background: var(--primary-bg, #f8f9fa);
+    border-radius: 14px;
+    padding: 14px 10px;
+    border: 1px solid var(--border-color, #e8e8e8);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.spark-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.spark-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f7931e;
+    margin-bottom: 4px;
+}
+.spark-stat-label {
+    font-size: 11px;
+    color: var(--text-secondary, #888888);
+}
+
+/* 重燃提示区域 */
+.spark-rekindle-info {
+    background: linear-gradient(135deg, rgba(255,107,53,0.1), rgba(247,147,30,0.08));
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,107,53,0.15);
+}
+.spark-rekindle-info.needed {
+    background: linear-gradient(135deg, rgba(139,148,158,0.08), rgba(139,148,158,0.04));
+    border-color: rgba(139,148,158,0.15);
+}
+.spark-rekindle-info .rekindle-text {
+    font-size: 13px;
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 500;
+}
+.spark-rekindle-info .rekindle-sub {
+    font-size: 11px;
+    color: var(--text-secondary, #666666);
+    margin-top: 4px;
+}
+
+/* 关闭按钮 */
+.spark-modal-close {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.spark-modal-close:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.35);
+}
+.spark-modal-close:active {
+    transform: scale(0.96);
+}

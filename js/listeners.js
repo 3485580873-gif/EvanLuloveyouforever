@@ -742,6 +742,15 @@ window.setReadReceiptStyle = function(style) {
             const localFontUploadBtn = document.getElementById('local-font-upload-btn');
             const localFontFileInput = document.getElementById('local-font-file-input');
             const localFontFileName = document.getElementById('local-font-file-name');
+            const localFontClearBtn = document.getElementById('local-font-clear-btn');
+
+            // 页面加载时，如果有已保存的本地字体，显示文件名和清除按钮
+            if (settings.customFontFileName && localFontFileName) {
+                localFontFileName.textContent = settings.customFontFileName;
+            }
+            if (localFontClearBtn && settings.customFontUrl && settings.customFontUrl.startsWith('data:')) {
+                localFontClearBtn.style.display = 'inline-block';
+            }
 
             if (localFontUploadBtn && localFontFileInput) {
                 localFontUploadBtn.addEventListener('click', () => {
@@ -787,6 +796,39 @@ window.setReadReceiptStyle = function(style) {
                         showNotification('读取字体文件失败', 'error');
                     };
                     reader.readAsDataURL(file);
+                });
+
+                // 清除本地字体按钮
+                if (localFontClearBtn) {
+                    localFontClearBtn.addEventListener('click', () => {
+                        // 清除字体设置
+                        if (fontUrlInput) fontUrlInput.value = '';
+                        settings.customFontUrl = '';
+                        settings.customFontFileName = '';
+                        settings.messageFontFamily = '';
+                        if (localFontFileName) localFontFileName.textContent = '';
+                        localFontClearBtn.style.display = 'none';
+                        // 恢复默认字体
+                        document.documentElement.style.removeProperty('--font-family');
+                        document.documentElement.style.removeProperty('--message-font-family');
+                        // 移除自定义字体
+                        document.fonts.forEach(f => {
+                            if (f.family === 'UserCustomFont') document.fonts.delete(f);
+                        });
+                        const styleEl = document.getElementById('custom-font-face-style');
+                        if (styleEl) styleEl.remove();
+                        throttledSaveData();
+                        showNotification('已恢复默认字体', 'success');
+                    });
+                }
+
+                // 字体上传后也显示清除按钮
+                localFontFileInput.addEventListener('change', function() {
+                    setTimeout(function() {
+                        if (settings.customFontUrl && settings.customFontUrl.startsWith('data:') && localFontClearBtn) {
+                            localFontClearBtn.style.display = 'inline-block';
+                        }
+                    }, 500);
                 });
             }
 
@@ -2439,7 +2481,16 @@ window.exitCollapseMode = function() {
         { id: 'decide',  name: '抉择',      icon: '<i class=\"fas fa-balance-scale\"></i>', page: 0 },
         { id: 'stats',   name: '消息统计',  icon: '<i class=\"fas fa-chart-bar\"></i>',     page: 1 },
         { id: 'accounting', name: '同心记账', icon: '<i class=\"fas fa-coins\"></i>',       page: 1 },
-        { id: 'ta-phone',  name: 'TA的手机', icon: '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\"><rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2.5\"/><line x1=\"10\" y1=\"18\" x2=\"14\" y2=\"18\"/></svg>', page: 1 }
+        { id: 'map',     name: '地图',      icon: '<i class=\"fas fa-map-marked-alt\"></i>', page: 1 },
+        { id: 'pet',     name: '萌宠屋',    icon: '<i class=\"fas fa-paw\"></i>',           page: 1 },
+        { id: 'shop',    name: '商城',      icon: '<i class=\"fas fa-store\"></i>',         page: 1 },
+        { id: 'ta-phone',  name: 'TA的手机', icon: '<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:20px;height:20px;\"><rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2.5\"/><line x1=\"10\" y1=\"18\" x2=\"14\" y2=\"18\"/></svg>', page: 1 },
+        { id: 'moments', name: '朋友圈',    icon: '<i class=\"fas fa-camera-retro\"></i>',   page: 2 },
+        { id: 'gift-cabinet', name: '礼物柜', icon: '<i class=\"fas fa-gift\"></i>',        page: 2 },
+        { id: 'music',   name: '音乐',      icon: '<i class=\"fas fa-music\"></i>',         page: 2 },
+        { id: 'todolist', name: '待办清单',  icon: '<i class=\"fas fa-tasks\"></i>',        page: 2 },
+        { id: 'dream',   name: '梦境',      icon: '<i class=\"fas fa-cloud-moon\"></i>',    page: 2 },
+        { id: 'game',    name: '小游戏',    icon: '<i class=\"fas fa-gamepad\"></i>',       page: 2 }
     ];
 
     function loadIconsConfig() {

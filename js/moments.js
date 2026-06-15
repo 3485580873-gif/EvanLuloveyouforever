@@ -13,6 +13,30 @@
     coverImage: 'https://picsum.photos/seed/cover123/800/400'
   };
 
+  // ========== 读取表情包库（与自定义回复库同步） ==========
+  async function getStickerLibrary() {
+    // 优先从 window 全局变量读取（core.js 初始化时设置）
+    if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary) && window._stickerLibrary.length > 0) {
+      return window._stickerLibrary.filter(Boolean);
+    }
+    // 回退到全局 stickerLibrary 变量
+    if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary) && stickerLibrary.length > 0) {
+      return stickerLibrary.filter(Boolean);
+    }
+    // 如果都为空，尝试从 localforage 读取（兜底）
+    if (typeof localforage !== 'undefined') {
+      try {
+        const saved = await localforage.getItem('stickerLibrary');
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+          // 同步到 window，避免下次再读 localforage
+          window._stickerLibrary = saved;
+          return saved.filter(Boolean);
+        }
+      } catch(e) {}
+    }
+    return [];
+  }
+
   // ========== 从 Home 页同步头像 ==========
   async function syncAvatarFromHome() {
     let avatarUrl = null;
@@ -77,116 +101,7 @@
       userConfig.signature = userSignature.replace(/^["']|["']$/g, '');
     }
 
-    // ========== 伴侣自动发朋友圈 ==========
-  let _partnerMomentTimer = null;
-
-  function startPartnerMomentTimer() {
-    stopPartnerMomentTimer();
-    const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
-    if (!enabled) return;
-
-    const intervalMin = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
-    const intervalMax = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
-    const countMax = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
-    const interval = (intervalMin + Math.random() * (intervalMax - intervalMin)) * 60 * 1000;
-
-    console.log('[Moments] Partner moment timer scheduled in', interval / 60000, 'min');
-
-    _partnerMomentTimer = setTimeout(async () => {
-      try {
-        await publishPartnerMoment(countMax);
-      } catch(e) {
-        console.warn('[Moments] Partner moment publish error:', e);
-      }
-      startPartnerMomentTimer();
-    }, interval);
-  }
-
-  function stopPartnerMomentTimer() {
-    if (_partnerMomentTimer) {
-      clearTimeout(_partnerMomentTimer);
-      _partnerMomentTimer = null;
-    }
-  }
-
-  async function publishPartnerMoment(countMax) {
-    const customReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
-    const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean);
-    const customEmojis = (window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean);
-    let _stickerLib = [];
-    if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
-      _stickerLib = window._stickerLibrary;
-    } else if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) {
-      _stickerLib = stickerLibrary;
-    }
-    const stickerLibraryFiltered = _stickerLib.filter(Boolean);
-
-    const textPool = [...customReplies, ...kaomojiLibrary, ...customEmojis];
-    if (textPool.length === 0 && stickerLibraryFiltered.length === 0) return;
-
-    const textCount = Math.min(1 + Math.floor(Math.random() * 3), textPool.length);
-    const shuffled = textPool.sort(() => Math.random() - 0.5);
-    const selectedTexts = shuffled.slice(0, textCount);
-    const text = selectedTexts.join(' ');
-
-    let sticker = null;
-    if (stickerLibraryFiltered.length > 0 && Math.random() < 0.3) {
-      sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-    }
-
-    if (!text && !sticker) return;
-
-    await loadPartnerInfo();
-    const partnerName = getPartnerName();
-    const partnerAvatar = getPartnerAvatar();
-
-    const actualCount = Math.max(1, Math.floor(Math.random() * countMax) + 1);
-    for (let i = 0; i < actualCount; i++) {
-      let momentText = text;
-      let momentSticker = sticker;
-      if (i > 0) {
-        const tc2 = Math.min(1 + Math.floor(Math.random() * 3), textPool.length);
-        const sh2 = [...textPool].sort(() => Math.random() - 0.5);
-        momentText = sh2.slice(0, tc2).join(' ');
-        momentSticker = (stickerLibraryFiltered.length > 0 && Math.random() < 0.3)
-          ? stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)]
-          : null;
-        if (!momentText && !momentSticker) continue;
-      }
-
-      const newMoment = {
-        id: Date.now() + i,
-        avatar: partnerAvatar,
-        nickname: partnerName,
-        time: Date.now() + i,
-        text: momentText || '',
-        images: [],
-        sticker: momentSticker,
-        video: null,
-        likes: [],
-        likedByMe: false,
-        collected: false,
-        comments: [],
-        mentions: [],
-        location: ''
-      };
-
-      momentsData.unshift(newMoment);
-    }
-
-    saveMomentsToStorage();
-    renderMoments();
-
-    if (actualCount > 0 && momentsData.length > 0) {
-      setTimeout(() => {
-        triggerAutoReply(momentsData[0].id);
-      }, 2000 + Math.random() * 3000);
-    }
-
-    console.log('[Moments] Partner published', actualCount, 'moment(s)');
-  }
-
-  return { avatar: userConfig.avatar, name: userConfig.name, signature: userConfig.signature };
+    return { avatar: userConfig.avatar, name: userConfig.name, signature: userConfig.signature };
   }
 
   // ========== Sample Data (从 localStorage 恢复，或初始化为空) ==========
@@ -201,6 +116,13 @@
         }
       }
     } catch(e) {}
+
+    // 数据加载完成后，触发 TA的手机 历史扫描
+    setTimeout(() => {
+      if (typeof window.TaPhoneApp === 'object' && typeof window.TaPhoneApp.init === 'function') {
+        window.TaPhoneApp.init();
+      }
+    }, 100);
   })();
 
   // ========== 大文件存储（IndexedDB）- 视频 + 图片 ==========
@@ -226,8 +148,13 @@
     try {
       const db = await openMomentsDB();
       const tx = db.transaction('videos', 'readwrite');
-      tx.objectStore('videos').put(videoBase64, 'vid_' + momentId);
-    } catch(e) { console.warn('视频存储失败:', e); }
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.objectStore('videos').put(videoBase64, 'vid_' + momentId);
+      });
+      console.log('[Moments] IDB 视频保存成功:', momentId);
+    } catch(e) { console.warn('[Moments] 视频存储失败:', e); }
   }
   async function getVideoFromIDB(momentId) {
     try {
@@ -246,8 +173,13 @@
     try {
       const db = await openMomentsDB();
       const tx = db.transaction('images', 'readwrite');
-      tx.objectStore('images').put(imageBase64, 'img_' + momentId + '_' + imageIndex);
-    } catch(e) { console.warn('图片存储失败:', e); }
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.objectStore('images').put(imageBase64, 'img_' + momentId + '_' + imageIndex);
+      });
+      console.log('[Moments] IDB 图片保存成功:', momentId, imageIndex);
+    } catch(e) { console.warn('[Moments] 图片存储失败:', e); }
   }
   async function getImageFromIDB(momentId, imageIndex) {
     try {
@@ -307,7 +239,45 @@
     });
   }
 
-  // 保存朋友圈数据到 localStorage（视频和大图片存 IndexedDB，localStorage 只保留引用）
+  // 同步保存朋友圈数据到 localStorage（确保不丢失）
+  // 保留所有原始数据，不做任何修改
+  function saveMomentsToStorageSync() {
+    try {
+      const dataToSave = momentsData.map(m => ({
+        ...m,
+        images: [...m.images],
+        comments: m.comments ? [...m.comments] : [],
+        likes: m.likes ? [...m.likes] : []
+      }));
+      const jsonStr = JSON.stringify(dataToSave);
+      localStorage.setItem('moments_data', jsonStr);
+      console.log('[Moments] 同步保存成功，共', momentsData.length, '条，大小', Math.round(jsonStr.length / 1024), 'KB');
+    } catch(e) {
+      console.warn('[Moments] 同步保存失败:', e);
+      // 存储超限时，尝试将大图片替换为 IDB 引用后保存
+      try {
+        const reduced = momentsData.map(m => {
+          const saved = { ...m, images: [...m.images] };
+          for (let ii = 0; ii < saved.images.length; ii++) {
+            const img = saved.images[ii];
+            if (typeof img === 'string' && img.length > IDB_IMAGE_THRESHOLD && !img.startsWith('__IDB_IMG__')) {
+              saved.images[ii] = '__IDB_IMG__' + m.id + '_' + ii;
+            }
+          }
+          if (saved.video && saved.video.url && saved.video.url.length > 1000 && !saved.video.url.startsWith('__IDB__')) {
+            saved.video = { ...saved.video, url: '__IDB__' + m.id };
+          }
+          return saved;
+        });
+        localStorage.setItem('moments_data', JSON.stringify(reduced));
+        console.warn('[Moments] 已降级保存（大图片替换为IDB引用）');
+      } catch(e2) {
+        console.error('[Moments] 降级保存也失败:', e2);
+      }
+    }
+  }
+
+  // 异步保存朋友圈数据到 localStorage（视频和大图片存 IndexedDB，localStorage 只保留引用）
   async function saveMomentsToStorage() {
     try {
       const dataToSave = [];
@@ -495,15 +465,20 @@
   async function restoreImagesFromIDB() {
     for (let mi = 0; mi < momentsData.length; mi++) {
       const m = momentsData[mi];
+      if (!m.images || !Array.isArray(m.images)) { m.images = []; continue; }
       for (let ii = 0; ii < m.images.length; ii++) {
         const img = m.images[ii];
         if (typeof img === 'string' && img.startsWith('__IDB_IMG__')) {
           // 解析 key: __IDB_IMG__{momentId}_{imageIndex}
-          const parts = img.replace('__IDB_IMG__', '').split('_');
+          const key = img.replace('__IDB_IMG__', '');
+          const parts = key.split('_');
           if (parts.length >= 2) {
             const data = await getImageFromIDB(parseInt(parts[0]), parseInt(parts[1]));
             if (data) {
               m.images[ii] = data; // 恢复到内存
+            } else {
+              console.warn('[Moments] IDB 图片恢复失败:', key);
+              m.images[ii] = ''; // 标记为空，避免重复尝试
             }
           }
         }
@@ -552,7 +527,12 @@
   function renderMomentCard(m) {
     // 计算媒体总数（图片+视频）
     const mediaItems = [];
-    m.images.forEach((img, i) => mediaItems.push({ type: 'image', src: img, index: i }));
+    const imgs = m.images || [];
+    imgs.forEach((img, i) => {
+      if (img && typeof img === 'string' && !img.startsWith('__IDB_IMG__') && img !== '[图片]') {
+        mediaItems.push({ type: 'image', src: img, index: i });
+      }
+    });
     if (m.video) mediaItems.push({ type: 'video', src: m.video.cover, url: m.video.url, duration: m.video.duration });
 
     const totalMedia = mediaItems.length;
@@ -580,7 +560,7 @@
     ` : '';
 
     const stickerHtml = m.sticker ? `
-      <div class="moment-sticker" onclick="MomentsApp.openStickerPreview('${m.sticker}')">
+      <div class="moment-sticker" data-sticker-url="${encodeURIComponent(m.sticker)}">
         <img src="${m.sticker}" alt="表情包" loading="lazy">
       </div>
     ` : '';
@@ -664,10 +644,24 @@
   // ========== Card Long Press for Edit ==========
   let cardLongPressTimer = null;
 
+  let _stickerDelegateBound = false;
   function setupCardLongPress() {
     const container = document.getElementById('moments-container');
     if (!container) return;
-    
+
+    // sticker 点击事件委托（只绑定一次）
+    if (!_stickerDelegateBound) {
+      _stickerDelegateBound = true;
+      container.addEventListener('click', function(e) {
+        const stickerEl = e.target.closest('.moment-sticker');
+        if (stickerEl && stickerEl.dataset.stickerUrl) {
+          e.stopPropagation();
+          openStickerPreview(decodeURIComponent(stickerEl.dataset.stickerUrl));
+          return;
+        }
+      });
+    }
+
     container.querySelectorAll('.moment-card').forEach(card => {
       card.addEventListener('touchstart', handleCardLongPressStart, { passive: true });
       card.addEventListener('touchend', handleCardLongPressEnd);
@@ -801,7 +795,7 @@
     m.location = container.querySelector('#editLocationInput').value.trim();
     m.mentions = [...editMentions];
 
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
     closeEditPanel();
   }
@@ -814,7 +808,7 @@
       if (idx >= 0) {
         const removed = momentsData.splice(idx, 1)[0];
         deleteMomentFromIDB(removed); // 清理 IDB 中的图片和视频
-        saveMomentsToStorage();
+        saveMomentsToStorageSync();
         renderMoments();
       }
       closeEditPanel();
@@ -1104,7 +1098,7 @@
         m.comments.push({ name, text });
       }
     }
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
     closeCustomPanel();
   }
@@ -1114,7 +1108,7 @@
     const m = momentsData.find(x => x.id === momentId);
     if (!m) return;
     m.collected = !m.collected;
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
   }
 
@@ -1134,7 +1128,7 @@
     }
   }
 
-  // ========== Auto Reply (从字卡库/表情包/颜文字随机选取) ==========
+  // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId) {
     const m = momentsData.find(x => x.id === momentId);
     if (!m) return;
@@ -1142,13 +1136,13 @@
     // 刷新系统（伴侣）信息缓存
     await loadPartnerInfo();
 
-    // 获取字卡库
-    const customReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
-    // 获取颜文字库
+    // 确保好友列表已加载
+    if (momentsFriends.length === 0) await loadMomentsFriends();
+
+    // 获取当前会话的字卡库和公共资源
+    const currentReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
     const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean);
-    // 获取自定义表情
     const customEmojis = (window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean);
-    // 获取表情包库
     let _stickerLib = [];
     if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
       _stickerLib = window._stickerLibrary;
@@ -1157,10 +1151,20 @@
     }
     const stickerLibraryFiltered = _stickerLib.filter(Boolean);
 
-    const hasTextContent = customReplies.length > 0 || kaomojiLibrary.length > 0 || customEmojis.length > 0;
+    const hasTextContent = currentReplies.length > 0 || kaomojiLibrary.length > 0 || customEmojis.length > 0;
     const hasStickers = stickerLibraryFiltered.length > 0;
 
-    if (!hasTextContent && !hasStickers) {
+    // 检查是否有任何会话有字卡库
+    let anySessionHasReplies = hasTextContent;
+    const sessionPartners = momentsFriends.filter(function(f) { return f.isSession && f.sessionId; });
+    for (let i = 0; i < sessionPartners.length && !anySessionHasReplies; i++) {
+      if (sessionPartners[i].sessionId !== window.SESSION_ID) {
+        const replies = await getSessionReplies(sessionPartners[i].sessionId);
+        if (replies.length > 0) anySessionHasReplies = true;
+      }
+    }
+
+    if (!anySessionHasReplies && !hasStickers) {
       const container = document.getElementById('moments-container');
       if (container) {
         const hint = container.querySelector('#longPressHint');
@@ -1179,92 +1183,143 @@
       ? (Math.random() < 0.7 ? 1 : (Math.random() < 0.9 ? 2 : 3))
       : countSetting;
 
-    // 自动互动使用缓存的伴侣（系统）信息
-    let replierName = getPartnerName();
-    let partnerAvatar = getPartnerAvatar();
+    // ========== 多会话回复逻辑 ==========
+    // 每个会话伴侣独立判断是否回复（60%概率），但保证至少一个回复
+    const currentSessionId = window.SESSION_ID;
+    const repliers = []; // { name, avatar, sessionId, replies[] }
 
-    for (let i = 0; i < replyCount; i++) {
-      // 20% 概率发送表情包（如果有表情包库）
-      const sendSticker = hasStickers && Math.random() < 0.2;
+    // 打乱会话顺序
+    const shuffled = sessionPartners.slice().sort(function() { return Math.random() - 0.5; });
 
-      if (sendSticker) {
-        const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-        m.comments.push({
-          name: replierName,
-          text: '',
-          sticker: sticker
-        });
-        showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
-        continue;
+    for (let i = 0; i < shuffled.length; i++) {
+      const sp = shuffled[i];
+      // 60% 概率该会话回复
+      if (Math.random() < 0.6) {
+        const replies = sp.sessionId === currentSessionId
+          ? currentReplies
+          : await getSessionReplies(sp.sessionId);
+        if (replies.length > 0 || hasStickers) {
+          repliers.push({
+            name: sp.name,
+            avatar: sp.avatar,
+            sessionId: sp.sessionId,
+            replies: replies
+          });
+        }
       }
+    }
 
-      if (!hasTextContent) continue;
-
-      let replyText = '';
-
-      // 优先从字卡库选取（70%概率），否则从颜文字库选取
-      const useKaomoji = customReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
-      
-      if (useKaomoji && kaomojiLibrary.length > 0) {
-        replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-      } else if (customReplies.length > 0) {
-        replyText = customReplies[Math.floor(Math.random() * customReplies.length)];
-      }
-
-      if (!replyText) continue;
-
-      // Emoji 混入（20%概率）
-      if (customEmojis.length > 0 && Math.random() < 0.2) {
-        const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
-        replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
-      }
-
-      // 颜文字混入（如果回复本身不是颜文字，25%概率额外混入）
-      if (kaomojiLibrary.length > 0 && !useKaomoji && Math.random() < 0.25) {
-        const kaomoji = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-        replyText = Math.random() < 0.5 ? kaomoji + ' ' + replyText : replyText + ' ' + kaomoji;
-      }
-
-      m.comments.push({
-        name: replierName,
-        text: replyText
+    // 如果没有任何会话回复，强制当前会话回复
+    if (repliers.length === 0 && sessionPartners.length > 0) {
+      const currentPartner = sessionPartners.find(function(sp) { return sp.sessionId === currentSessionId; })
+        || sessionPartners[0];
+      repliers.push({
+        name: currentPartner.name,
+        avatar: currentPartner.avatar,
+        sessionId: currentPartner.sessionId,
+        replies: currentPartner.sessionId === currentSessionId ? currentReplies : await getSessionReplies(currentPartner.sessionId)
       });
-      showMomentsNotification(replierName, partnerAvatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
+    }
+
+    // 分配回复数量给各个回复者
+    let remainingReplies = replyCount;
+    const replyPlan = []; // { name, avatar, count, replies[] }
+
+    for (let i = 0; i < repliers.length && remainingReplies > 0; i++) {
+      const count = i === repliers.length - 1 ? remainingReplies : (Math.random() < 0.5 ? 1 : Math.min(2, remainingReplies));
+      replyPlan.push({
+        name: repliers[i].name,
+        avatar: repliers[i].avatar,
+        sessionId: repliers[i].sessionId,
+        count: count,
+        replies: repliers[i].replies
+      });
+      remainingReplies -= count;
+    }
+
+    // 执行回复
+    for (let r = 0; r < replyPlan.length; r++) {
+      const plan = replyPlan[r];
+      const planReplies = plan.replies;
+
+      for (let i = 0; i < plan.count; i++) {
+        // 20% 概率发送表情包
+        const sendSticker = hasStickers && Math.random() < 0.2;
+
+        if (sendSticker) {
+          const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
+          m.comments.push({
+            name: plan.name,
+            text: '',
+            sticker: sticker
+          });
+          showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
+          continue;
+        }
+
+        let replyText = '';
+
+        // 使用该会话自己的字卡库
+        const useKaomoji = planReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
+
+        if (useKaomoji && kaomojiLibrary.length > 0) {
+          replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+        } else if (planReplies.length > 0) {
+          replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
+        }
+
+        if (!replyText) continue;
+
+        // Emoji 混入（20%概率）
+        if (customEmojis.length > 0 && Math.random() < 0.2) {
+          const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
+          replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
+        }
+
+        // 颜文字混入
+        if (kaomojiLibrary.length > 0 && !useKaomoji && Math.random() < 0.25) {
+          const kaomoji = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+          replyText = Math.random() < 0.5 ? kaomoji + ' ' + replyText : replyText + ' ' + kaomoji;
+        }
+
+        m.comments.push({
+          name: plan.name,
+          text: replyText
+        });
+        showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
+      }
     }
 
     // 自动点赞（80%概率）
     let didLike = false;
     if (Math.random() < 0.8) {
       if (isFriendLikeEnabled()) {
-        // 开启好友点赞：从好友列表中完全随机选取（不限数量）
+        // 开启好友点赞：从好友列表中每个好友独立判断（50%概率）
         if (momentsFriends.length === 0) await loadMomentsFriends();
-        // 每个好友独立判断是否点赞（50%概率）
         momentsFriends.forEach(function(friend) {
           if (Math.random() < 0.5 && !m.likes.includes(friend.name)) {
             m.likes.push(friend.name);
           }
         });
-        // 系统（伴侣）也参与点赞，并标记需要通知
-        if (!m.likes.includes(replierName)) {
-          m.likes.push(replierName);
-        }
         didLike = true;
       } else {
-        // 关闭好友点赞：只有系统（伴侣）点赞
-        if (!m.likes.includes(replierName)) {
-          m.likes.push(replierName);
+        // 关闭好友点赞：只有当前会话伴侣点赞
+        const currentName = getPartnerName();
+        if (!m.likes.includes(currentName)) {
+          m.likes.push(currentName);
           didLike = true;
         }
       }
     }
 
     // 先保存并渲染，确保 DOM 更新后再发送通知
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
 
-    // 发送点赞通知（只有系统点赞才通知）
+    // 发送点赞通知（取最后一个回复者的信息）
     if (didLike) {
-      showMomentsNotification(replierName, partnerAvatar, 'like', 1, m.id, '', getMomentPreviewImage(m));
+      const lastReplier = replyPlan.length > 0 ? replyPlan[replyPlan.length - 1] : { name: getPartnerName(), avatar: getPartnerAvatar() };
+      showMomentsNotification(lastReplier.name, lastReplier.avatar, 'like', 1, m.id, '', getMomentPreviewImage(m));
     }
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
@@ -1284,7 +1339,7 @@
       m.likes.push(myName);
       m.likedByMe = true;
     }
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
   }
 
@@ -1379,27 +1434,6 @@
     }, 5 * 60 * 1000);
   }
 
-  // ========== 伴侣偷偷看朋友圈 ==========
-  let _partnerSneakTimer = null;
-
-  function startPartnerSneakVisit() {
-    stopPartnerSneakVisit();
-    _partnerSneakTimer = setInterval(() => {
-      // 3%概率偷偷看朋友圈（与拍一拍概率一致）
-      if (Math.random() < 0.03) {
-        generateOneVisitorRecord(Date.now());
-        console.log('[Moments] Partner sneak visit - left visitor record');
-      }
-    }, 5 * 60 * 1000); // 每5分钟检查一次
-  }
-
-  function stopPartnerSneakVisit() {
-    if (_partnerSneakTimer) {
-      clearInterval(_partnerSneakTimer);
-      _partnerSneakTimer = null;
-    }
-  }
-
   function stopOnlineVisitorTimer() {
     if (visitorTimerInterval) { clearInterval(visitorTimerInterval); visitorTimerInterval = null; }
     localStorage.setItem(VISITOR_LAST_ONLINE_KEY, Date.now().toString());
@@ -1489,14 +1523,16 @@
       }
       const streak = calcStreakDays(record.timestamp);
       const streakTag = streak >= 2 ? `<span class="visitor-streak-tag">连续来访${streak}天</span>` : '';
-      const timeStr = formatMomentTime(record.timestamp);
+      // 显示具体访问时间（时分）
+      const visitDate = new Date(record.timestamp);
+      const visitTimeStr = `${String(visitDate.getHours()).padStart(2,'0')}:${String(visitDate.getMinutes()).padStart(2,'0')}`;
       html += `
         <div class="visitor-item" data-visitor-id="${record.id}">
           <div class="visitor-item-inner" ontouchstart="MomentsApp._visitorTouchStart(event,'${record.id}')" ontouchmove="MomentsApp._visitorTouchMove(event,'${record.id}')" ontouchend="MomentsApp._visitorTouchEnd(event,'${record.id}')">
             <img class="visitor-avatar" src="${partnerAvatar}" alt="${partnerName}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed=partner&backgroundColor=c0aede'">
             <div class="visitor-info">
               <div class="visitor-name">${partnerName}${streakTag}</div>
-              <div class="visitor-time">${timeStr}</div>
+              <div class="visitor-time">${visitTimeStr}</div>
             </div>
           </div>
           <div class="visitor-delete-btn" onclick="MomentsApp.deleteVisitorRecord('${record.id}')">删除</div>
@@ -1872,7 +1908,7 @@
     let items = [];
 
     if (commentEmojiTab === 'emoji') {
-      body.classList.remove('sticker-mode');
+      body.classList.remove('sticker-mode', 'kaomoji-mode');
       const customEmojis = (window._customEmojis || []).filter(Boolean);
       if (customEmojis.length === 0) {
         body.innerHTML = '<div class="comment-emoji-empty">暂无自定义表情，请在聊天设置中添加</div>';
@@ -1881,15 +1917,16 @@
       items = customEmojis.map(e => `<div class="comment-emoji-item" onclick="MomentsApp.insertCommentEmoji('${e.replace(/'/g, "\\'")}')">${e}</div>`);
     } else if (commentEmojiTab === 'kaomoji') {
       body.classList.remove('sticker-mode');
+      body.classList.add('kaomoji-mode');
       const kaomojiLibrary = (window._kaomojiLibrary || []).filter(Boolean);
       if (kaomojiLibrary.length === 0) {
         body.innerHTML = '<div class="comment-emoji-empty">暂无颜文字，请在字卡库中添加</div>';
         return;
       }
-      items = kaomojiLibrary.map(k => `<div class="comment-emoji-item" onclick="MomentsApp.insertCommentEmoji('${k.replace(/'/g, "\\'")}')">${k}</div>`);
+      items = kaomojiLibrary.map(k => `<div class="comment-emoji-item kaomoji-item" onclick="MomentsApp.insertCommentEmoji('${k.replace(/'/g, "\\'")}')">${k}</div>`);
     } else if (commentEmojiTab === 'sticker') {
+      body.classList.remove('kaomoji-mode');
       body.classList.add('sticker-mode');
-      // 从 window._stickerLibrary 读取，如果不存在则尝试全局 stickerLibrary
       let _stickerLib = [];
       if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
         _stickerLib = window._stickerLibrary;
@@ -1897,12 +1934,65 @@
         _stickerLib = stickerLibrary;
       }
       const stickerLibraryFiltered = _stickerLib.filter(Boolean);
-      console.log('[Moments] stickerLibrary count:', stickerLibraryFiltered.length, 'raw:', window._stickerLibrary);
       if (stickerLibraryFiltered.length === 0) {
         body.innerHTML = '<div class="comment-emoji-empty">暂无表情包，请在表情包管理中添加</div>';
         return;
       }
-      items = stickerLibraryFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentSticker(${i})"><img src="${s}" alt="表情包"></div>`);
+      
+      // 获取表情包分组
+      const groups = (window.customStickerGroups || []).filter(g => !g.disabled);
+      const hasGroups = groups && groups.length > 0;
+      
+      if (hasGroups) {
+        // 有分组时，渲染子标签栏 + 按选中分组显示表情包
+        if (typeof MomentsApp._activeStickerGroup === 'undefined') MomentsApp._activeStickerGroup = 'all';
+        const activeGroup = MomentsApp._activeStickerGroup;
+        
+        // 计算每个分组的数量
+        const inGroup = new Set();
+        groups.forEach(g => (g.items || []).forEach(t => { const i = stickerLibraryFiltered.indexOf(t); if (i >= 0) inGroup.add(i); }));
+        const ungroupedCount = stickerLibraryFiltered.filter((_, i) => !inGroup.has(i)).length;
+        
+        let html = '<div class="moments-sticker-subtabs" style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;scrollbar-width:none;">';
+        html += `<button class="moments-sticker-subtab ${activeGroup === 'all' ? 'active' : ''}" onclick="MomentsApp.switchStickerSubtab('all')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid var(--border-color);background:${activeGroup === 'all' ? 'var(--accent-color)' : 'var(--primary-bg)'};color:${activeGroup === 'all' ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">全部</button>`;
+        groups.forEach(g => {
+          const gId = String(g.id);
+          const cnt = (g.items || []).filter(t => stickerLibraryFiltered.includes(t)).length;
+          if (cnt > 0) {
+            html += `<button class="moments-sticker-subtab ${activeGroup === gId ? 'active' : ''}" onclick="MomentsApp.switchStickerSubtab('${gId}')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid ${activeGroup === gId ? g.color : 'var(--border-color)'};background:${activeGroup === gId ? g.color : 'var(--primary-bg)'};color:${activeGroup === gId ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">${g.name}</button>`;
+          }
+        });
+        if (ungroupedCount > 0) {
+          html += `<button class="moments-sticker-subtab ${activeGroup === 'ungrouped' ? 'active' : ''}" onclick="MomentsApp.switchStickerSubtab('ungrouped')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid var(--border-color);background:${activeGroup === 'ungrouped' ? '#868E96' : 'var(--primary-bg)'};color:${activeGroup === 'ungrouped' ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">未分组</button>`;
+        }
+        html += '</div>';
+        
+        // 根据选中分组渲染表情包
+        html += '<div class="moments-sticker-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px;">';
+        let filteredItems = [];
+        if (activeGroup === 'all') {
+          filteredItems = stickerLibraryFiltered.map((text, idx) => ({ text, idx }));
+        } else if (activeGroup === 'ungrouped') {
+          filteredItems = stickerLibraryFiltered.map((text, idx) => ({ text, idx })).filter(x => !inGroup.has(x.idx));
+        } else {
+          const g = groups.find(g => String(g.id) === activeGroup);
+          if (g) {
+            filteredItems = (g.items || []).map(t => ({ text: t, idx: stickerLibraryFiltered.indexOf(t) })).filter(x => x.idx >= 0);
+          }
+        }
+        filteredItems.forEach(({ text, idx }) => {
+          html += `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentSticker(${idx})"><img src="${text}" alt="表情包"></div>`;
+        });
+        html += '</div>';
+        
+        body.innerHTML = html;
+      } else {
+        let html = '<div class="moments-sticker-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px;">';
+        html += stickerLibraryFiltered.map((s, i) => `<div class="comment-emoji-item sticker-item" onclick="MomentsApp.selectCommentSticker(${i})"><img src="${s}" alt="表情包"></div>`).join('');
+        html += '</div>';
+        body.innerHTML = html;
+      }
+      return;
     }
 
     body.innerHTML = items.join('');
@@ -1921,6 +2011,11 @@
       input.focus();
       input.setSelectionRange(start + emoji.length, start + emoji.length);
     }
+  }
+
+  function switchStickerSubtab(groupId) {
+    MomentsApp._activeStickerGroup = groupId;
+    renderCommentEmojiContent();
   }
 
   function selectCommentSticker(index) {
@@ -2038,72 +2133,16 @@
 
     const m = momentsData.find(x => x.id === currentCommentMomentId);
     if (m) {
-      const myName = userConfig.name;
       // 支持文字+表情包同时发送
       m.comments.push({
-        name: myName,
+        name: userConfig.name,
         text: text,
         sticker: pendingCommentSticker || undefined,
         replyTo: replyToName || undefined
       });
       pendingCommentSticker = null;
-      saveMomentsToStorage();
+      saveMomentsToStorageSync();
       renderMoments();
-
-      // ── 对方收到我的评论后，有概率会继续回复我 ──
-      const momentId = currentCommentMomentId;
-      const myCommentText = text;
-      const targetName = myName;
-      // 70% 概率对方会回复我的评论
-      if (Math.random() < 0.7) {
-        var baseSpeed = getReplySpeed ? getReplySpeed() : 5;
-        var replyDelay = (1 + Math.random() * baseSpeed) * 1000;
-        setTimeout(async function() {
-          try {
-            const moment = momentsData.find(x => x.id === momentId);
-            if (!moment) return;
-            await loadPartnerInfo();
-            const replierName = getPartnerName();
-            const partnerAvatar = getPartnerAvatar();
-            const customReplies = (window._customReplies || []).map(r => String(r||'').trim()).filter(Boolean);
-            const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k||'').trim()).filter(Boolean);
-            const customEmojis = (window._customEmojis || []).map(e => String(e||'').trim()).filter(Boolean);
-            let _stickerLib = [];
-            if (window._stickerLibrary && Array.isArray(window._stickerLibrary)) _stickerLib = window._stickerLibrary;
-            else if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) _stickerLib = stickerLibrary;
-            const stickerLibraryFiltered = _stickerLib.filter(Boolean);
-            const hasTextContent = customReplies.length > 0 || kaomojiLibrary.length > 0 || customEmojis.length > 0;
-            const hasStickers = stickerLibraryFiltered.length > 0;
-            if (!hasTextContent && !hasStickers) return;
-
-            // 发送表情包或文字
-            const sendSticker = hasStickers && Math.random() < 0.25;
-            if (sendSticker) {
-              const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-              moment.comments.push({ name: replierName, text: '', sticker: sticker, replyTo: targetName });
-              showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, '[表情包]', getMomentPreviewImage(moment));
-            } else if (hasTextContent) {
-              const useKaomoji = customReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
-              let replyText = '';
-              if (useKaomoji && kaomojiLibrary.length > 0) {
-                replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-              } else if (customReplies.length > 0) {
-                replyText = customReplies[Math.floor(Math.random() * customReplies.length)];
-              }
-              if (!replyText) return;
-              if (customEmojis.length > 0 && Math.random() < 0.2) {
-                const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
-                replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
-              }
-              moment.comments.push({ name: replierName, text: replyText, replyTo: targetName });
-              showMomentsNotification(replierName, partnerAvatar, 'comment', 1, moment.id, replyText, getMomentPreviewImage(moment));
-            }
-            saveMomentsToStorage();
-            renderMoments();
-            renderMomentsNotificationCard();
-          } catch(e) { console.warn('[submitComment autoReply]', e); }
-        }, replyDelay);
-      }
     }
     closeCommentEmojiPanel();
     closeAllPanels();
@@ -2358,70 +2397,6 @@
     }
   }
 
-  // ========== Album Panel ==========
-  let albumExpanded = false;
-
-  function openAlbumPanel() {
-    const container = document.getElementById('moments-container');
-    if (!container) return;
-    
-    container.querySelector('#albumPanel').classList.add('active');
-    albumExpanded = false;
-    container.querySelector('#albumExpandBtn').classList.remove('active');
-    container.querySelector('#albumDateFrom').value = '';
-    container.querySelector('#albumDateTo').value = '';
-    renderAlbum();
-  }
-
-  function closeAlbumPanel() {
-    const container = document.getElementById('moments-container');
-    if (container) {
-      container.querySelector('#albumPanel').classList.remove('active');
-    }
-  }
-
-  function toggleAlbumExpand() {
-    albumExpanded = !albumExpanded;
-    const container = document.getElementById('moments-container');
-    if (container) {
-      container.querySelector('#albumExpandBtn').classList.toggle('active', albumExpanded);
-    }
-    renderAlbum();
-  }
-
-  function setAlbumQuickTime(range) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    let fromDate;
-    switch (range) {
-      case 'week': fromDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); break;
-      case 'month': fromDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000); break;
-      case 'year': fromDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000); break;
-    }
-    const y = fromDate.getFullYear();
-    const mo = String(fromDate.getMonth() + 1).padStart(2, '0');
-    const d = String(fromDate.getDate()).padStart(2, '0');
-    
-    const container = document.getElementById('moments-container');
-    if (container) {
-      container.querySelector('#albumDateFrom').value = `${y}-${mo}-${d}`;
-      const yn = now.getFullYear();
-      const mon = String(now.getMonth() + 1).padStart(2, '0');
-      const dn = String(now.getDate()).padStart(2, '0');
-      container.querySelector('#albumDateTo').value = `${yn}-${mon}-${dn}`;
-    }
-    renderAlbum();
-  }
-
-  function clearAlbumTimeFilter() {
-    const container = document.getElementById('moments-container');
-    if (container) {
-      container.querySelector('#albumDateFrom').value = '';
-      container.querySelector('#albumDateTo').value = '';
-    }
-    renderAlbum();
-  }
-
   // ========== Collection Panel ==========
   function openCollectionPanel() {
     const container = document.getElementById('moments-container');
@@ -2438,11 +2413,15 @@
     }
   }
 
-  function renderCollection() {
+  async function renderCollection() {
     const container = document.getElementById('moments-container');
     if (!container) return;
     
     const body = container.querySelector('#collectionBody');
+
+    // 先恢复 IndexedDB 中的图片引用
+    await restoreImagesFromIDB();
+
     const collected = momentsData.filter(m => m.collected);
 
     if (collected.length === 0) {
@@ -2477,112 +2456,6 @@
     }).join('');
   }
 
-  function renderAlbum() {
-    const container = document.getElementById('moments-container');
-    if (!container) return;
-    
-    const body = container.querySelector('#albumBody');
-    const dateFrom = container.querySelector('#albumDateFrom').value;
-    const dateTo = container.querySelector('#albumDateTo').value;
-
-    // 按时间筛选朋友圈
-    let filtered = momentsData;
-    if (dateFrom || dateTo) {
-      filtered = momentsData.filter(m => {
-        let momentDate = parseTimeString(m.time);
-        if (!momentDate) return true;
-        if (dateFrom) {
-          const from = new Date(dateFrom + 'T00:00:00');
-          if (momentDate < from) return false;
-        }
-        if (dateTo) {
-          const to = new Date(dateTo + 'T23:59:59');
-          if (momentDate > to) return false;
-        }
-        return true;
-      });
-    }
-
-    // 收集图片
-    const allImages = [];
-    filtered.forEach(m => {
-      m.images.forEach((img, idx) => {
-        allImages.push({ src: img, momentId: m.id, index: idx, nickname: m.nickname, time: m.time, date: parseTimeString(m.time) });
-      });
-    });
-
-    if (allImages.length === 0) {
-      body.innerHTML = '<div class="album-empty">暂无照片</div>';
-      return;
-    }
-
-    // 全部展开模式：网格排列所有图片
-    if (albumExpanded) {
-      body.innerHTML = `
-        <div class="album-grid">
-          ${allImages.map(img => `
-            <div class="album-item" onclick="MomentsApp.openPreview(${img.momentId}, ${img.index}); MomentsApp.closeAlbumPanel();">
-              <img src="${img.src}" alt="照片">
-            </div>
-          `).join('')}
-        </div>
-      `;
-      return;
-    }
-
-    // 时间轴模式：按日期分组
-    const groups = {};
-    allImages.forEach(img => {
-      let dateKey;
-      if (img.date) {
-        const y = img.date.getFullYear();
-        const mo = String(img.date.getMonth() + 1).padStart(2, '0');
-        const d = String(img.date.getDate()).padStart(2, '0');
-        dateKey = `${y}-${mo}-${d}`;
-      } else {
-        dateKey = '未知日期';
-      }
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(img);
-    });
-
-    // 按日期降序排列
-    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-
-    body.innerHTML = `<div class="album-timeline">
-      ${sortedKeys.map(dateKey => {
-        const items = groups[dateKey];
-        // 按朋友圈分组显示
-        const momentGroups = {};
-        items.forEach(img => {
-          const key = `${img.momentId}`;
-          if (!momentGroups[key]) momentGroups[key] = { nickname: img.nickname, time: img.time, images: [] };
-          momentGroups[key].images.push(img);
-        });
-
-        return `
-          <div class="album-timeline-group">
-            <div class="album-timeline-date">${dateKey}</div>
-            ${Object.values(momentGroups).map(mg => `
-              <div class="album-timeline-moment">
-                <div class="album-timeline-moment-info">
-                  <span class="tl-nickname">${mg.nickname}</span> · ${mg.time}
-                </div>
-                <div class="album-timeline-grid">
-                  ${mg.images.map(img => `
-                    <div class="album-item" onclick="MomentsApp.openPreview(${img.momentId}, ${img.index}); MomentsApp.closeAlbumPanel();">
-                      <img src="${img.src}" alt="照片">
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        `;
-      }).join('')}
-    </div>`;
-  }
-
   // ========== Mention Panel ==========
   function openMentionPanel() {
     const container = document.getElementById('moments-container');
@@ -2607,10 +2480,10 @@
     const list = container.querySelector('#mentionList');
     const search = container.querySelector('#mentionSearch').value.toLowerCase();
     
-    const filtered = friendList.filter(f => f.name.toLowerCase().includes(search));
+    const filtered = momentsFriends.filter(f => f.name.toLowerCase().includes(search));
     
     list.innerHTML = filtered.map(f => `
-      <div class="mention-item ${tempMentions.includes(f.name) ? 'selected' : ''}" onclick="MomentsApp.toggleMention('${f.name}')">
+      <div class="mention-item ${tempMentions.includes(f.name) ? 'selected' : ''}" onclick="MomentsApp.toggleMention('${f.name.replace(/'/g, "\\'")}')">
         <img src="${f.avatar}" alt="${f.name}">
         <span>${f.name}</span>
       </div>
@@ -2900,11 +2773,66 @@
       return;
     }
     
-    body.innerHTML = stickerLibraryFiltered.map((s, i) => `
-      <div class="publish-sticker-select-item" onclick="MomentsApp.selectPublishSticker(${i})">
-        <img src="${s}" alt="表情包">
-      </div>
-    `).join('');
+    // 获取表情包分组
+    const groups = (window.customStickerGroups || []).filter(g => !g.disabled);
+    const hasGroups = groups && groups.length > 0;
+    
+    if (hasGroups) {
+      // 有分组时，渲染子标签栏 + 按选中分组显示表情包
+      if (typeof MomentsApp._activePublishStickerGroup === 'undefined') MomentsApp._activePublishStickerGroup = 'all';
+      const activeGroup = MomentsApp._activePublishStickerGroup;
+      
+      const inGroup = new Set();
+      groups.forEach(g => (g.items || []).forEach(t => { const i = stickerLibraryFiltered.indexOf(t); if (i >= 0) inGroup.add(i); }));
+      const ungroupedCount = stickerLibraryFiltered.filter((_, i) => !inGroup.has(i)).length;
+      
+      let html = '<div class="moments-sticker-subtabs" style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;scrollbar-width:none;">';
+      html += `<button class="moments-sticker-subtab ${activeGroup === 'all' ? 'active' : ''}" onclick="MomentsApp.switchPublishStickerSubtab('all')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid var(--border-color);background:${activeGroup === 'all' ? 'var(--accent-color)' : 'var(--primary-bg)'};color:${activeGroup === 'all' ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">全部</button>`;
+      groups.forEach(g => {
+        const gId = String(g.id);
+        const cnt = (g.items || []).filter(t => stickerLibraryFiltered.includes(t)).length;
+        if (cnt > 0) {
+          html += `<button class="moments-sticker-subtab ${activeGroup === gId ? 'active' : ''}" onclick="MomentsApp.switchPublishStickerSubtab('${gId}')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid ${activeGroup === gId ? g.color : 'var(--border-color)'};background:${activeGroup === gId ? g.color : 'var(--primary-bg)'};color:${activeGroup === gId ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">${g.name}</button>`;
+        }
+      });
+      if (ungroupedCount > 0) {
+        html += `<button class="moments-sticker-subtab ${activeGroup === 'ungrouped' ? 'active' : ''}" onclick="MomentsApp.switchPublishStickerSubtab('ungrouped')" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:11px;border:1px solid var(--border-color);background:${activeGroup === 'ungrouped' ? '#868E96' : 'var(--primary-bg)'};color:${activeGroup === 'ungrouped' ? '#fff' : 'var(--text-secondary)'};cursor:pointer;font-family:var(--font-family);">未分组</button>`;
+      }
+      html += '</div>';
+      
+      html += '<div class="moments-sticker-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px;">';
+      let filteredItems = [];
+      if (activeGroup === 'all') {
+        filteredItems = stickerLibraryFiltered.map((text, idx) => ({ text, idx }));
+      } else if (activeGroup === 'ungrouped') {
+        filteredItems = stickerLibraryFiltered.map((text, idx) => ({ text, idx })).filter(x => !inGroup.has(x.idx));
+      } else {
+        const g = groups.find(g => String(g.id) === activeGroup);
+        if (g) {
+          filteredItems = (g.items || []).map(t => ({ text: t, idx: stickerLibraryFiltered.indexOf(t) })).filter(x => x.idx >= 0);
+        }
+      }
+      filteredItems.forEach(({ text, idx }) => {
+        html += `<div class="publish-sticker-select-item" onclick="MomentsApp.selectPublishSticker(${idx})"><img src="${text}" alt="表情包"></div>`;
+      });
+      html += '</div>';
+      
+      body.innerHTML = html;
+    } else {
+      let html = '<div class="moments-sticker-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px;">';
+      html += stickerLibraryFiltered.map((s, i) => `
+        <div class="publish-sticker-select-item" onclick="MomentsApp.selectPublishSticker(${i})">
+          <img src="${s}" alt="表情包">
+        </div>
+      `).join('');
+      html += '</div>';
+      body.innerHTML = html;
+    }
+  }
+
+  function switchPublishStickerSubtab(groupId) {
+    MomentsApp._activePublishStickerGroup = groupId;
+    renderPublishStickerBody();
   }
 
   function selectPublishSticker(index) {
@@ -2944,17 +2872,49 @@
     // 支持纯表情包发布
     if (!text && !publishVideo && !publishSticker && publishPhotoBase64List.length === 0) return;
 
+    const momentId = Date.now();
+
+    // 处理图片：先保留原始 base64，后台异步压缩存 IndexedDB
     const images = [...publishPhotoBase64List];
+    // 后台处理大图片：压缩后存 IndexedDB，然后更新为引用
+    setTimeout(async () => {
+      let hasLargeImage = false;
+      const moment = momentsData.find(m => m.id === momentId);
+      if (!moment) return;
+      for (let i = 0; i < moment.images.length; i++) {
+        const img = moment.images[i];
+        if (typeof img === 'string' && img.length > IDB_IMAGE_THRESHOLD && !img.startsWith('__IDB_IMG__')) {
+          const compressed = await compressImage(img, COMPRESS_MAX_WIDTH, COMPRESS_QUALITY);
+          await saveImageToIDB(momentId, i, compressed);
+          moment.images[i] = '__IDB_IMG__' + momentId + '_' + i;
+          hasLargeImage = true;
+        }
+      }
+      if (hasLargeImage) {
+        saveMomentsToStorageSync();
+      }
+    }, 100);
+
+    // 处理视频：大视频存 IndexedDB
+    let videoData = null;
+    if (publishVideo) {
+      if (publishVideo.url && publishVideo.url.length > 1000) {
+        saveVideoToIDB(momentId, publishVideo.url);
+        videoData = { cover: publishVideo.cover, url: '__IDB__' + momentId, duration: publishVideo.duration };
+      } else {
+        videoData = { ...publishVideo };
+      }
+    }
 
     const newMoment = {
-      id: Date.now(),
+      id: momentId,
       avatar: userConfig.avatar,
       nickname: userConfig.name,
       time: Date.now(),
       text: text,
       images: images,
       sticker: publishSticker || null,
-      video: publishVideo ? { cover: publishVideo.cover, url: publishVideo.url, duration: publishVideo.duration } : null,
+      video: videoData,
       likes: [],
       likedByMe: false,
       collected: false,
@@ -2964,10 +2924,33 @@
     };
 
     momentsData.unshift(newMoment);
-    saveMomentsToStorage();
+    saveMomentsToStorageSync();
     renderMoments();
     closeAllPanels();
     container.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // TA的手机：实时收藏用户发布的朋友圈
+    if (text) {
+      const doCollect = () => {
+        if (typeof window.TaPhoneApp === 'object' && typeof window.TaPhoneApp.tryCollectMoment === 'function') {
+          window.TaPhoneApp.tryCollectMoment(text, newMoment.time, newMoment);
+        }
+      };
+      if (typeof window.TaPhoneApp === 'object') {
+        doCollect();
+      } else {
+        // 动态加载 ta-phone.js 后再收藏
+        const script = document.createElement('script');
+        script.src = (window.basePath || '') + 'js/ta-phone.js';
+        script.onload = () => {
+          if (typeof window.TaPhoneApp === 'object' && typeof window.TaPhoneApp.init === 'function') {
+            window.TaPhoneApp.init();
+          }
+          doCollect();
+        };
+        document.head.appendChild(script);
+      }
+    }
 
     // 延迟后系统自动评论（在设定时间内随机回复）
     var baseSpeed = getReplySpeed(); // 秒
@@ -3120,7 +3103,6 @@
     if (!momentId) return;
     closePreview();
     // 关闭所有面板
-    closeAlbumPanel();
     closeCollectionPanel();
     closeSearchPanel();
     // 滚动到对应朋友圈并高亮
@@ -3214,28 +3196,123 @@
 
   // ========== Friends List ==========
   let momentsFriends = [];
+  // 其他会话的字卡库缓存 { sessionId: string[] }
+  let _sessionRepliesCache = {};
+
+  // 从所有会话中读取伴侣信息，生成好友列表
+  async function loadAllSessionPartners() {
+    const partners = [];
+    try {
+      const sessions = window.sessionList || [];
+      const APP_PREFIX = window.APP_PREFIX || 'CHAT_APP_V3_';
+      const currentSessionId = window.SESSION_ID;
+
+      for (let i = 0; i < sessions.length; i++) {
+        const sid = sessions[i].id;
+        try {
+          // 读取该会话的 chatSettings 获取 partnerName
+          const settingsKey = APP_PREFIX + sid + '_chatSettings';
+          const chatSettings = typeof localforage !== 'undefined' ? await localforage.getItem(settingsKey) : null;
+          let name = '梦角';
+          let avatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + encodeURIComponent(sid) + '&backgroundColor=c0aede';
+
+          if (chatSettings && typeof chatSettings === 'object') {
+            if (chatSettings.partnerName) name = chatSettings.partnerName;
+            if (chatSettings.partnerAvatar) avatar = chatSettings.partnerAvatar;
+          }
+
+          // 尝试从 localStorage 读取更可靠的伴侣信息
+          try {
+            const lsProfile = localStorage.getItem('profile_partner');
+            if (lsProfile && sid === currentSessionId) {
+              const p = JSON.parse(lsProfile);
+              if (p.name) name = p.name;
+              if (p.avatar) avatar = p.avatar;
+            }
+          } catch(e) {}
+
+          // 尝试读取该会话的头像
+          if (typeof localforage !== 'undefined') {
+            try {
+              const savedAvatar = await localforage.getItem(APP_PREFIX + sid + '_partnerAvatar');
+              if (savedAvatar) avatar = savedAvatar;
+            } catch(e) {}
+          }
+
+          partners.push({
+            id: 'session_' + sid,
+            sessionId: sid,
+            name: name,
+            avatar: avatar,
+            isPartner: true,
+            isSession: true
+          });
+        } catch(e) {
+          console.warn('[Moments] 读取会话', sid, '信息失败:', e);
+        }
+      }
+    } catch(e) {
+      console.warn('[Moments] loadAllSessionPartners 失败:', e);
+    }
+    return partners;
+  }
+
+  // 获取某个会话的字卡库（带缓存）
+  async function getSessionReplies(sessionId) {
+    // 当前会话直接用全局变量
+    if (sessionId === window.SESSION_ID) {
+      return (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
+    }
+    // 检查缓存
+    if (_sessionRepliesCache[sessionId]) {
+      return _sessionRepliesCache[sessionId];
+    }
+    // 从 localforage 读取
+    try {
+      const APP_PREFIX = window.APP_PREFIX || 'CHAT_APP_V3_';
+      const key = APP_PREFIX + sessionId + '_customReplies';
+      const data = typeof localforage !== 'undefined' ? await localforage.getItem(key) : null;
+      const replies = (data || []).map(r => String(r || '').trim()).filter(Boolean);
+      _sessionRepliesCache[sessionId] = replies;
+      return replies;
+    } catch(e) {
+      return [];
+    }
+  }
+
+  // 刷新字卡库缓存（当前会话数据变更时调用）
+  function invalidateSessionRepliesCache(sessionId) {
+    if (sessionId) {
+      delete _sessionRepliesCache[sessionId];
+    } else {
+      _sessionRepliesCache = {};
+    }
+  }
 
   async function loadMomentsFriends() {
     try {
       // 先刷新伴侣信息缓存
       await loadPartnerInfo();
+
+      // 从所有会话自动读取伴侣
+      const sessionPartners = await loadAllSessionPartners();
+
+      // 读取手动添加的好友
+      let manualFriends = [];
       const data = localStorage.getItem('moments_friends');
       if (data) {
-        momentsFriends = JSON.parse(data);
-        // 更新伴侣信息为最新值
-        var partnerIdx = momentsFriends.findIndex(function(f) { return f.isPartner; });
-        if (partnerIdx >= 0) {
-          momentsFriends[partnerIdx].name = getPartnerName();
-          momentsFriends[partnerIdx].avatar = getPartnerAvatar();
-        } else {
-          momentsFriends.unshift(getDefaultPartnerFriend()[0]);
-        }
-      } else {
-        // 默认包含伴侣
-        momentsFriends = getDefaultPartnerFriend();
-        saveMomentsFriends();
+        const allFriends = JSON.parse(data);
+        manualFriends = allFriends.filter(function(f) { return !f.isPartner; });
       }
+
+      // 合并：会话伴侣 + 手动好友
+      momentsFriends = sessionPartners.concat(manualFriends);
+
+      // 刷新字卡库缓存
+      invalidateSessionRepliesCache();
     } catch (e) {
+      console.warn('[Moments] loadMomentsFriends 失败:', e);
+      // 降级：使用当前伴侣
       momentsFriends = getDefaultPartnerFriend();
     }
   }
@@ -3245,7 +3322,9 @@
   }
 
   function saveMomentsFriends() {
-    localStorage.setItem('moments_friends', JSON.stringify(momentsFriends));
+    // 只保存手动添加的好友（不含会话自动生成的伴侣）
+    const manualFriends = momentsFriends.filter(function(f) { return !f.isSession; });
+    localStorage.setItem('moments_friends', JSON.stringify(manualFriends));
   }
 
   function renderBeautifyFriendsList() {
@@ -3528,9 +3607,10 @@
       loadVisitorRecords();
       generateOfflineVisitors();
       startOnlineVisitorTimer();
-      startPartnerSneakVisit();
-      startPartnerMomentTimer();
       updateVisitorBadge();
+
+      // 初始化伴侣发朋友圈定时器
+      startPartnerMomentTimer();
     } catch (e) {
       console.error('MomentsApp init error:', e);
     }
@@ -3577,6 +3657,21 @@
       // 当 partner 数据变化时，更新好友列表
       if (key === 'home_avatar_partner' || key === 'profile_partner') {
         await initFriendList();
+      }
+    });
+
+    // 监听表情包库更新事件（从自定义回复库同步）
+    window.addEventListener('stickerLibraryUpdated', function(e) {
+      console.log('[Moments] stickerLibraryUpdated received, count:', e.detail?.count);
+      // 如果当前正在显示评论表情包面板，刷新它
+      const container = document.getElementById('moments-container');
+      if (container && container.querySelector('#commentEmojiPanel')?.classList.contains('active')) {
+        renderCommentEmojiContent();
+      }
+      // 如果当前正在显示发布朋友圈的表情包选择面板，刷新它
+      const publishPanel = container?.querySelector('#publishStickerPanel');
+      if (publishPanel && publishPanel.style.display !== 'none') {
+        renderPublishStickerPanel();
       }
     });
 
@@ -3669,14 +3764,6 @@
     clearTimeFilter,
     scrollToMoment,
     
-    // 相册
-    openAlbumPanel,
-    closeAlbumPanel,
-    toggleAlbumExpand,
-    renderAlbum,
-    setAlbumQuickTime,
-    clearAlbumTimeFilter,
-    
     // 收藏
     openCollectionPanel,
     closeCollectionPanel,
@@ -3735,6 +3822,8 @@
     closePublishStickerPanel,
     selectPublishSticker,
     removePublishSticker,
+    switchPublishStickerSubtab,
+    switchStickerSubtab,
     playVideo,
     toggleVideoPlay,
     goToMomentDetail,
@@ -3769,7 +3858,130 @@
     stopOnlineVisitorTimer,
     _visitorTouchStart,
     _visitorTouchMove,
-    _visitorTouchEnd
+    _visitorTouchEnd,
+
+    // 伴侣发朋友圈
+    startPartnerMomentTimer,
+    restartPartnerMomentTimer
   };
+
+  // ========== 伴侣发朋友圈 ==========
+  let _partnerMomentTimer = null;
+
+  function _triggerPartnerMoment() {
+    try {
+      const countMax = parseInt(localStorage.getItem('partner_moment_count_max')) || 1;
+      const count = Math.min(countMax, 3);
+
+      for (let i = 0; i < count; i++) {
+        const contentPool = [];
+
+        // 1. 收集字卡
+        const replies = window._customReplies || customReplies || [];
+        replies.forEach(r => {
+          const t = String(r || '').trim();
+          if (t) contentPool.push({ type: 'text', content: t });
+        });
+
+        // 2. 收集颜文字
+        const kaomojis = window._kaomojiLibrary || kaomojiLibrary || [];
+        kaomojis.forEach(k => {
+          const t = String(k || '').trim();
+          if (t) contentPool.push({ type: 'kaomoji', content: t });
+        });
+
+        // 3. 收集表情包
+        const stickers = window._stickerLibrary || stickerLibrary || [];
+        stickers.forEach(s => {
+          if (s) contentPool.push({ type: 'sticker', content: s });
+        });
+
+        // 4. 收集 emoji
+        const emojis = window._customEmojis || customEmojis || [];
+        emojis.forEach(e => {
+          const t = String(e || '').trim();
+          if (t) contentPool.push({ type: 'emoji', content: t });
+        });
+
+        if (contentPool.length === 0) return;
+
+        const pick = contentPool[Math.floor(Math.random() * contentPool.length)];
+        const moment = {
+          id: 'partner_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          text: pick.content,
+          images: pick.type === 'sticker' ? [pick.content] : [],
+          type: pick.type,
+          timestamp: Date.now() - Math.floor(Math.random() * 5 * 60000),
+          author: 'partner',
+          likes: [],
+          comments: [],
+          notified: true
+        };
+
+        // 更新通知
+        let notifList = [];
+        try {
+          notifList = JSON.parse(localStorage.getItem('moments_notifications') || '[]');
+        } catch (e) {}
+        notifList.unshift({
+          id: 'notif_' + Date.now(),
+          momentId: moment.id,
+          type: 'partner_post',
+          time: moment.timestamp,
+          read: false
+        });
+        // 限制通知数量
+        if (notifList.length > 50) notifList = notifList.slice(0, 50);
+        localStorage.setItem('moments_notifications', JSON.stringify(notifList));
+
+        // 更新动态列表
+        let momentList = [];
+        try {
+          momentList = JSON.parse(localStorage.getItem('moments_data') || '[]');
+        } catch (e) {}
+        momentList.unshift(moment);
+        // 限制朋友圈数量
+        if (momentList.length > 100) momentList = momentList.slice(0, 100);
+        localStorage.setItem('moments_data', JSON.stringify(momentList));
+
+        // 通知标记
+        localStorage.setItem('moments_has_new', 'true');
+      }
+
+      // 刷新UI
+      if (typeof renderMoments === 'function') {
+        setTimeout(() => renderMoments(), 300);
+      }
+    } catch (e) {
+      console.warn('伴侣发朋友圈失败:', e);
+    }
+  }
+
+  function startPartnerMomentTimer() {
+    if (_partnerMomentTimer) {
+      clearTimeout(_partnerMomentTimer);
+      _partnerMomentTimer = null;
+    }
+    const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
+    if (!enabled) return;
+    _scheduleNextPartnerMoment();
+  }
+
+  function restartPartnerMomentTimer() {
+    startPartnerMomentTimer();
+  }
+
+  function _scheduleNextPartnerMoment() {
+    if (_partnerMomentTimer) clearTimeout(_partnerMomentTimer);
+    const enabled = localStorage.getItem('partner_moment_enabled') === 'true';
+    if (!enabled) return;
+    const minVal = parseInt(localStorage.getItem('partner_moment_interval_min')) || 30;
+    const maxVal = parseInt(localStorage.getItem('partner_moment_interval_max')) || 120;
+    const delayMs = (minVal + Math.random() * (maxVal - minVal)) * 60 * 1000;
+    _partnerMomentTimer = setTimeout(() => {
+      _triggerPartnerMoment();
+      _scheduleNextPartnerMoment();
+    }, delayMs);
+  }
 
 })();

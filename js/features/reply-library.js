@@ -5,6 +5,14 @@ if (typeof customStatusGroups === 'undefined') window.customStatusGroups = [];
 if (typeof kaomojiGroups === 'undefined') window.kaomojiGroups = [];
 if (typeof customStickerGroups === 'undefined') window.customStickerGroups = [];
 
+// 同步表情包数据到全局，并通知其他模块
+function _syncStickerLibrary() {
+    window._stickerLibrary = stickerLibrary;
+    try {
+        window.dispatchEvent(new CustomEvent('stickerLibraryUpdated', { detail: { count: stickerLibrary.length } }));
+    } catch(e) {}
+}
+
 // 根据当前 tab 返回对应的分组上下文 {groups, items, itemLabel}
 function _getGroupCtx(tab) {
     tab = tab || currentSubTab;
@@ -32,6 +40,10 @@ function _getGroupCtx(tab) {
         if (!window.moyuLocationGroups) window.moyuLocationGroups = [];
         return { groups: window.moyuLocationGroups, items: moyuLocations, itemLabel: '工作地点' };
     }
+    if (tab === 'voices') {
+        if (!window.customVoiceGroups) window.customVoiceGroups = [];
+        return { groups: window.customVoiceGroups, items: customVoices, itemLabel: '语音' };
+    }
     // default: custom replies
     if (!window.customReplyGroups) window.customReplyGroups = [];
     return { groups: window.customReplyGroups, items: customReplies, itemLabel: '字卡' };
@@ -40,7 +52,7 @@ function _getGroupCtx(tab) {
 // 判断当前 tab 是否支持分组
 function _tabHasGroups(tab) {
     tab = tab || currentSubTab;
-    return tab === 'custom' || tab === 'pokes' || tab === 'statuses' || tab === 'kaomojis' || tab === 'stickers' || tab === 'moyu' || tab === 'moyuLocations';
+    return tab === 'custom' || tab === 'pokes' || tab === 'statuses' || tab === 'kaomojis' || tab === 'stickers' || tab === 'moyu' || tab === 'moyuLocations' || tab === 'voices';
 }
 
 let _batchSelectedIndices = new Set();
@@ -132,7 +144,7 @@ const ICONS = {
         }
         .rl-group-header.collapsed { border-radius:12px; }
         .rl-group-header:hover { background:rgba(var(--accent-color-rgb,180,140,100),0.06); }
-        .rl-group-body { border:1px solid var(--border-color);border-top:none;border-radius:0 0 12px 12px;padding:6px 8px 8px;background:var(--primary-bg); }
+        .rl-group-body { border:1px solid var(--border-color);border-top:none;border-radius:0 0 12px 12px;padding:8px;background:var(--primary-bg);display:grid;grid-template-columns:repeat(4,1fr);gap:6px; }
         .rl-group-tag {
             display:inline-flex;align-items:center;gap:5px;
             padding:2px 9px 2px 6px;border-radius:20px;
@@ -169,6 +181,9 @@ function _renderListContentOnly() {
         } else if (currentSubTab === 'stickers') {
             itemsToRender = stickerLibrary;
             renderType = 'image';
+        } else if (currentSubTab === 'voices') {
+            itemsToRender = customVoices;
+            renderType = 'voice';
         }
     } else if (currentMajorTab === 'moyu') {
         if (currentSubTab === 'moyu') {
@@ -185,6 +200,7 @@ function _renderListContentOnly() {
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
     if (renderType === 'image') { _renderStickerTab(list, itemsToRender); return; }
+    if (renderType === 'voice') { _renderVoiceTab(list, itemsToRender); return; }
 
     const q = _searchQuery.toLowerCase().trim();
     const filtered = q ? itemsToRender.filter(item => item.toLowerCase().includes(q)) : itemsToRender;
@@ -265,6 +281,9 @@ function renderReplyLibrary() {
         } else if (currentSubTab === 'stickers') {
             itemsToRender = stickerLibrary;
             renderType = 'image';
+        } else if (currentSubTab === 'voices') {
+            itemsToRender = customVoices;
+            renderType = 'voice';
         }
     } else if (currentMajorTab === 'moyu') {
         if (currentSubTab === 'moyu') {
@@ -281,6 +300,7 @@ function renderReplyLibrary() {
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
     if (renderType === 'image') { _renderStickerTab(list, itemsToRender); return; }
+    if (renderType === 'voice') { _renderVoiceTab(list, itemsToRender); return; }
 
     const q = _searchQuery.toLowerCase().trim();
     let filtered = q ? itemsToRender.filter(item => item.toLowerCase().includes(q)) : itemsToRender;
@@ -302,10 +322,15 @@ function _renderModernToolbar() {
     const isMainCustom = currentMajorTab === 'reply' && currentSubTab === 'custom';
     const isStickersTab = currentMajorTab === 'reply' && currentSubTab === 'stickers';
     const isKaomojisTab = currentMajorTab === 'reply' && currentSubTab === 'kaomojis';
+    const isEmojisTab = currentMajorTab === 'reply' && currentSubTab === 'emojis';
+    const isIntrosTab = currentMajorTab === 'atmosphere' && currentSubTab === 'intros';
+    const isMottosTab = currentMajorTab === 'atmosphere' && currentSubTab === 'mottos';
+    const isPokesTab = currentMajorTab === 'atmosphere' && currentSubTab === 'pokes';
+    const isStatusesTab = currentMajorTab === 'atmosphere' && currentSubTab === 'statuses';
     const isMoyuTab = currentMajorTab === 'moyu' && currentSubTab === 'moyu';
     const isMoyuLocTab = currentMajorTab === 'moyu' && currentSubTab === 'moyuLocations';
     const hasGroupSupport = _tabHasGroups();
-    const canBatch = isMainCustom || isStickersTab || isKaomojisTab || isMoyuTab || isMoyuLocTab;
+    const canBatch = isMainCustom || isStickersTab || isKaomojisTab || isEmojisTab || isIntrosTab || isMottosTab || isPokesTab || isStatusesTab || isMoyuTab || isMoyuLocTab;
 
     if (!toolbar) {
         toolbar = document.createElement('div');
@@ -317,7 +342,7 @@ function _renderModernToolbar() {
 
     const disabledSet = _getDisabledItemsSet();
     const ctx = _getGroupCtx();
-    const totalItems = isMainCustom ? customReplies.length : (isStickersTab ? stickerLibrary.length : (isKaomojisTab ? kaomojiLibrary.length : (isMoyuTab ? (window.moyuActivities || []).length : (isMoyuLocTab ? moyuLocations.length : 0))));
+    const totalItems = isMainCustom ? customReplies.length : (isStickersTab ? stickerLibrary.length : (isKaomojisTab ? kaomojiLibrary.length : (isEmojisTab ? customEmojis.length : (isIntrosTab ? customIntros.length : (isMottosTab ? customMottos.length : (isPokesTab ? customPokes.length : (isStatusesTab ? customStatuses.length : (isMoyuTab ? (window.moyuActivities || []).length : (isMoyuLocTab ? moyuLocations.length : 0)))))))));
     const selectedCount = _batchSelectedIndices.size;
 
     const addBtnLabel = (() => {
@@ -331,9 +356,12 @@ function _renderModernToolbar() {
     let groupFilterHtml = '';
     if (hasGroupSupport && ctx.groups && ctx.groups.length > 0) {
         const allCount = ctx.items.length;
-        const ungroupedCount = ctx.items.filter(item =>
-            !ctx.groups.some(g => g.items && g.items.includes(item))
-        ).length;
+        // 根据当前标签类型判断 item 是否在分组中
+        const isVoiceTab = currentSubTab === 'voices';
+        const ungroupedCount = ctx.items.filter(item => {
+            const itemKey = isVoiceTab ? item.audioUrl : item;
+            return !ctx.groups.some(g => g.items && g.items.includes(itemKey));
+        }).length;
         groupFilterHtml = `
             <div id="group-filter-pills" style="
                 display:flex;gap:6px;overflow-x:auto;padding:8px 15px 0;
@@ -346,7 +374,9 @@ function _renderModernToolbar() {
                     未分组 <span class="gfp-count">${ungroupedCount}</span>
                 </button>
                 ${ctx.groups.map(g => {
-                    const cnt = (g.items || []).filter(item => ctx.items.includes(item)).length;
+                    const cnt = isVoiceTab
+                        ? (g.items || []).filter(url => ctx.items.some(it => it.audioUrl === url)).length
+                        : (g.items || []).filter(item => ctx.items.includes(item)).length;
                     return `<button class="gfp-btn ${_activeGroupFilter === g.id ? 'gfp-active' : ''} ${g.disabled ? 'gfp-disabled' : ''}"
                         data-filter="${g.id}"
                         style="${_activeGroupFilter === g.id ? `background:${g.color}22;border-color:${g.color};color:${g.color};` : ''}">
@@ -518,7 +548,7 @@ function _renderModernToolbar() {
         tbBatch.onclick = () => {
             if (!canBatch) return;
             _batchModeActive = !_batchModeActive;
-            _batchModeTarget = isStickersTab ? 'stickers' : (isKaomojisTab ? 'kaomojis' : (isMoyuTab ? 'moyu' : (isMoyuLocTab ? 'moyuLocations' : 'custom')));
+            _batchModeTarget = isStickersTab ? 'stickers' : (isKaomojisTab ? 'kaomojis' : (isEmojisTab ? 'emojis' : (isIntrosTab ? 'intros' : (isMottosTab ? 'mottos' : (isPokesTab ? 'pokes' : (isStatusesTab ? 'statuses' : (isMoyuTab ? 'moyu' : (isMoyuLocTab ? 'moyuLocations' : 'custom'))))))));
             _batchSelectedIndices.clear();
             renderReplyLibrary();
         };
@@ -540,18 +570,33 @@ function _renderModernToolbar() {
         toolbar.querySelector('#batch-select-all-btn')?.addEventListener('click', () => {
             if (_batchSelectedIndices.size === totalItems) _batchSelectedIndices.clear();
             else {
-                const pool = isMainCustom ? customReplies : (isKaomojisTab ? kaomojiLibrary : (isMoyuTab ? (window.moyuActivities || []) : (isMoyuLocTab ? moyuLocations : stickerLibrary)));
+                const pool = isMainCustom ? customReplies
+                    : (isKaomojisTab ? kaomojiLibrary
+                    : (isEmojisTab ? customEmojis
+                    : (isIntrosTab ? customIntros
+                    : (isMottosTab ? customMottos
+                    : (isPokesTab ? customPokes
+                    : (isStatusesTab ? customStatuses
+                    : (isMoyuTab ? (window.moyuActivities || [])
+                    : (isMoyuLocTab ? moyuLocations : stickerLibrary))))))));
                 pool.forEach((_, i) => _batchSelectedIndices.add(i));
             }
             renderReplyLibrary();
         });
         toolbar.querySelector('#batch-group-btn')?.addEventListener('click', () => {
-            if (!isMainCustom && !isKaomojisTab && !isMoyuTab && !isMoyuLocTab && !isStickersTab) return;
+            if (!isMainCustom && !isKaomojisTab && !isMoyuTab && !isMoyuLocTab && !isStickersTab) {
+                showNotification('此标签不支持分组功能', 'info');
+                return;
+            }
             if (_batchSelectedIndices.size === 0) return;
             _showBatchGroupPicker();
         });
         toolbar.querySelector('#batch-disable-btn')?.addEventListener('click', () => {
             if (_batchSelectedIndices.size === 0) return;
+            if (isEmojisTab || isIntrosTab || isMottosTab || isPokesTab || isStatusesTab) {
+                showNotification('此标签不支持屏蔽功能', 'info');
+                return;
+            }
             if (isStickersTab) _batchToggleDisableStickers();
             else _batchToggleDisable();
         });
@@ -573,6 +618,7 @@ function _renderModernToolbar() {
                     });
                 }
                 _batchSelectedIndices.clear();
+                _syncStickerLibrary();
                 throttledSaveData();
                 renderReplyLibrary();
                 showNotification(`已删除 ${indices.length} 个贴纸`, 'success');
@@ -614,6 +660,36 @@ function _renderModernToolbar() {
                 throttledSaveData();
                 renderReplyLibrary();
                 showNotification(`已删除 ${indices.length} 个地点`, 'success');
+            } else if (isEmojisTab) {
+                indices.forEach(i => customEmojis.splice(i, 1));
+                _batchSelectedIndices.clear();
+                throttledSaveData();
+                renderReplyLibrary();
+                showNotification(`已删除 ${indices.length} 个 Emoji`, 'success');
+            } else if (isIntrosTab) {
+                indices.forEach(i => customIntros.splice(i, 1));
+                _batchSelectedIndices.clear();
+                throttledSaveData();
+                renderReplyLibrary();
+                showNotification(`已删除 ${indices.length} 条开场动画`, 'success');
+            } else if (isMottosTab) {
+                indices.forEach(i => customMottos.splice(i, 1));
+                _batchSelectedIndices.clear();
+                throttledSaveData();
+                renderReplyLibrary();
+                showNotification(`已删除 ${indices.length} 条格言`, 'success');
+            } else if (isPokesTab) {
+                indices.forEach(i => customPokes.splice(i, 1));
+                _batchSelectedIndices.clear();
+                throttledSaveData();
+                renderReplyLibrary();
+                showNotification(`已删除 ${indices.length} 条拍一拍`, 'success');
+            } else if (isStatusesTab) {
+                indices.forEach(i => customStatuses.splice(i, 1));
+                _batchSelectedIndices.clear();
+                throttledSaveData();
+                renderReplyLibrary();
+                showNotification(`已删除 ${indices.length} 条状态`, 'success');
             } else {
                 const deletedTexts = indices.map(i => customReplies[i]);
                 indices.forEach(i => customReplies.splice(i, 1));
@@ -895,17 +971,28 @@ function _renderAtmosphereList(list, items) {
     const frag = document.createDocumentFragment();
     items.forEach((item, idx) => {
         const realIdx = (indexMaps[currentSubTab] || { get: () => idx }).get(item) ?? idx;
+        const isSelected = _batchModeActive && _batchSelectedIndices.has(realIdx);
         const div = document.createElement('div');
-        div.className = 'custom-reply-item';
+        div.className = `custom-reply-item${isSelected ? ' batch-selected' : ''}`;
+        div.style.cssText = isSelected ? 'background:rgba(var(--accent-color-rgb),0.08);border-color:var(--accent-color);' : '';
         div.innerHTML = `
             <span class="custom-reply-text">${item.replace(/\n/g, '<br>').replace('|','<br><small style="opacity:.65">')}</span>
+            ${_batchModeActive ? `<div style="width:20px;height:20px;border-radius:50%;border:2px solid ${isSelected ? 'var(--accent-color)' : 'var(--border-color)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:8px;">${isSelected ? '<span style="color:var(--accent-color);font-size:12px;">✓</span>' : ''}</div>` : `
             <div class="custom-reply-actions">
                 <button class="reply-action-mini edit-btn" title="编辑">${ICONS.edit}</button>
                 <button class="reply-action-mini delete-btn" title="删除">${ICONS.trash}</button>
-            </div>
+            </div>`}
         `;
-        div.querySelector('.delete-btn').onclick = () => deleteItem(realIdx);
-        div.querySelector('.edit-btn').onclick = () => editItem(realIdx, item);
+        if (_batchModeActive) {
+            div.addEventListener('click', () => {
+                if (isSelected) _batchSelectedIndices.delete(realIdx);
+                else _batchSelectedIndices.add(realIdx);
+                renderReplyLibrary();
+            });
+        } else {
+            div.querySelector('.delete-btn').onclick = () => deleteItem(realIdx);
+            div.querySelector('.edit-btn').onclick = () => editItem(realIdx, item);
+        }
         frag.appendChild(div);
     });
     list.appendChild(frag);
@@ -915,6 +1002,7 @@ function _renderEmojiTab(list, itemsToRender) {
     if (itemsToRender.length === 0 && customEmojis.length === 0) {
         list.innerHTML = renderEmptyState('暂无 Emoji'); return;
     }
+    // 内置 emoji（不可批量选择）
     itemsToRender.forEach(item => {
         const div = document.createElement('div');
         div.className = 'emoji-item';
@@ -928,17 +1016,26 @@ function _renderEmojiTab(list, itemsToRender) {
         list.appendChild(sep);
         customEmojis.forEach((item, idx) => {
             const div = document.createElement('div');
-            div.className = 'emoji-item';
+            const isSelected = _batchModeActive && _batchSelectedIndices.has(idx);
+            div.className = `emoji-item${isSelected ? ' emoji-batch-selected' : ''}`;
             div.style.position = 'relative';
-            div.innerHTML = `<span style="pointer-events:none;">${item}</span><span class="emoji-custom-del" style="position:absolute;top:-4px;right:-4px;font-size:10px;background:var(--text-secondary);color:#fff;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.2s;">×</span>`;
-            div.addEventListener('mouseenter', () => div.querySelector('.emoji-custom-del').style.opacity = '1');
-            div.addEventListener('mouseleave', () => div.querySelector('.emoji-custom-del').style.opacity = '0');
-            div.querySelector('.emoji-custom-del').addEventListener('click', e => {
-                e.stopPropagation();
-                customEmojis.splice(idx, 1);
-                throttledSaveData();
-                renderReplyLibrary();
-            });
+            div.innerHTML = `<span style="pointer-events:none;">${item}</span>${_batchModeActive ? `<div class="emoji-batch-check" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--accent-color);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${isSelected ? 1 : 0.3};">${isSelected ? '✓' : ''}</div>` : '<span class="emoji-custom-del" style="position:absolute;top:-4px;right:-4px;font-size:10px;background:var(--text-secondary);color:#fff;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.2s;">×</span>'}`;
+            if (!_batchModeActive) {
+                div.addEventListener('mouseenter', () => div.querySelector('.emoji-custom-del').style.opacity = '1');
+                div.addEventListener('mouseleave', () => div.querySelector('.emoji-custom-del').style.opacity = '0');
+                div.querySelector('.emoji-custom-del').addEventListener('click', e => {
+                    e.stopPropagation();
+                    customEmojis.splice(idx, 1);
+                    throttledSaveData();
+                    renderReplyLibrary();
+                });
+            } else {
+                div.addEventListener('click', () => {
+                    if (isSelected) _batchSelectedIndices.delete(idx);
+                    else _batchSelectedIndices.add(idx);
+                    renderReplyLibrary();
+                });
+            }
             list.appendChild(div);
         });
     }
@@ -954,6 +1051,9 @@ function _renderStickerTab(list, itemsToRender) {
         _renderStickerGrid(list, itemsToRender.map((text, idx) => ({ text, idx })), disabledSet);
         return;
     }
+
+    // 有分组时，移除 grid-mode 类，避免分组块被 grid 布局排列
+    list.classList.remove('grid-mode');
 
     // 有分组时，按分组渲染
     if (_activeGroupFilter === null) {
@@ -984,6 +1084,7 @@ function _renderStickerTab(list, itemsToRender) {
         if (ungrouped.length === 0) {
             list.innerHTML = renderEmptyState('所有表情包均已分组');
         } else {
+            list.classList.add('grid-mode');
             _renderStickerGrid(list, ungrouped, disabledSet);
         }
     } else {
@@ -995,6 +1096,7 @@ function _renderStickerTab(list, itemsToRender) {
         if (filtered.length === 0) {
             list.innerHTML = renderEmptyState('此分组暂无表情包');
         } else {
+            list.classList.add('grid-mode');
             _renderStickerGrid(list, filtered, disabledSet);
         }
     }
@@ -1015,17 +1117,29 @@ function _renderStickerGroupBlock(list, group, groupItems, disabledSet, isUngrou
                 ${isDisabled ? `<span title="已屏蔽" style="color:${colorDot};">${ICONS.eyeOff}</span>` : ''}
             </div>
             <span style="font-size:11px;color:var(--text-secondary);">${groupItems.length} 个</span>
+            ${_batchModeActive && groupItems.length > 0 ? (() => {
+                const allSel = groupItems.every(x => _batchSelectedIndices.has(x.idx));
+                const someSel = !allSel && groupItems.some(x => _batchSelectedIndices.has(x.idx));
+                return `<button class="grp-select-all-btn" data-gid="${group.id}" title="${allSel ? '取消本组全选' : '全选本组'}" style="
+                    margin-left:auto;flex-shrink:0;padding:3px 9px;border-radius:20px;cursor:pointer;
+                    font-size:11px;font-weight:700;font-family:var(--font-family);
+                    transition:all 0.15s;
+                    border:1.5px solid ${allSel ? 'var(--accent-color)' : someSel ? colorDot : 'var(--border-color)'};
+                    background:${allSel ? 'var(--accent-color)' : someSel ? colorDot + '22' : 'var(--primary-bg)'};
+                    color:${allSel ? '#fff' : someSel ? colorDot : 'var(--text-secondary)'};
+                ">${allSel ? '✓ 全选' : someSel ? `已选${groupItems.filter(x=>_batchSelectedIndices.has(x.idx)).length}` : '全选'}</button>`;
+            })() : `<div style="flex:1;"></div>`}
             ${!isUngrouped ? `
             <button class="grp-edit-btn" title="编辑分组" style="
-                margin-left:auto;width:26px;height:26px;border-radius:8px;border:1px solid var(--border-color);
+                ${_batchModeActive ? '' : 'margin-left:auto;'}width:26px;height:26px;border-radius:8px;border:1px solid var(--border-color);
                 background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;
                 display:flex;align-items:center;justify-content:center;flex-shrink:0;
-            ">${ICONS.edit}</button>` : '<div style="flex:1;"></div>'}
+            ">${ICONS.edit}</button>` : ''}
             <div class="grp-chevron" style="color:var(--text-secondary);transition:transform 0.2s;transform:${isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};">
                 ${ICONS.chevronD}
             </div>
         </div>
-        <div class="rl-group-body" id="grp-body-sticker-${group.id}" style="display:${isCollapsed ? 'none' : 'block'};">
+        <div class="rl-group-body sticker-grid" id="grp-body-sticker-${group.id}" style="display:${isCollapsed ? 'none' : 'grid'};grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 0;">
         </div>
     `;
     list.appendChild(section);
@@ -1039,27 +1153,39 @@ function _renderStickerGroupBlock(list, group, groupItems, disabledSet, isUngrou
 
     // 分组头事件绑定
     const header = section.querySelector(`#grp-hdr-sticker-${group.id}`);
-    header.querySelector('.rl-group-tag')?.addEventListener('click', () => {
+
+    // 全选按钮
+    section.querySelector('.grp-select-all-btn')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const allSel = groupItems.every(x => _batchSelectedIndices.has(x.idx));
+        if (allSel) {
+            groupItems.forEach(x => _batchSelectedIndices.delete(x.idx));
+        } else {
+            groupItems.forEach(x => _batchSelectedIndices.add(x.idx));
+        }
+        renderReplyLibrary();
+    });
+
+    // 点击 header 折叠/展开
+    header.addEventListener('click', e => {
+        if (e.target.closest('.grp-edit-btn') || e.target.closest(`#grp-tag-sticker-${group.id}`) || e.target.closest('.grp-select-all-btn')) return;
+        group._collapsed = !group._collapsed;
+        const b = section.querySelector(`#grp-body-sticker-${group.id}`);
+        const c = header.querySelector('.grp-chevron');
+        b.style.display = group._collapsed ? 'none' : 'grid';
+        c.style.transform = group._collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+        header.classList.toggle('collapsed', !!group._collapsed);
+    });
+
+    header.querySelector('.rl-group-tag')?.addEventListener('click', e => {
+        e.stopPropagation();
         group.disabled = !group.disabled;
         throttledSaveData();
         renderReplyLibrary();
     });
-    header.querySelector('.grp-edit-btn')?.addEventListener('click', () => {
+    header.querySelector('.grp-edit-btn')?.addEventListener('click', e => {
+        e.stopPropagation();
         _showGroupEditor(group, _getGroupCtx('stickers'));
-    });
-    header.querySelector('.grp-chevron').addEventListener('click', () => {
-        group._collapsed = !group._collapsed;
-        const b = section.querySelector(`#grp-body-sticker-${group.id}`);
-        const c = header.querySelector('.grp-chevron');
-        if (group._collapsed) {
-            b.style.display = 'none';
-            c.style.transform = 'rotate(-90deg)';
-            header.classList.add('collapsed');
-        } else {
-            b.style.display = 'block';
-            c.style.transform = 'rotate(0deg)';
-            header.classList.remove('collapsed');
-        }
     });
 }
 
@@ -1095,6 +1221,7 @@ function _renderStickerGrid(container, itemsWithIdx, disabledSet) {
                 }
                 stickerLibrary.splice(idx, 1);
                 _batchSelectedIndices.clear();
+                _syncStickerLibrary();
                 throttledSaveData();
                 renderReplyLibrary();
             }
@@ -1114,6 +1241,226 @@ function _renderStickerGrid(container, itemsWithIdx, disabledSet) {
         div.addEventListener('touchmove', () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } });
         container.appendChild(div);
     });
+}
+
+// ─── 语音标签渲染 ────────────────────────────────────────────────
+function _renderVoiceTab(list, itemsToRender) {
+    const ctx = _getGroupCtx('voices');
+    const groups = ctx.groups;
+
+    // 搜索过滤
+    const q = _searchQuery.toLowerCase().trim();
+    let filtered = q ? itemsToRender.filter(item => item.text && item.text.toLowerCase().includes(q)) : itemsToRender;
+
+    if (filtered.length === 0) {
+        list.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.innerHTML = renderEmptyState(q ? `未找到 "${q}"` : '暂无语音，点击上方 + 添加');
+        list.appendChild(empty.firstElementChild || empty);
+        return;
+    }
+
+    // 如果没有分组，直接渲染列表
+    if (!groups || groups.length === 0) {
+        list.innerHTML = '';
+        filtered.forEach((item, idx) => _renderVoiceCard(list, item, idx));
+        return;
+    }
+
+    // 有分组时，按分组渲染
+    list.classList.remove('grid-mode');
+    list.innerHTML = '';
+
+    if (_activeGroupFilter === null) {
+        const inGroup = new Set();
+        groups.forEach(g => {
+            const groupItems = (g.items || [])
+                .map(url => ({ item: filtered.find(it => it.audioUrl === url), idx: filtered.findIndex(it => it.audioUrl === url) }))
+                .filter(x => x.item && x.idx >= 0);
+            groupItems.forEach(x => inGroup.add(x.idx));
+            _renderVoiceGroupBlock(list, g, groupItems);
+        });
+
+        const ungrouped = filtered
+            .map((item, idx) => ({ item, idx }))
+            .filter(x => !inGroup.has(x.idx));
+        if (ungrouped.length > 0) {
+            _renderVoiceGroupBlock(list, { id: '__ungrouped', name: '未分组', color: '#868E96', disabled: false }, ungrouped, true);
+        }
+    } else if (_activeGroupFilter === 'ungrouped') {
+        const inGroup = new Set();
+        groups.forEach(g => (g.items || []).forEach(url => {
+            const i = filtered.findIndex(it => it.audioUrl === url);
+            if (i >= 0) inGroup.add(i);
+        }));
+        const ungrouped = filtered
+            .map((item, idx) => ({ item, idx }))
+            .filter(x => !inGroup.has(x.idx));
+        if (ungrouped.length === 0) {
+            list.innerHTML = renderEmptyState('所有语音均已分组');
+        } else {
+            ungrouped.forEach(({ item, idx }) => _renderVoiceCard(list, item, idx));
+        }
+    } else {
+        const g = groups.find(g => String(g.id) === String(_activeGroupFilter));
+        if (!g) { list.innerHTML = renderEmptyState('分组不存在'); return; }
+        const groupItems = (g.items || [])
+            .map(url => ({ item: filtered.find(it => it.audioUrl === url), idx: filtered.findIndex(it => it.audioUrl === url) }))
+            .filter(x => x.item && x.idx >= 0);
+        if (groupItems.length === 0) {
+            list.innerHTML = renderEmptyState('此分组暂无语音');
+        } else {
+            groupItems.forEach(({ item, idx }) => _renderVoiceCard(list, item, idx));
+        }
+    }
+}
+
+function _renderVoiceGroupBlock(list, group, groupItems, isUngrouped = false) {
+    const section = document.createElement('div');
+    section.className = 'rl-group-block';
+    const isCollapsed = group._collapsed || false;
+    const isDisabled = group.disabled;
+    const colorDot = group.color || '#868E96';
+
+    section.innerHTML = `
+        <div class="rl-group-header${isCollapsed ? ' collapsed' : ''}" id="grp-hdr-voice-${group.id}" style="${isDisabled ? 'opacity:0.5;' : ''}">
+            <div class="rl-group-tag" id="grp-tag-voice-${group.id}" title="${isDisabled ? '点击启用此分组' : '点击屏蔽此分组'}">
+                <span style="width:8px;height:8px;border-radius:50%;background:${colorDot};flex-shrink:0;"></span>
+                <span style="font-size:12px;font-weight:700;color:${colorDot};">${group.name}</span>
+                ${isDisabled ? `<span title="已屏蔽" style="color:${colorDot};">${ICONS.eyeOff}</span>` : ''}
+            </div>
+            <span style="font-size:11px;color:var(--text-secondary);">${groupItems.length} 个</span>
+            <div style="flex:1;"></div>
+            ${!isUngrouped ? `
+            <button class="grp-edit-btn" title="编辑分组" style="
+                width:26px;height:26px;border-radius:8px;border:1px solid var(--border-color);
+                background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+            ">${ICONS.edit}</button>` : ''}
+            <div class="grp-chevron" style="color:var(--text-secondary);transition:transform 0.2s;transform:${isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};">
+                ${ICONS.chevronD}
+            </div>
+        </div>
+        <div class="rl-group-body" id="grp-body-voice-${group.id}" style="display:${isCollapsed ? 'none' : 'block'};">
+        </div>
+    `;
+    list.appendChild(section);
+
+    const body = section.querySelector(`#grp-body-voice-${group.id}`);
+    if (groupItems.length === 0) {
+        body.innerHTML = `<div style="padding:18px;text-align:center;font-size:12px;color:var(--text-secondary);opacity:0.6;">此分组暂无语音</div>`;
+    } else {
+        groupItems.forEach(({ item, idx }) => _renderVoiceCard(body, item, idx));
+    }
+
+    const header = section.querySelector(`#grp-hdr-voice-${group.id}`);
+    header.addEventListener('click', e => {
+        if (e.target.closest('.grp-edit-btn') || e.target.closest(`#grp-tag-voice-${group.id}`)) return;
+        group._collapsed = !group._collapsed;
+        const b = section.querySelector(`#grp-body-voice-${group.id}`);
+        const c = header.querySelector('.grp-chevron');
+        b.style.display = group._collapsed ? 'none' : 'block';
+        c.style.transform = group._collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+        header.classList.toggle('collapsed', !!group._collapsed);
+    });
+
+    header.querySelector('.rl-group-tag')?.addEventListener('click', e => {
+        e.stopPropagation();
+        group.disabled = !group.disabled;
+        throttledSaveData();
+        renderReplyLibrary();
+    });
+    header.querySelector('.grp-edit-btn')?.addEventListener('click', e => {
+        e.stopPropagation();
+        _showGroupEditor(group, _getGroupCtx('voices'));
+    });
+}
+
+function _renderVoiceCard(container, item, idx) {
+    const div = document.createElement('div');
+    div.className = 'rl-card';
+    div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;';
+    div.innerHTML = `
+        <div class="voice-toggle-btn" style="width:40px;height:40px;border-radius:50%;background:var(--accent-color);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:16px;transition:transform 0.15s;">
+            <i class="fas fa-play"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.text || '未命名语音')}</div>
+            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.audioUrl || '')}</div>
+        </div>
+        <div class="rl-card-actions" style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="rl-act-btn voice-edit-btn" title="编辑" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-pen" style="font-size:12px;"></i>
+            </button>
+            <button class="rl-act-btn voice-tag-btn" title="分组" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-tag" style="font-size:12px;"></i>
+            </button>
+            <button class="rl-act-btn voice-delete-btn danger" title="删除" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-trash" style="font-size:12px;"></i>
+            </button>
+        </div>
+    `;
+
+    // 点击卡片或左侧圆形按钮切换播放/暂停
+    let audio = null;
+    let isPlaying = false;
+    const toggleBtn = div.querySelector('.voice-toggle-btn');
+    const togglePlay = (e) => {
+        e.stopPropagation();
+        if (!item.audioUrl) return;
+        if (!audio) {
+            audio = new Audio(item.audioUrl);
+            audio.addEventListener('ended', () => {
+                isPlaying = false;
+                toggleBtn.querySelector('i').className = 'fas fa-play';
+            });
+        }
+        if (isPlaying) {
+            audio.pause();
+            isPlaying = false;
+            toggleBtn.querySelector('i').className = 'fas fa-play';
+        } else {
+            // 停止其他正在播放的语音
+            document.querySelectorAll('.voice-toggle-btn .fa-pause').forEach(icon => {
+                icon.className = 'fas fa-play';
+            });
+            audio.play().catch(err => console.error('播放失败:', err));
+            isPlaying = true;
+            toggleBtn.querySelector('i').className = 'fas fa-pause';
+        }
+    };
+    toggleBtn.addEventListener('click', togglePlay);
+    div.addEventListener('click', togglePlay);
+
+    // 编辑按钮
+    div.querySelector('.voice-edit-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        _showVoiceEditor(item, idx);
+    });
+
+    // 分组按钮
+    div.querySelector('.voice-tag-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        _showVoiceGroupPicker(item, idx);
+    });
+
+    // 删除按钮
+    div.querySelector('.voice-delete-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm('确定删除此语音？')) {
+            if (audio) { audio.pause(); audio = null; }
+            // 清理分组引用
+            const ctx = _getGroupCtx('voices');
+            if (ctx.groups) {
+                ctx.groups.forEach(g => { if (g.items) g.items = g.items.filter(url => url !== item.audioUrl); });
+            }
+            customVoices.splice(idx, 1);
+            throttledSaveData();
+            renderReplyLibrary();
+        }
+    });
+
+    container.appendChild(div);
 }
 
 function _showStickerContextMenu(itemText, itemIdx, anchorEl) {
@@ -1175,6 +1522,7 @@ function _showStickerContextMenu(itemText, itemIdx, anchorEl) {
             if (ctx.groups) ctx.groups.forEach(g => { if (g.items) g.items = g.items.filter(t => t !== itemText); });
             stickerLibrary.splice(itemIdx, 1);
             _batchSelectedIndices.clear();
+            _syncStickerLibrary();
             throttledSaveData();
             overlay.remove();
             renderReplyLibrary();
@@ -1259,14 +1607,12 @@ function _runDedup() {
     customIntros = ciDedup.result; totalRemoved += ciDedup.removedCount;
     const kmDedup = deduplicateContentArray(kaomojiLibrary);
     kaomojiLibrary = kmDedup.result; totalRemoved += kmDedup.removedCount;
-    window._kaomojiLibrary = kaomojiLibrary;
     const maDedup = deduplicateContentArray(window.moyuActivities || []);
     window.moyuActivities = maDedup.result; totalRemoved += maDedup.removedCount;
     const mlDedup = deduplicateContentArray(moyuLocations);
     moyuLocations = mlDedup.result; totalRemoved += mlDedup.removedCount;
     const preEmoji = customEmojis.length;
     customEmojis = [...new Set(customEmojis)];
-    window._customEmojis = customEmojis;
     totalRemoved += (preEmoji - customEmojis.length);
     if (totalRemoved > 0) {
         throttledSaveData(); renderReplyLibrary();
@@ -1533,16 +1879,16 @@ function _showSingleItemGroupPicker(itemText, ctx) {
         <style>@keyframes popIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }</style>
         <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:14px;">选择分组</div>
         <div style="display:flex;flex-direction:column;gap:7px;max-height:55vh;overflow-y:auto;margin-bottom:14px;">
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid ${!currentGroup ? 'var(--accent-color)' : 'var(--border-color)'};background:${!currentGroup ? 'rgba(var(--accent-color-rgb),0.06)' : 'var(--primary-bg)'};">
-                <input type="radio" name="sgp" value="" ${!currentGroup ? 'checked' : ''} style="accent-color:var(--accent-color);">
-                <span style="font-size:13px;color:var(--text-secondary);">不分组</span>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;border-radius:11px;border:1.5px solid ${!currentGroup ? 'var(--accent-color)' : 'var(--border-color)'};background:${!currentGroup ? 'rgba(var(--accent-color-rgb),0.06)' : 'var(--primary-bg)'};width:100%;box-sizing:border-box;">
+                <input type="radio" name="sgp" value="" ${!currentGroup ? 'checked' : ''} style="accent-color:var(--accent-color);flex-shrink:0;">
+                <span style="font-size:13px;color:var(--text-secondary);flex:1;">不分组</span>
             </label>
             ${groups.map((g, i) => `
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid ${currentGroup?.id === g.id ? g.color : 'var(--border-color)'};background:${currentGroup?.id === g.id ? g.color + '10' : 'var(--primary-bg)'};">
-                    <input type="radio" name="sgp" value="${i}" ${currentGroup?.id === g.id ? 'checked' : ''} style="accent-color:${g.color};">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;border-radius:11px;border:1.5px solid ${currentGroup?.id === g.id ? g.color : 'var(--border-color)'};background:${currentGroup?.id === g.id ? g.color + '10' : 'var(--primary-bg)'};width:100%;box-sizing:border-box;">
+                    <input type="radio" name="sgp" value="${i}" ${currentGroup?.id === g.id ? 'checked' : ''} style="accent-color:${g.color};flex-shrink:0;">
                     <span style="width:9px;height:9px;border-radius:50%;background:${g.color||'#aaa'};flex-shrink:0;"></span>
                     <span style="flex:1;font-size:13px;color:var(--text-primary);font-weight:600;">${g.name}</span>
-                    <span style="font-size:11px;color:var(--text-secondary);">${(g.items||[]).length} 条</span>
+                    <span style="font-size:11px;color:var(--text-secondary);flex-shrink:0;">${(g.items||[]).length} 条</span>
                 </label>
             `).join('')}
         </div>
@@ -1595,16 +1941,16 @@ function _showBatchGroupPicker() {
         <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">批量分组</div>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;">将 <strong style="color:var(--text-primary);">${selectedItems.length}</strong> 条内容移入分组</div>
         <div style="display:flex;flex-direction:column;gap:7px;max-height:50vh;overflow-y:auto;margin-bottom:14px;">
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid var(--border-color);background:var(--primary-bg);">
-                <input type="radio" name="bgp" value="" checked style="accent-color:var(--accent-color);">
-                <span style="font-size:13px;color:var(--text-secondary);">移出所有分组</span>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;border-radius:11px;border:1.5px solid var(--border-color);background:var(--primary-bg);width:100%;box-sizing:border-box;">
+                <input type="radio" name="bgp" value="" checked style="accent-color:var(--accent-color);flex-shrink:0;">
+                <span style="font-size:13px;color:var(--text-secondary);flex:1;">移出所有分组</span>
             </label>
             ${groups.map((g, i) => `
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid var(--border-color);background:var(--primary-bg);">
-                    <input type="radio" name="bgp" value="${i}" style="accent-color:${g.color};">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;border-radius:11px;border:1.5px solid var(--border-color);background:var(--primary-bg);width:100%;box-sizing:border-box;">
+                    <input type="radio" name="bgp" value="${i}" style="accent-color:${g.color};flex-shrink:0;">
                     <span style="width:9px;height:9px;border-radius:50%;background:${g.color||'#aaa'};flex-shrink:0;"></span>
                     <span style="flex:1;font-size:13px;color:var(--text-primary);font-weight:600;">${g.name}</span>
-                    <span style="font-size:11px;color:var(--text-secondary);">${(g.items||[]).length} 条</span>
+                    <span style="font-size:11px;color:var(--text-secondary);flex-shrink:0;">${(g.items||[]).length} 条</span>
                 </label>
             `).join('')}
         </div>
@@ -2340,7 +2686,7 @@ function _showIOSheet(title, subtitle, modules, icon, onConfirm, showMode = fals
 
 function _makeOverlay() {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;';
     return overlay;
 }
 
@@ -2375,13 +2721,14 @@ function _showBatchAddDialog() {
         </button>`).join('')}
     ` : '';
 
+    const isIntrosBatch = currentSubTab === 'intros';
     panel.innerHTML = `
         <style>
             @keyframes popIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }
             @keyframes baGroupSlide { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
         </style>
         <div style="flex-shrink:0;font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">批量添加${getCategoryName(currentSubTab)}</div>
-        <div style="flex-shrink:0;font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">每行一条，自动去重</div>
+        <div style="flex-shrink:0;font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">${isIntrosBatch ? '每行一条，格式：主标题|副标题<br>自动去重' : '每行一条，自动去重'}</div>
 
         <div style="flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;">
             <!-- 批量添加开关 -->
@@ -2554,6 +2901,12 @@ function _showBatchAddDialog() {
                 ? customStatuses.some(r => normalizeStringStrict(r) === norm)
                 : currentSubTab === 'kaomojis'
                 ? kaomojiLibrary.some(r => normalizeStringStrict(r) === norm)
+                : currentSubTab === 'emojis'
+                ? customEmojis.some(r => normalizeStringStrict(r) === norm)
+                : currentSubTab === 'mottos'
+                ? customMottos.some(r => normalizeStringStrict(r) === norm)
+                : currentSubTab === 'intros'
+                ? customIntros.some(r => normalizeStringStrict(r) === norm)
                 : currentMajorTab === 'moyu' && currentSubTab === 'moyu'
                 ? (window.moyuActivities || []).some(r => normalizeStringStrict(r) === norm)
                 : currentMajorTab === 'moyu' && currentSubTab === 'moyuLocations'
@@ -2564,12 +2917,14 @@ function _showBatchAddDialog() {
             else if (currentSubTab === 'pokes') { customPokes.push(val); newItems.push(val); }
             else if (currentSubTab === 'statuses') { customStatuses.push(val); newItems.push(val); }
             else if (currentSubTab === 'kaomojis') { kaomojiLibrary.push(val); newItems.push(val); }
+            else if (currentSubTab === 'emojis') { customEmojis.push(val); newItems.push(val); }
+            else if (currentSubTab === 'mottos') { customMottos.push(val); newItems.push(val); }
+            else if (currentSubTab === 'intros') { customIntros.push(val); newItems.push(val); }
             else if (currentMajorTab === 'moyu' && currentSubTab === 'moyu') { 
                 if (!window.moyuActivities) window.moyuActivities = [];
                 window.moyuActivities.push(val); newItems.push(val); 
             }
             else if (currentMajorTab === 'moyu' && currentSubTab === 'moyuLocations') { moyuLocations.push(val); newItems.push(val); }
-            else if (currentSubTab === 'mottos') customMottos.push(val);
             added++;
         });
         if (_selectedGroupIdx >= 0 && newItems.length > 0 && groups) {
@@ -2707,17 +3062,12 @@ function initReplyLibraryListeners() {
             if (currentSubTab === 'stickers') {
                 document.getElementById('sticker-file-input')?.click(); return;
             }
-            if (currentSubTab === 'emojis') {
-                const input = prompt('请输入要添加的 Emoji（支持组合表情）:');
-                if (input?.trim()) {
-                    customEmojis.push(input.trim());
-                    throttledSaveData(); renderReplyLibrary();
-                    showNotification('✓ Emoji 已添加', 'success');
-                }
-                return;
+            if (currentSubTab === 'voices') {
+                _showVoiceUploadDialog(); return;
             }
             if (currentSubTab === 'kaomojis' ||
                 currentSubTab === 'custom' || currentSubTab === 'pokes' || currentSubTab === 'statuses' ||
+                currentSubTab === 'emojis' || currentSubTab === 'mottos' || currentSubTab === 'intros' ||
                 (currentMajorTab === 'moyu' && (currentSubTab === 'moyu' || currentSubTab === 'moyuLocations'))) {
                 _showBatchAddDialog(); return;
             }
@@ -2748,6 +3098,32 @@ function initReplyLibraryListeners() {
             }
         });
     }
+
+    // 关闭按钮
+    const closeBtn = DOMElements.customRepliesModal?.closeBtn;
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            hideModal(DOMElements.customRepliesModal.modal);
+        });
+    }
+
+    // 点击模态框外部关闭
+    const modal = DOMElements.customRepliesModal?.modal;
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal(modal);
+            }
+        });
+    }
+
+    // Escape 键关闭
+    const escHandler = (e) => {
+        if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+            hideModal(modal);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 function getCategoryName(tabId) {
@@ -2919,4 +3295,233 @@ function applyAllAvatarFrames() {
     if (settings.avatarCornerRadius) {
         document.documentElement.style.setProperty('--avatar-corner-radius', settings.avatarCornerRadius + 'px');
     }
+}
+
+// ─── 语音上传对话框 ────────────────────────────────────────────────
+function _showVoiceUploadDialog() {
+    const overlay = _makeOverlay();
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        background:var(--secondary-bg);border-radius:18px;padding:20px;
+        width:88%;max-width:360px;
+        box-shadow:0 20px 60px rgba(0,0,0,.4);
+        animation:popIn 0.2s cubic-bezier(.34,1.56,.64,1);
+    `;
+    panel.innerHTML = `
+        <style>@keyframes popIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }</style>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:16px;">添加语音</div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;">选择 MP3 文件</label>
+            <input type="file" id="voice-upload-file" accept="audio/mpeg,audio/mp3" style="display:none;">
+            <button id="voice-select-file-btn" style="width:100%;padding:12px;border-radius:12px;border:2px dashed var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">
+                <i class="fas fa-upload" style="margin-right:6px;"></i>点击选择文件
+            </button>
+            <div id="voice-file-name" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;">语音文字内容</label>
+            <textarea id="voice-text-input" placeholder="请输入这段语音的文字内容..." style="width:100%;min-height:80px;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-family:var(--font-family);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button id="voice-upload-cancel" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">取消</button>
+            <button id="voice-upload-confirm" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);font-size:13px;font-weight:600;">添加</button>
+        </div>
+    `;
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    let selectedFile = null;
+    const fileInput = panel.querySelector('#voice-upload-file');
+    const selectBtn = panel.querySelector('#voice-select-file-btn');
+    const fileNameDiv = panel.querySelector('#voice-file-name');
+    const textInput = panel.querySelector('#voice-text-input');
+    const confirmBtn = panel.querySelector('#voice-upload-confirm');
+    const cancelBtn = panel.querySelector('#voice-upload-cancel');
+
+    selectBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (!file.name.toLowerCase().endsWith('.mp3')) {
+                showNotification('请选择 MP3 格式的音频文件', 'warning');
+                selectedFile = null;
+                fileNameDiv.textContent = '';
+                return;
+            }
+            selectedFile = file;
+            fileNameDiv.textContent = file.name;
+        }
+    });
+
+    confirmBtn.addEventListener('click', () => {
+        if (!selectedFile) {
+            showNotification('请先选择音频文件', 'warning');
+            return;
+        }
+        const text = textInput.value.trim();
+        if (!text) {
+            showNotification('请输入语音的文字内容', 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const audioUrl = e.target.result;
+            customVoices.unshift({ text, audioUrl });
+            throttledSaveData();
+            renderReplyLibrary();
+            showNotification('✓ 语音已添加', 'success');
+            overlay.remove();
+        };
+        reader.onerror = () => {
+            showNotification('文件读取失败', 'error');
+        };
+        reader.readAsDataURL(selectedFile);
+    });
+
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ─── 语音编辑对话框 ────────────────────────────────────────────────
+function _showVoiceEditor(item, idx) {
+    const overlay = _makeOverlay();
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        background:var(--secondary-bg);border-radius:18px;padding:20px;
+        width:88%;max-width:360px;
+        box-shadow:0 20px 60px rgba(0,0,0,.4);
+        animation:popIn 0.2s cubic-bezier(.34,1.56,.64,1);
+    `;
+    panel.innerHTML = `
+        <style>@keyframes popIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }</style>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:16px;">编辑语音</div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;">语音文字内容</label>
+            <textarea id="voice-edit-text" style="width:100%;min-height:80px;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-family:var(--font-family);font-size:13px;resize:vertical;box-sizing:border-box;">${escapeHtml(item.text || '')}</textarea>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;">音频链接</label>
+            <input type="text" id="voice-edit-url" value="${escapeHtml(item.audioUrl || '')}" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-family:var(--font-family);font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;">或重新上传 MP3</label>
+            <input type="file" id="voice-edit-file" accept="audio/mpeg,audio/mp3" style="display:none;">
+            <button id="voice-edit-file-btn" style="width:100%;padding:10px;border-radius:10px;border:2px dashed var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">
+                <i class="fas fa-upload" style="margin-right:6px;"></i>选择新文件
+            </button>
+            <div id="voice-edit-file-name" style="font-size:12px;color:var(--text-secondary);margin-top:6px;text-align:center;"></div>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button id="voice-edit-cancel" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">取消</button>
+            <button id="voice-edit-confirm" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);font-size:13px;font-weight:600;">保存</button>
+        </div>
+    `;
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    let newFile = null;
+    const textInput = panel.querySelector('#voice-edit-text');
+    const urlInput = panel.querySelector('#voice-edit-url');
+    const fileInput = panel.querySelector('#voice-edit-file');
+    const fileBtn = panel.querySelector('#voice-edit-file-btn');
+    const fileNameDiv = panel.querySelector('#voice-edit-file-name');
+    const confirmBtn = panel.querySelector('#voice-edit-confirm');
+    const cancelBtn = panel.querySelector('#voice-edit-cancel');
+
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (!file.name.toLowerCase().endsWith('.mp3')) {
+                showNotification('请选择 MP3 格式的音频文件', 'warning');
+                return;
+            }
+            newFile = file;
+            fileNameDiv.textContent = file.name;
+        }
+    });
+
+    confirmBtn.addEventListener('click', () => {
+        const newText = textInput.value.trim();
+        if (!newText) {
+            showNotification('语音文字内容不能为空', 'warning');
+            return;
+        }
+
+        const doSave = (audioUrl) => {
+            item.text = newText;
+            if (audioUrl) item.audioUrl = audioUrl;
+            throttledSaveData();
+            renderReplyLibrary();
+            showNotification('✓ 已保存', 'success');
+            overlay.remove();
+        };
+
+        if (newFile) {
+            const reader = new FileReader();
+            reader.onload = (e) => doSave(e.target.result);
+            reader.onerror = () => showNotification('文件读取失败', 'error');
+            reader.readAsDataURL(newFile);
+        } else {
+            doSave(urlInput.value.trim());
+        }
+    });
+
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ─── 语音分组选择器 ────────────────────────────────────────────────
+function _showVoiceGroupPicker(item, idx) {
+    const ctx = _getGroupCtx('voices');
+    const groups = ctx.groups || [];
+    const currentGroup = groups.find(g => g.items && g.items.includes(item.audioUrl));
+
+    const overlay = _makeOverlay();
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        background:var(--secondary-bg);border-radius:18px;padding:20px;
+        width:88%;max-width:300px;
+        box-shadow:0 20px 60px rgba(0,0,0,.4);
+        animation:popIn 0.2s cubic-bezier(.34,1.56,.64,1);
+    `;
+    let html = `
+        <style>@keyframes popIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }</style>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:14px;">选择分组</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+    `;
+    html += `<button class="voice-group-opt" data-gid="" style="padding:10px 14px;border-radius:12px;border:1.5px solid ${!currentGroup ? 'var(--accent-color)' : 'var(--border-color)'};background:${!currentGroup ? 'rgba(var(--accent-color-rgb,180,140,100),0.08)' : 'var(--primary-bg)'};color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:13px;text-align:left;">未分组</button>`;
+    groups.forEach(g => {
+        const isActive = currentGroup && currentGroup.id === g.id;
+        html += `<button class="voice-group-opt" data-gid="${g.id}" style="padding:10px 14px;border-radius:12px;border:1.5px solid ${isActive ? g.color : 'var(--border-color)'};background:${isActive ? g.color + '15' : 'var(--primary-bg)'};color:var(--text-primary);cursor:pointer;font-family:var(--font-family);font-size:13px;text-align:left;display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:${g.color};"></span>${g.name}</button>`;
+    });
+    html += `</div><button id="voice-group-cancel" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);font-size:13px;">取消</button>`;
+    panel.innerHTML = html;
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    panel.querySelectorAll('.voice-group-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const gid = btn.dataset.gid;
+            // 从所有分组中移除
+            groups.forEach(g => { if (g.items) g.items = g.items.filter(url => url !== item.audioUrl); });
+            // 添加到新分组
+            if (gid) {
+                const target = groups.find(g => String(g.id) === String(gid));
+                if (target) {
+                    if (!target.items) target.items = [];
+                    target.items.push(item.audioUrl);
+                }
+            }
+            throttledSaveData();
+            renderReplyLibrary();
+            showNotification('✓ 分组已更新', 'success');
+            overlay.remove();
+        });
+    });
+
+    panel.querySelector('#voice-group-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }

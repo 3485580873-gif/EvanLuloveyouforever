@@ -31,6 +31,10 @@
     <link rel="stylesheet" href="css/diary.css">
     <link rel="stylesheet" href="css/home.css">
     <link rel="stylesheet" href="css/moments.css">
+    <link rel="stylesheet" href="css/pet-style.css">
+    <link rel="stylesheet" href="css/map.css">
+    <link rel="stylesheet" href="css/spark.css">
+    <link rel="stylesheet" href="css/shop.css">
 
     <style id="css-live-preview-style">
         /* 输入框样式 */
@@ -43,29 +47,83 @@
         .message-input {
             flex: 1;
             min-width: 0;
-            padding: 8px 14px;
+            padding: 6px 12px;
             border: 1px solid var(--border-color);
             border-radius: 18px;
             background: var(--primary-bg);
             color: var(--text-primary);
             font-size: 14px;
             font-family: var(--font-family);
-            line-height: 1.4;
+            line-height: 1.5;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
             box-sizing: border-box;
-            white-space: pre-wrap;
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-all;
             min-height: 36px;
             max-height: 108px;
             overflow-y: auto;
-            resize: none;
+        }
+        .message-input:empty:before {
+            content: attr(placeholder);
+            color: var(--text-secondary);
+            opacity: 0.5;
+            pointer-events: none;
         }
         .message-input:focus {
             border-color: var(--accent-color);
             box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.15);
+        }
+        .message-input img.inline-sticker {
+            display: inline-block;
+            vertical-align: middle;
+            width: 24px;
+            height: 24px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin: 0 2px;
+            position: relative;
+            top: -1px;
+        }
+        .sticker-attached-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--secondary-bg);
+            flex-wrap: wrap;
+        }
+        .sticker-attached-item {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--accent-color);
+            flex-shrink: 0;
+        }
+        .sticker-attached-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .sticker-attached-remove {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            background: #ff5050;
+            color: #fff;
+            border-radius: 50%;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            line-height: 1;
         }
     </style>
 </head>
@@ -331,6 +389,42 @@
                             </svg>
                         </div>
                         <span class="app-name">TA的手机</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('pet')">
+                        <div class="app-icon" data-app="pet"><i class="fas fa-paw"></i></div>
+                        <span class="app-name">萌宠屋</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('shop')">
+                        <div class="app-icon" data-app="shop"><i class="fas fa-store"></i></div>
+                        <span class="app-name">商城</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('map')">
+                        <div class="app-icon" data-app="map"><i class="fas fa-map-marked-alt"></i></div>
+                        <span class="app-name">地图</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('moments')">
+                        <div class="app-icon" data-app="moments"><i class="fas fa-camera-retro"></i></div>
+                        <span class="app-name">朋友圈</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('gift-cabinet')">
+                        <div class="app-icon" data-app="gift-cabinet"><i class="fas fa-gift"></i></div>
+                        <span class="app-name">礼物柜</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('music')">
+                        <div class="app-icon" data-app="music"><i class="fas fa-music"></i></div>
+                        <span class="app-name">音乐</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('todolist')">
+                        <div class="app-icon" data-app="todolist"><i class="fas fa-tasks"></i></div>
+                        <span class="app-name">待办清单</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('dream')">
+                        <div class="app-icon" data-app="dream"><i class="fas fa-cloud-moon"></i></div>
+                        <span class="app-name">梦境</span>
+                    </div>
+                    <div class="app-item" onclick="openApp('game')">
+                        <div class="app-icon" data-app="game"><i class="fas fa-gamepad"></i></div>
+                        <span class="app-name">小游戏</span>
                     </div>
                 </div>
             </div>
@@ -1308,11 +1402,10 @@
     <div class="input-area-wrapper">
         <div class="batch-preview" id="batch-preview"></div>
         <div id="reply-preview-container"></div>
-        <div id="sticker-preview-area" style="display:none;padding:4px 12px;background:var(--secondary-bg);border-top:1px solid var(--border-color);">
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div style="font-size:11px;color:var(--text-secondary);">待发送表情包:</div>
-                <img id="sticker-preview-img" src="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border-color);">
-                <button id="sticker-preview-cancel" style="background:rgba(255,80,80,0.15);border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;color:#ff5050;font-size:12px;display:flex;align-items:center;justify-content:center;">×</button>
+        <div id="sticker-preview-area" style="display:none;padding:4px 12px;background:var(--secondary-bg);border-top:1px solid var(--border-color);align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;width:100%;overflow-x:auto;">
+                <span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">📎 附件:</span>
+                <span id="sticker-preview-cancel" style="cursor:pointer;font-size:14px;color:var(--text-secondary);margin-left:auto;flex-shrink:0;" title="清除附件">✕</span>
             </div>
         </div>
         <div id="collapsed-extras-panel" style="display:none;">
@@ -1358,7 +1451,7 @@
         </svg>
     </button>
 
-    <textarea class="message-input" id="message-input" placeholder="" wrap="soft" rows="1"></textarea>
+    <div class="message-input" id="message-input" contenteditable="true" placeholder="说点什么..." wrap="soft" rows="1" onpaste="handleMessageInputPaste(event)" onkeydown="handleMessageInputKeydown(event)"></div>
     
     <div class="input-buttons">
     <button class="continue-btn input-btn" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
@@ -1791,6 +1884,23 @@
                     提示: 应用后将覆盖默认字体。留空并应用可恢复默认。
                 </div>
             </div>
+            <!-- 本地字体上传 -->
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+                <label style="font-size: 12px; color: var(--text-secondary); display:block; margin-bottom:6px;">📁 本地字体上传:</label>
+                <input type="file" id="local-font-file-input" accept=".ttf,.otf,.woff,.woff2,.eot" style="display:none;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <button id="local-font-upload-btn" class="modal-btn modal-btn-secondary" style="padding:6px 12px;font-size:12px;white-space:nowrap;">
+                        <i class="fas fa-upload"></i> 选择字体文件
+                    </button>
+                    <span id="local-font-file-name" style="font-size:11px;color:var(--accent-color);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;"></span>
+                    <button id="local-font-clear-btn" class="modal-btn modal-btn-secondary" style="padding:4px 10px;font-size:11px;white-space:nowrap;display:none;">
+                        <i class="fas fa-times"></i> 清除
+                    </button>
+                </div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;opacity:0.7;">
+                    支持 TTF / OTF / WOFF / WOFF2 格式，单个文件不超过10MB
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2189,12 +2299,12 @@
                     <div class="cs-card" style="margin-bottom:10px;">
                         <div class="cs-slider-row">
                             <span class="cs-slider-label">最短等待</span>
-                            <input type="range" min="1000" max="120000" step="1000" value="3000" class="font-size-slider" id="reply-delay-min-slider">
+                            <input type="range" min="1000" max="30000" step="500" value="3000" class="font-size-slider" id="reply-delay-min-slider">
                             <span class="cs-slider-val" id="reply-delay-min-value">3s</span>
                         </div>
                         <div class="cs-slider-row">
                             <span class="cs-slider-label">最长等待</span>
-                            <input type="range" min="1000" max="120000" step="1000" value="7000" class="font-size-slider" id="reply-delay-max-slider">
+                            <input type="range" min="1000" max="30000" step="500" value="7000" class="font-size-slider" id="reply-delay-max-slider">
                             <span class="cs-slider-val" id="reply-delay-max-value">7s</span>
                         </div>
                     </div>
@@ -3741,9 +3851,14 @@
     <script src="js/features/theme-editor.js"></script>
     <script src="js/features/group-chat.js"></script>
     <script src="js/features/call.js"></script>
+    <script src="js/features/map.js"></script>
     <script src="js/diary.js"></script>
     <script src="js/accounting.js"></script>
     <script src="js/moyu.js"></script>
+    <script src="js/pet-game.js"></script>
+    <script src="js/pet.js"></script>
+    <script src="js/shop.js"></script>
+    <script src="js/gift-cabinet.js"></script>
 
     <!-- == 合并模块 == -->
     <script src="js/games.js"></script> 
@@ -3752,8 +3867,9 @@
     <script src="js/onboarding.js"></script> 
     <script src="js/listeners.js"></script>
     <script src="js/moments.js"></script>
+    <script src="js/spark.js"></script>
     <script src="js/app.js"></script>
-    <!-- === 综合补丁：表情直接发出 + 红包逻辑 + 本地字体 + 电话挂断记录 === -->
+    <!-- === 综合补丁：表情直接发出 + 红包逻辑 + 电话挂断记录 === -->
     <script>
 (function() {
     'use strict';
@@ -3892,7 +4008,7 @@
 
         comboContentArea.innerHTML = html;
 
-        // 绑定表情点击事件 → 直接发送
+        // 绑定表情点击事件 → 附加到输入框（可随文字一起发送）
         if (tab !== 'poke') {
             setTimeout(function() {
                 comboContentArea.querySelectorAll('.sticker-thumb').forEach(function(img) {
@@ -3902,7 +4018,8 @@
                         var itemsArr = tabSrc === 'my-sticker' ? (window.myStickerLibrary || []) : (window.stickerLibrary || []);
                         var src = typeof itemsArr[idx] === 'string' ? itemsArr[idx] : (itemsArr[idx].url || itemsArr[idx].src || itemsArr[idx]);
                         if (src) {
-                            sendStickerOrPoke(src, null);
+                            // 附加表情包到输入区域（而非立即发送）
+                            attachStickerToInput(src);
                             // 关闭选择器
                             if (stickerPicker) stickerPicker.classList.remove('active');
                         }
@@ -3911,6 +4028,85 @@
             }, 0);
         }
     }
+
+    // ========== 表情包附件系统 ==========
+    window._pendingAttachments = [];
+
+    function attachStickerToInput(src) {
+        if (!window._pendingAttachments) window._pendingAttachments = [];
+        window._pendingAttachments.push(src);
+        renderAttachmentPreview();
+    }
+
+    function renderAttachmentPreview() {
+        var previewArea = document.getElementById('sticker-preview-area');
+        if (!previewArea) return;
+        var attrs = window._pendingAttachments || [];
+        if (attrs.length === 0) {
+            previewArea.style.display = 'none';
+            previewArea.innerHTML = '';
+            return;
+        }
+        previewArea.style.display = 'flex';
+        var html = '<div style="display:flex;align-items:center;gap:8px;width:100%;overflow-x:auto;flex-wrap:wrap;">';
+        html += '<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap;">📎 附件:</span>';
+        attrs.forEach(function(src, i) {
+            html += '<div class="sticker-attached-item">';
+            html += '<img src="' + src + '" alt="表情">';
+            html += '<button class="sticker-attached-remove" onclick="removeAttachment(' + i + ')" title="移除">✕</button>';
+            html += '</div>';
+        });
+        html += '<span style="font-size:11px;color:var(--text-secondary);cursor:pointer;margin-left:auto;flex-shrink:0;" onclick="clearAllAttachments()" title="清除全部附件">清空 ✕</span>';
+        html += '</div>';
+        previewArea.innerHTML = html;
+    }
+
+    window.removeAttachment = function(idx) {
+        if (window._pendingAttachments) {
+            window._pendingAttachments.splice(idx, 1);
+        }
+        renderAttachmentPreview();
+    };
+
+    window.clearAllAttachments = function() {
+        window._pendingAttachments = [];
+        renderAttachmentPreview();
+    };
+
+    // 输入框粘贴处理：只保留纯文本，去除格式
+    function handleMessageInputPaste(e) {
+        e.preventDefault();
+        var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        // 插入纯文本
+        var selection = window.getSelection();
+        if (selection.rangeCount) {
+            var range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(text));
+            // 光标移到末尾
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
+
+    // 输入框键盘事件：Enter发送，Shift+Enter换行
+    function handleMessageInputKeydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessageWithAttachments();
+        }
+    }
+
+    // 发送按钮点击事件
+    (function() {
+        var sendBtn = document.getElementById('send-btn');
+        if (sendBtn) {
+            sendBtn.addEventListener('click', function() {
+                sendMessageWithAttachments();
+            });
+        }
+    })();
 
     // 发送表情或拍一拍
     function sendStickerOrPoke(imgSrc, pokeText) {
@@ -3932,16 +4128,13 @@
                 note: null,
                 type: 'normal'
             });
-            // 播放音效
             if (typeof playSound === 'function') playSound('send');
-            // 触发回复
             if (typeof window.simulateReply === 'function') {
                 var delayRange = (typeof settings !== 'undefined' && settings.replyDelayMax - settings.replyDelayMin) || 4000;
                 var randomDelay = ((typeof settings !== 'undefined' && settings.replyDelayMin) || 3000) + Math.random() * delayRange;
                 setTimeout(function() { window.simulateReply(); }, randomDelay);
             }
         } else if (pokeText) {
-            // 发送拍一拍
             addMessageFn({
                 id: Date.now(),
                 sender: 'user',
@@ -3956,6 +4149,72 @@
             if (typeof window.simulateReply === 'function') {
                 setTimeout(function() { window.simulateReply(); }, 2000 + Math.random() * 3000);
             }
+        }
+    }
+
+    // 发送文字+附件组合消息
+    function sendMessageWithAttachments() {
+        var msgInput = document.getElementById('message-input');
+        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
+        if (!addMessageFn) { console.warn('[补丁] addMessage 不可用'); return; }
+        
+        // 获取文字内容
+        var text = msgInput ? (msgInput.innerText || msgInput.textContent || '').trim() : '';
+        var attrs = window._pendingAttachments || [];
+        
+        if (!text && attrs.length === 0) return;
+
+        // 发送第一条消息（文字 + 第一张附件图片）
+        if (attrs.length > 0) {
+            // 文字 + 第一张图片
+            addMessageFn({
+                id: Date.now(),
+                sender: 'user',
+                text: text,
+                timestamp: new Date(),
+                image: attrs[0],
+                status: 'sent',
+                favorited: false,
+                note: null,
+                type: 'normal'
+            });
+            // 额外的图片单独发送
+            for (var i = 1; i < attrs.length; i++) {
+                addMessageFn({
+                    id: Date.now() + i,
+                    sender: 'user',
+                    text: '',
+                    timestamp: new Date(),
+                    image: attrs[i],
+                    status: 'sent',
+                    favorited: false,
+                    note: null,
+                    type: 'normal'
+                });
+            }
+        } else {
+            // 只有文字
+            addMessageFn({
+                id: Date.now(),
+                sender: 'user',
+                text: text,
+                timestamp: new Date(),
+                status: 'sent',
+                favorited: false,
+                note: null,
+                type: 'normal'
+            });
+        }
+        
+        // 清空输入
+        if (msgInput) { msgInput.innerHTML = ''; msgInput.innerText = ''; }
+        window.clearAllAttachments();
+        
+        if (typeof playSound === 'function') playSound('send');
+        if (typeof window.simulateReply === 'function') {
+            var delayRange = (typeof settings !== 'undefined' && settings.replyDelayMax - settings.replyDelayMin) || 4000;
+            var randomDelay = ((typeof settings !== 'undefined' && settings.replyDelayMin) || 3000) + Math.random() * delayRange;
+            setTimeout(function() { window.simulateReply(); }, randomDelay);
         }
     }
 
@@ -3991,102 +4250,9 @@
         renderStickerContent(currentStickerTab);
     };
 
-    // ========== 2. 红包逻辑 ==========
-    // 记录红包发送者和金额
+    // ========== 2. 红包逻辑（由 red-packet.js 模块统一管理）==========
     window._redPacketLedger = window._redPacketLedger || [];
-
-    // 系统随机发红包
-    window.trySystemRedPacket = window.trySystemRedPacket || function() {
-        // 仅当对方发过消息后才有概率发红包
-        if (!window.messages || window.messages.length === 0) return;
-        var recentPartnerMsg = false;
-        for (var i = window.messages.length - 1; i >= Math.max(0, window.messages.length - 10); i--) {
-            if (window.messages[i].sender !== 'user' && window.messages[i].sender !== null) {
-                recentPartnerMsg = true;
-                break;
-            }
-        }
-        if (!recentPartnerMsg) return;
-        if (Math.random() > 0.08) return; // 8% 概率
-
-        var amounts = [0.52, 1.68, 5.20, 6.66, 8.88, 9.99, 13.14, 18.88, 52.0, 66.6, 88.8, 99.9, 131.4, 520];
-        var amount = amounts[Math.floor(Math.random() * amounts.length)];
-        var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
-
-        var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
-        if (addMessageFn) {
-            addMessageFn({
-                id: Date.now(),
-                sender: partnerName,
-                text: '',
-                timestamp: new Date(),
-                status: 'received',
-                favorited: false,
-                note: null,
-                type: 'red-packet',
-                redPacketAmount: amount,
-                redPacketFrom: partnerName
-            });
-        }
-        if (typeof showNotification === 'function') {
-            showNotification(partnerName + ' 发来一个红包 ' + amount + ' 元', 'info', 3000);
-        }
-    };
-
-    // 我领取红包 → 不退回
-    window._collectRedPacketAsMe = function(amount, fromSender) {
-        var myName = (typeof settings !== 'undefined' && settings.myName) || '我';
-        if (typeof showNotification === 'function') {
-            showNotification('你领取了 ' + fromSender + ' 的红包 ' + amount + ' 元', 'success', 2500);
-        }
-        // 不退回
-    };
-
-    // 对方领取我的红包 → 随机退回
-    window._collectRedPacketAsPartner = function(amount, myName) {
-        var partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
-        if (typeof showNotification === 'function') {
-            showNotification(partnerName + ' 领取了你的红包 ' + amount + ' 元', 'info', 2500);
-        }
-        // 随机退回：40% 概率退回
-        if (Math.random() < 0.4) {
-            var returnAmounts = [0.01, 0.52, 1.68, 5.20, 6.66, 8.88];
-            var returnAmt = returnAmounts[Math.floor(Math.random() * returnAmounts.length)];
-            setTimeout(function() {
-                var addMessageFn = window.addMessage || (typeof addMessage === 'function' ? addMessage : null);
-                if (addMessageFn) {
-                    addMessageFn({
-                        id: Date.now(),
-                        sender: partnerName,
-                        text: '',
-                        timestamp: new Date(),
-                        status: 'received',
-                        favorited: false,
-                        note: null,
-                        type: 'red-packet',
-                        redPacketAmount: returnAmt,
-                        redPacketFrom: partnerName
-                    });
-                }
-                if (typeof showNotification === 'function') {
-                    showNotification(partnerName + ' 退回了红包 ' + returnAmt + ' 元', 'info', 3000);
-                }
-            }, 2000 + Math.random() * 4000);
-        }
-    };
-
-    // 核心函数：暴露到 window
-    window.tryCollectPendingRedPacket = window.tryCollectPendingRedPacket || function() {};
-    window.checkRedPacketExpiry = window.checkRedPacketExpiry || function() {};
-
-    // 覆盖默认的领取处理
-    var origTryCollect = window.tryCollectPendingRedPacket;
-    window.tryCollectPendingRedPacket = function() {
-        // 保留原始逻辑
-        if (typeof origTryCollect === 'function' && origTryCollect !== window.tryCollectPendingRedPacket) {
-            origTryCollect();
-        }
-    };
+    // 红包发送/领取/过期/渲染/余额管理 均在 js/features/red-packet.js 中
 
     // ========== 3. 刷新/闪退时挂断电话并保留通话记录 ==========
     window._callActive = false;
@@ -4167,117 +4333,6 @@
             }
         } catch(e) {}
     });
-
-    // ========== 4. 本地字体文件上传支持 ==========
-    var fontUrlInput = document.getElementById('custom-font-url');
-    if (fontUrlInput) {
-        // 在字体链接旁边添加上传按钮
-        var fontBtnContainer = fontUrlInput.parentElement;
-        if (fontBtnContainer) {
-            var uploadFontBtn = document.createElement('button');
-            uploadFontBtn.id = 'upload-local-font-btn';
-            uploadFontBtn.className = 'modal-btn modal-btn-secondary';
-            uploadFontBtn.style.cssText = 'padding:5px 10px;font-size:12px;white-space:nowrap;';
-            uploadFontBtn.innerHTML = '<i class="fas fa-upload"></i> 本地上传';
-            uploadFontBtn.title = '上传本地字体文件 (ttf/otf/woff/woff2)';
-            fontBtnContainer.appendChild(uploadFontBtn);
-
-            var fontFileInput = document.createElement('input');
-            fontFileInput.type = 'file';
-            fontFileInput.id = 'local-font-file-input';
-            fontFileInput.accept = '.ttf,.otf,.woff,.woff2';
-            fontFileInput.style.display = 'none';
-            document.body.appendChild(fontFileInput);
-
-            uploadFontBtn.addEventListener('click', function() {
-                fontFileInput.click();
-            });
-
-            fontFileInput.addEventListener('change', function(e) {
-                var file = e.target.files[0];
-                if (!file) return;
-                if (file.size > 10 * 1024 * 1024) {
-                    if (typeof showNotification === 'function') showNotification('字体文件不能超过10MB', 'error');
-                    fontFileInput.value = '';
-                    return;
-                }
-                if (typeof showNotification === 'function') showNotification('正在读取字体文件...', 'info');
-                var reader = new FileReader();
-                reader.onload = function(ev) {
-                    var dataUrl = ev.target.result;
-                    // 生成唯一的字体名称
-                    var fontName = 'CustomFont_' + Date.now();
-                    var fontFaceCSS = '@font-face { font-family: "' + fontName + '"; src: url(' + dataUrl + ') format("' + (file.name.endsWith('.woff2') ? 'woff2' : file.name.endsWith('.woff') ? 'woff' : file.name.endsWith('.otf') ? 'opentype' : 'truetype') + '"); font-weight: normal; font-style: normal; }';
-                    
-                    // 注入字体样式
-                    var styleEl = document.getElementById('custom-font-face-style');
-                    if (!styleEl) {
-                        styleEl = document.createElement('style');
-                        styleEl.id = 'custom-font-face-style';
-                        document.head.appendChild(styleEl);
-                    }
-                    styleEl.textContent = fontFaceCSS;
-
-                    // 设置字体
-                    if (typeof settings !== 'undefined') {
-                        settings.messageFontFamily = '"' + fontName + '", "Noto Serif SC", serif';
-                        settings.customFontUrl = dataUrl;
-                        // 保存
-                        if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
-                            localforage.setItem(getStorageKey('chatSettings'), settings).catch(function(){});
-                        }
-                    }
-
-                    // 应用到页面
-                    var chatContainer = document.querySelector('.chat-container');
-                    if (chatContainer) {
-                        chatContainer.style.fontFamily = '"' + fontName + '", "Noto Serif SC", serif';
-                    }
-
-                    if (fontUrlInput) fontUrlInput.value = file.name + ' (本地)';
-
-                    if (typeof showNotification === 'function') showNotification('字体 "' + file.name + '" 已应用', 'success');
-
-                    // 应用全局字体设置
-                    document.documentElement.style.setProperty('--font-family', '"' + fontName + '", "Noto Serif SC", serif');
-                };
-                reader.onerror = function() {
-                    if (typeof showNotification === 'function') showNotification('字体文件读取失败', 'error');
-                };
-                reader.readAsDataURL(file);
-                fontFileInput.value = '';
-            });
-        }
-
-        // 拓展 apply-font-btn 功能
-        var applyFontBtn = document.getElementById('apply-font-btn');
-        if (applyFontBtn) {
-            var origApplyClick = applyFontBtn.onclick;
-            applyFontBtn.addEventListener('click', function() {
-                var url = fontUrlInput.value.trim();
-                if (url && typeof settings !== 'undefined') {
-                    settings.customFontUrl = url;
-                    if (typeof localforage !== 'undefined' && typeof getStorageKey === 'function') {
-                        localforage.setItem(getStorageKey('chatSettings'), settings).catch(function(){});
-                    }
-                    // 如果是 URL（非本地），尝试加载
-                    if (url.startsWith('http') || url.startsWith('//')) {
-                        var fontName = 'RemoteFont_' + Date.now();
-                        var fontFaceCSS = '@font-face { font-family: "' + fontName + '"; src: url(' + url + '); font-weight: normal; font-style: normal; }';
-                        var styleEl = document.getElementById('custom-font-face-style');
-                        if (!styleEl) {
-                            styleEl = document.createElement('style');
-                            styleEl.id = 'custom-font-face-style';
-                            document.head.appendChild(styleEl);
-                        }
-                        styleEl.textContent = fontFaceCSS;
-                        settings.messageFontFamily = '"' + fontName + '", "Noto Serif SC", serif';
-                        document.documentElement.style.setProperty('--font-family', '"' + fontName + '", "Noto Serif SC", serif');
-                    }
-                }
-            });
-        }
-    }
 
     // ========== 5. 实时同步：劫持 saveData 在保存后刷新表情选择器 ==========
     var _origSaveData = window.saveData;
@@ -4374,7 +4429,7 @@
         console.log('[聊天设置修复] Tab切换 + 开关事件已绑定');
     }, 500);
 
-    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 本地字体上传 | 电话挂断记录 | 聊天设置修复');
+    console.log('[综合补丁] 已加载：表情直接发出 | 红包区分逻辑 | 电话挂断记录 | 聊天设置修复');
 })();
 </script>
 
