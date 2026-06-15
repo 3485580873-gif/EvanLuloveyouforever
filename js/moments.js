@@ -2150,6 +2150,16 @@
       pendingCommentSticker = null;
       saveMomentsToStorageSync();
       renderMoments();
+      
+      // 如果评论的是伴侣发的朋友圈，对方自动回复
+      const partnerName = getPartnerName();
+      if (m.nickname === partnerName) {
+        const replySpeed = getReplySpeed();
+        const delay = Math.random() * replySpeed * 1000;
+        setTimeout(() => {
+          triggerAutoReply(currentCommentMomentId);
+        }, delay);
+      }
     }
     closeCommentEmojiPanel();
     closeAllPanels();
