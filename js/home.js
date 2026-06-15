@@ -746,13 +746,13 @@
 
         const reader = new FileReader();
         reader.onload = async function(e) {
-            const url = e.target.result;
+            // 压缩后再存储
+            const compressed = await compressHomeImage(e.target.result, 1200, 0.7);
             const heroBg = document.getElementById('hero-bg-inner');
-            if (heroBg) heroBg.style.background = `url(${url}) center/cover no-repeat`;
+            if (heroBg) heroBg.style.background = `url(${compressed}) center/cover no-repeat`;
 
             document.querySelectorAll('#bg-presets .bg-preset').forEach(el => el.classList.remove('active'));
-            // 使用大容量存储保存自定义背景 URL
-            await homeSetLargeItem('home_card_bg_custom', url);
+            await homeSetLargeItem('home_card_bg_custom', compressed);
             homeSetItem('home_card_bg', 'custom');
         };
         reader.readAsDataURL(file);
@@ -875,8 +875,10 @@
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function(e) {
-            const url = e.target.result;
+        reader.onload = async function(e) {
+            // 头像压缩到 400px 宽
+            const compressed = await compressHomeImage(e.target.result, 400, 0.85);
+            const url = compressed;
 
             const avatarEl = document.getElementById(`avatar-${currentAvatarTarget}`);
             if (avatarEl) avatarEl.src = url;
@@ -894,7 +896,6 @@
 
             // 头像绑定开启时：同步到聊天界面
             if (avatarSyncEnabled) {
-                // 更新聊天界面头像 DOM
                 const chatAvatarEl = currentAvatarTarget === 'me'
                     ? document.getElementById('my-avatar')
                     : document.getElementById('partner-avatar');
@@ -902,7 +903,6 @@
                     chatAvatarEl.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
                 }
 
-                // 同步到聊天设置内存
                 if (window.settings) {
                     if (currentAvatarTarget === 'me') {
                         window.settings.myAvatar = url;
@@ -911,24 +911,25 @@
                     }
                 }
 
-                // 直接保存头像到 localforage（不依赖 saveData，确保立即可用）
                 const avatarKey = currentAvatarTarget === 'me' ? 'myAvatar' : 'partnerAvatar';
                 if (typeof localforage !== 'undefined' && window.SESSION_ID && window.APP_PREFIX) {
                     const storageKey = `${window.APP_PREFIX}${window.SESSION_ID}_${avatarKey}`;
-                    // 同时保存到 localStorage 作为同步备份
-                    try {
-                        localStorage.setItem(storageKey, url);
-                    } catch(e) {}
+                    try { localStorage.setItem(storageKey, url); } catch(e) {}
                     localforage.setItem(storageKey, url).catch(() => {});
                 }
             }
 
-            // 同时触发 saveData 保存其他设置
             if (typeof window.saveData === 'function') {
                 window.saveData();
             } else if (typeof window.throttledSaveData === 'function') {
                 window.throttledSaveData();
             }
+
+            if (typeof showNotification === 'function') {
+                showNotification('头像已更新 ✦', 'success');
+            }
+
+            closeAvatarPopup();
         };
         reader.readAsDataURL(file);
     };
@@ -1163,7 +1164,10 @@
 
         const reader = new FileReader();
         reader.onload = async function(e) {
-            const url = e.target.result;
+            // 图标压缩到 200px 宽
+            const compressed = await compressHomeImage(e.target.result, 200, 0.85);
+            const url = compressed;
+
             customAppIcons[currentIconTarget] = url;
 
             const iconEl = document.querySelector(`.app-icon[data-app="${currentIconTarget}"]`);
@@ -1172,7 +1176,6 @@
             }
 
             renderIconGrid();
-            // 使用 localforage 存储（避免 localStorage 5MB 限制导致大图丢失）
             await saveAppIcons();
             currentIconTarget = null;
         };

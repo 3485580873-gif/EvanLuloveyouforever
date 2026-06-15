@@ -1,4 +1,27 @@
 (function() {
+    // 压缩图片工具：缩小尺寸 + JPEG 编码，返回 base64
+    function compressHomeImage(base64, maxWidth, quality) {
+        return new Promise(function(resolve) {
+            var img = new Image();
+            img.onload = function() {
+                if (img.width <= maxWidth && base64.length < 200000) {
+                    resolve(base64);
+                    return;
+                }
+                var ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
+                var w = Math.round(img.width * ratio);
+                var h = Math.round(img.height * ratio);
+                var canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = function() { resolve(base64); };
+            img.src = base64;
+        });
+    }
+
     var MY_SYM_KEY   = 'pokeSym_my';
     var PTR_SYM_KEY  = 'pokeSym_partner';
     var MY_CUST_KEY  = 'pokeSym_my_custom';
@@ -1461,17 +1484,18 @@ window.onDgOverlayOpacityChange = function(val) {
     if (tintLayer) tintLayer.style.background = 'rgba(0,0,0,' + tint + ')';
 };
 
-window.handleDgOverlayBgUpload = function(input) {
+window.handleDgOverlayBgUpload = async function(input) {
     var file = input.files[0];
     if (!file) return;
     var reader = new FileReader();
-    reader.onload = function(ev) {
-        var data = ev.target.result;
-        localStorage.setItem('dg_overlay_bg', data);
-        applyDgOverlayBg(data);
+    reader.onload = async function(ev) {
+        // 压缩公告全屏背景图
+        var compressed = await compressHomeImage(ev.target.result, 1600, 0.75);
+        localStorage.setItem('dg_overlay_bg', compressed);
+        applyDgOverlayBg(compressed);
         var prev = document.getElementById('dg-overlay-bg-preview');
         var prevImg = document.getElementById('dg-overlay-bg-preview-img');
-        if (prev && prevImg) { prevImg.src = data; prev.style.display = 'block'; }
+        if (prev && prevImg) { prevImg.src = compressed; prev.style.display = 'block'; }
         var opRow = document.getElementById('dg-overlay-opacity-row');
         if (opRow) opRow.style.display = 'block';
         var savedTint = parseFloat(localStorage.getItem('dg_overlay_bg_tint'));
