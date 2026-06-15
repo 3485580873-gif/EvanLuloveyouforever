@@ -1132,8 +1132,9 @@
 
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId, forceCurrent) {
+    console.log('[DEBUG] triggerAutoReply momentId=' + momentId + ' forceCurrent=' + forceCurrent);
     const m = momentsData.find(x => x.id === momentId);
-    if (!m) return;
+    if (!m) { console.log('[DEBUG] 未找到朋友圈'); return; }
 
     // 刷新系统（伴侣）信息缓存
     await loadPartnerInfo();
@@ -1145,6 +1146,7 @@
     const currentReplies = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
     const kaomojiLibrary = (window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean);
     const customEmojis = (window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean);
+    console.log('[DEBUG] currentReplies=' + currentReplies.length + ' kaomoji=' + kaomojiLibrary.length + ' emojis=' + customEmojis.length);
     let _stickerLib = [];
     if (typeof window !== 'undefined' && window._stickerLibrary && Array.isArray(window._stickerLibrary)) {
       _stickerLib = window._stickerLibrary;
@@ -1193,7 +1195,7 @@
     if (forceCurrent) {
       // 强制当前会话伴侣回复（你评论/回复后对方必定回复）
       const currentPartner = sessionPartners.find(function(sp) { return sp.sessionId === currentSessionId; });
-      if (currentPartner && (currentReplies.length > 0 || hasStickers)) {
+      if (currentPartner) {
         repliers.push({
           name: currentPartner.name,
           avatar: currentPartner.avatar,
@@ -1301,9 +1303,12 @@
           name: plan.name,
           text: replyText
         });
+        console.log('[DEBUG] 自动回复成功: ' + plan.name + ' -> ' + replyText);
         showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
       }
     }
+
+    console.log('[DEBUG] 自动回复完成，共生成 ' + m.comments.length + ' 条评论');
 
     // 自动点赞（80%概率）
     let didLike = false;
@@ -2191,10 +2196,13 @@
       // 只要伴侣在这个朋友圈出现过（发布者或已评论），你发评论后对方100%自动回复
       const partnerName = getPartnerName();
       const partnerInvolved = m.nickname === partnerName || m.comments.some(c => c.name === partnerName);
+      console.log('[DEBUG] submitComment partnerName=' + partnerName + ' m.nickname=' + m.nickname + ' partnerInvolved=' + partnerInvolved + ' commentsCount=' + m.comments.length);
       if (partnerInvolved) {
         const replySpeed = getReplySpeed();
         const delay = Math.random() * replySpeed * 1000;
+        console.log('[DEBUG] 将在 ' + (delay/1000).toFixed(1) + ' 秒后触发自动回复');
         setTimeout(() => {
+          console.log('[DEBUG] 开始执行 triggerAutoReply');
           triggerAutoReply(currentCommentMomentId, true);
         }, delay);
       }
