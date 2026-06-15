@@ -249,6 +249,30 @@ if (target.classList.contains('delete-btn')) {
                 setTimeout(simulateReply, randomDelay);
             });
 
+            // 存快捷：只保存到 myPokes，不发送
+            if (DOMElements.pokeModal.shortcut) {
+                DOMElements.pokeModal.shortcut.addEventListener('click', () => {
+                    let pokeText = DOMElements.pokeModal.input.value.trim();
+                    if (!pokeText) {
+                        pokeText = `${settings.myName} 拍了拍 ${settings.partnerName}`;
+                    }
+                    if (typeof window._sanitizePokeTextForDisplay === 'function') {
+                        pokeText = window._sanitizePokeTextForDisplay(pokeText);
+                    }
+                    if (!Array.isArray(myPokes)) myPokes = [];
+                    const exists = myPokes.some(r => String(r) === String(pokeText));
+                    if (!exists) {
+                        myPokes.unshift(pokeText);
+                        if (typeof throttledSaveData === 'function') throttledSaveData();
+                        if (typeof showNotification === 'function') showNotification('✓ 已存入快捷拍一拍', 'success');
+                    } else {
+                        if (typeof showNotification === 'function') showNotification('该拍一拍已存在', 'info');
+                    }
+                    hideModal(DOMElements.pokeModal.modal);
+                    DOMElements.pokeModal.input.value = '';
+                });
+            }
+
 
             DOMElements.cancelCoinResult.addEventListener('click', () => {
                 DOMElements.coinTossOverlay.classList.remove('visible', 'finished');

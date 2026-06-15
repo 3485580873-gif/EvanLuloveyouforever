@@ -100,7 +100,8 @@
                 modal: document.getElementById('poke-modal'),
                 input: document.getElementById('poke-input'),
                 cancel: document.getElementById('cancel-poke'),
-                save: document.getElementById('send-poke')
+                save: document.getElementById('send-poke'),
+                shortcut: document.getElementById('save-poke-shortcut')
             },
             settingsModal: {
                 modal: document.getElementById('settings-modal'),
