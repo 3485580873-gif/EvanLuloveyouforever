@@ -494,6 +494,10 @@ const loadData = async () => {
                     ...m, timestamp: new Date(m.timestamp)
                 }));
                 if (backup.settings) Object.assign(settings, backup.settings);
+                // 恢复备份中的快捷拍一拍（myPokes）
+                if (backup.myPokes && Array.isArray(backup.myPokes)) {
+                    myPokes = backup.myPokes;
+                }
                 setTimeout(() => saveData(), 1000);
                 showNotification(
                     `已从备份恢复 ${messages.length} 条消息${backup._truncated ? '（备份为最近200条）' : ''}`,
@@ -666,6 +670,7 @@ function _backupCriticalData() {
             ts: Date.now(),
             messages: messages,
             settings: settings,
+            myPokes: myPokes || [],
             sessionId: SESSION_ID
         };
 
