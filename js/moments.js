@@ -1192,9 +1192,10 @@
 
     // 选择回复数量
     var countSetting = getReplyCount();
-    const replyCount = countSetting === -1
+    // forceCurrent 模式（你评论后对方回复）固定只回 1 条
+    const replyCount = forceCurrent ? 1 : (countSetting === -1
       ? (Math.random() < 0.7 ? 1 : (Math.random() < 0.9 ? 2 : 3))
-      : countSetting;
+      : countSetting);
 
     // ========== 多会话回复逻辑 ==========
     // 每个会话伴侣独立判断是否回复（60%概率），但保证至少一个回复
@@ -1286,27 +1287,32 @@
 
         let replyText = '';
 
-        // 使用该会话自己的字卡库
-        const useKaomoji = planReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
+        if (forceCurrent) {
+          // forceCurrent：只用字卡库回复，不混入颜文字/表情
+          if (planReplies.length > 0) {
+            replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
+          }
+        } else {
+          // 非强制模式：允许混合颜文字/表情库（原有逻辑）
+          const useKaomoji = planReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
 
-        if (useKaomoji && kaomojiLibrary.length > 0) {
-          replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-        } else if (planReplies.length > 0) {
-          replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
-        }
+          if (useKaomoji && kaomojiLibrary.length > 0) {
+            replyText = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+          } else if (planReplies.length > 0) {
+            replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
+          }
 
-        if (!replyText) continue;
+          // Emoji 混入（20%概率）
+          if (replyText && customEmojis.length > 0 && Math.random() < 0.2) {
+            const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
+            replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
+          }
 
-        // Emoji 混入（20%概率）
-        if (customEmojis.length > 0 && Math.random() < 0.2) {
-          const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
-          replyText = Math.random() < 0.5 ? emoji + ' ' + replyText : replyText + ' ' + emoji;
-        }
-
-        // 颜文字混入
-        if (kaomojiLibrary.length > 0 && !useKaomoji && Math.random() < 0.25) {
-          const kaomoji = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-          replyText = Math.random() < 0.5 ? kaomoji + ' ' + replyText : replyText + ' ' + kaomoji;
+          // 颜文字混入（25%概率）
+          if (replyText && kaomojiLibrary.length > 0 && !useKaomoji && Math.random() < 0.25) {
+            const kaomoji = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+            replyText = Math.random() < 0.5 ? kaomoji + ' ' + replyText : replyText + ' ' + kaomoji;
+          }
         }
 
         m.comments.push({
@@ -1314,7 +1320,6 @@
           text: replyText,
           replyTo: replyToUser || undefined
         });
-        console.log('[DEBUG] 自动回复成功: ' + plan.name + ' -> ' + replyText);
         showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, replyText, getMomentPreviewImage(m));
       }
     }
