@@ -1131,7 +1131,7 @@
   }
 
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
-  async function triggerAutoReply(momentId) {
+  async function triggerAutoReply(momentId, forceCurrent) {
     const m = momentsData.find(x => x.id === momentId);
     if (!m) return;
 
@@ -1190,23 +1190,36 @@
     const currentSessionId = window.SESSION_ID;
     const repliers = []; // { name, avatar, sessionId, replies[] }
 
-    // 打乱会话顺序
-    const shuffled = sessionPartners.slice().sort(function() { return Math.random() - 0.5; });
+    if (forceCurrent) {
+      // 强制当前会话伴侣回复（你评论/回复后对方必定回复）
+      const currentPartner = sessionPartners.find(function(sp) { return sp.sessionId === currentSessionId; });
+      if (currentPartner && (currentReplies.length > 0 || hasStickers)) {
+        repliers.push({
+          name: currentPartner.name,
+          avatar: currentPartner.avatar,
+          sessionId: currentPartner.sessionId,
+          replies: currentReplies
+        });
+      }
+    } else {
+      // 打乱会话顺序
+      const shuffled = sessionPartners.slice().sort(function() { return Math.random() - 0.5; });
 
-    for (let i = 0; i < shuffled.length; i++) {
-      const sp = shuffled[i];
-      // 60% 概率该会话回复
-      if (Math.random() < 0.6) {
-        const replies = sp.sessionId === currentSessionId
-          ? currentReplies
-          : await getSessionReplies(sp.sessionId);
-        if (replies.length > 0 || hasStickers) {
-          repliers.push({
-            name: sp.name,
-            avatar: sp.avatar,
-            sessionId: sp.sessionId,
-            replies: replies
-          });
+      for (let i = 0; i < shuffled.length; i++) {
+        const sp = shuffled[i];
+        // 60% 概率该会话回复
+        if (Math.random() < 0.6) {
+          const replies = sp.sessionId === currentSessionId
+            ? currentReplies
+            : await getSessionReplies(sp.sessionId);
+          if (replies.length > 0 || hasStickers) {
+            repliers.push({
+              name: sp.name,
+              avatar: sp.avatar,
+              sessionId: sp.sessionId,
+              replies: replies
+            });
+          }
         }
       }
     }
@@ -2175,14 +2188,14 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 只要伴侣在这个朋友圈出现过（发布者或已评论），你发评论后对方自动回复
+      // 只要伴侣在这个朋友圈出现过（发布者或已评论），你发评论后对方100%自动回复
       const partnerName = getPartnerName();
       const partnerInvolved = m.nickname === partnerName || m.comments.some(c => c.name === partnerName);
       if (partnerInvolved) {
         const replySpeed = getReplySpeed();
         const delay = Math.random() * replySpeed * 1000;
         setTimeout(() => {
-          triggerAutoReply(currentCommentMomentId);
+          triggerAutoReply(currentCommentMomentId, true);
         }, delay);
       }
     }
