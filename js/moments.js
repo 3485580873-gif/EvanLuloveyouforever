@@ -2175,9 +2175,10 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 如果评论的是伴侣发的朋友圈，对方自动回复
+      // 只要伴侣在这个朋友圈出现过（发布者或已评论），你发评论后对方自动回复
       const partnerName = getPartnerName();
-      if (m.nickname === partnerName) {
+      const partnerInvolved = m.nickname === partnerName || m.comments.some(c => c.name === partnerName);
+      if (partnerInvolved) {
         const replySpeed = getReplySpeed();
         const delay = Math.random() * replySpeed * 1000;
         setTimeout(() => {
