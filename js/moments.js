@@ -2453,7 +2453,8 @@
       if (partnerName && !_autoReplyCooldown && _savedMomentId) {
         _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
-        const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
+        // 直接使用设置的秒数（不再打折）
+        const delay = Math.max(500, Math.round(replySpeed * 1000));
         setTimeout(() => {
           const moment = momentsData.find(x => x.id === _savedMomentId);
           if (!moment) { _autoReplyCooldown = false; return; }
@@ -3028,7 +3029,8 @@
       const hasPartnerComment = myLatestMoment.comments.some(c => c.name !== userConfig.name);
       if (!hasPartnerComment) {
         const replySpeed = getReplySpeed();
-        const delay = Math.round(Math.max(800, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
+        // 直接使用设置的秒数
+        const delay = Math.max(800, Math.round(replySpeed * 1000));
         setTimeout(() => {
           const m2 = momentsData.find(x => x.id === myLatestMoment.id);
           if (!m2) return;
