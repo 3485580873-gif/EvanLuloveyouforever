@@ -1525,7 +1525,8 @@ window.openMoyuFromNotification = function () {
                 '#envelope-custom-rule-toggle': 'envelopeCustomRuleEnabled',
                 '#bottom-collapse-cs-toggle': 'bottomCollapseMode',
                 '#enter-key-send-toggle': 'enterKeySendEnabled',
-                '#pinyin-card-toggle': 'pinyinCardEnabled'
+                '#pinyin-card-toggle': 'pinyinCardEnabled',
+                '#moments-auto-post-toggle': 'momentsAutoPostEnabled'
             };
             for (const [sel, prop] of Object.entries(_pillSyncMap)) {
                 const el = document.querySelector(sel);
