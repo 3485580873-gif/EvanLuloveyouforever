@@ -1237,9 +1237,8 @@
 
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId, forceCurrent) {
-    try {
     const m = momentsData.find(x => x.id === momentId);
-    if (!m) { console.warn('[Moments] triggerAutoReply: moment not found', momentId); return; }
+    if (!m) return;
 
     // forceCurrent 时，找到"我"的最后一条评论作为回复引用目标
     let replyToUser = null;
@@ -1284,25 +1283,22 @@
     }
 
     if (!anySessionHasReplies && !hasStickers) {
-      // forceCurrent 模式下，只要有任何字卡库内容就不应阻断
-      if (!forceCurrent) {
-        const container = document.getElementById('moments-container');
-        if (container) {
-          const hint = container.querySelector('#longPressHint');
-          if (hint) {
-            hint.textContent = '回复库为空，请先到字卡库添加内容';
-            hint.classList.add('active');
-            setTimeout(() => hint.classList.remove('active'), 2000);
-          }
+      const container = document.getElementById('moments-container');
+      if (container) {
+        const hint = container.querySelector('#longPressHint');
+        if (hint) {
+          hint.textContent = '回复库为空，请先到字卡库添加内容';
+          hint.classList.add('active');
+          setTimeout(() => hint.classList.remove('active'), 2000);
         }
-        return;
       }
+      return;
     }
 
     // 选择回复数量
     var countSetting = getReplyCount();
-    // forceCurrent 模式（你评论/回复后对方回复）：1~2 条，模拟一来一回的对话感
-    const replyCount = forceCurrent ? (Math.random() < 0.65 ? 1 : 2) : (countSetting === -1
+    // forceCurrent 模式（你评论后对方回复）固定只回 1 条
+    const replyCount = forceCurrent ? 1 : (countSetting === -1
       ? (Math.random() < 0.7 ? 1 : (Math.random() < 0.9 ? 2 : 3))
       : countSetting);
 
@@ -1319,26 +1315,6 @@
           name: currentPartner.name,
           avatar: currentPartner.avatar,
           sessionId: currentPartner.sessionId,
-          replies: currentReplies
-        });
-      } else {
-        // sessionPartners 里找不到当前会话，直接用缓存的伴侣信息兜底
-        let partnerName = cachedPartnerName || '梦角';
-        let partnerAvatar = cachedPartnerAvatar || '';
-        if (window.settings) {
-          if (window.settings.partnerName) partnerName = window.settings.partnerName;
-          if (window.settings.partnerAvatar) partnerAvatar = window.settings.partnerAvatar;
-        }
-        const partnerStr = localStorage.getItem('profile_partner');
-        if (partnerStr) {
-          try { const p = JSON.parse(partnerStr); if (p.name) partnerName = p.name; if (p.avatar) partnerAvatar = p.avatar; } catch(e) {}
-        }
-        const savedAvatar = localStorage.getItem('home_avatar_partner');
-        if (savedAvatar) partnerAvatar = savedAvatar;
-        repliers.push({
-          name: partnerName,
-          avatar: partnerAvatar,
-          sessionId: currentSessionId || 'default',
           replies: currentReplies
         });
       }
@@ -1377,28 +1353,6 @@
       });
     }
 
-    // forceCurrent 兜底：确保 repliers 不为空
-    if (forceCurrent && repliers.length === 0) {
-      let partnerName = cachedPartnerName || '梦角';
-      let partnerAvatar = cachedPartnerAvatar || '';
-      try {
-        const partnerStr = localStorage.getItem('profile_partner');
-        if (partnerStr) { const p = JSON.parse(partnerStr); if (p.name) partnerName = p.name; if (p.avatar) partnerAvatar = p.avatar; }
-      } catch(e) {}
-      if (window.settings && window.settings.partnerName) partnerName = window.settings.partnerName;
-      if (window.settings && window.settings.partnerAvatar) partnerAvatar = window.settings.partnerAvatar;
-      const savedAvatar = localStorage.getItem('home_avatar_partner');
-      if (savedAvatar) partnerAvatar = savedAvatar;
-      repliers.push({
-        name: partnerName,
-        avatar: partnerAvatar,
-        sessionId: currentSessionId || 'default',
-        replies: currentReplies
-      });
-    }
-
-    console.log('[Moments] triggerAutoReply: forceCurrent=' + forceCurrent + ', repliers=' + repliers.length + ', currentReplies=' + currentReplies.length + ', kaomoji=' + kaomojiLibrary.length + ', emojis=' + customEmojis.length + ', stickers=' + stickerLibraryFiltered.length);
-
     // 分配回复数量给各个回复者
     let remainingReplies = replyCount;
     const replyPlan = []; // { name, avatar, count, replies[] }
@@ -1416,11 +1370,9 @@
     }
 
     // 执行回复
-    console.log('[Moments] replyPlan count: ' + replyPlan.length);
     for (let r = 0; r < replyPlan.length; r++) {
       const plan = replyPlan[r];
       const planReplies = plan.replies;
-      console.log('[Moments] replier: ' + plan.name + ', planReplies=' + planReplies.length + ', count=' + plan.count);
 
       for (let i = 0; i < plan.count; i++) {
         // 20% 概率发送表情包
@@ -1441,32 +1393,9 @@
         let replyText = '';
 
         if (forceCurrent) {
-          // forceCurrent：从字卡库所有内容（字卡+颜文字+表情）中随机抽取
-          const allTextPool = [...planReplies, ...kaomojiLibrary, ...customEmojis];
-          if (allTextPool.length === 0 && !hasStickers) continue; // 所有字卡库都空才跳过
-          if (allTextPool.length === 0) {
-            // 纯表情包模式，上面20%概率已处理，这里补一个保底
-            const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
-            m.comments.push({
-              name: plan.name,
-              text: '',
-              sticker: sticker,
-              replyTo: replyToUser || undefined
-            });
-            showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
-            continue;
-          }
-          replyText = allTextPool[Math.floor(Math.random() * allTextPool.length)];
-          // 颜文字/表情混入（30%概率追加一个不同类型的内容）
-          if (replyText && Math.random() < 0.3) {
-            // 如果主内容是字卡，追加颜文字或表情
-            if (planReplies.includes(replyText)) {
-              if (kaomojiLibrary.length > 0 && Math.random() < 0.5) {
-                replyText = replyText + ' ' + kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-              } else if (customEmojis.length > 0) {
-                replyText = replyText + ' ' + customEmojis[Math.floor(Math.random() * customEmojis.length)];
-              }
-            }
+          // forceCurrent：只用字卡库回复，不混入颜文字/表情
+          if (planReplies.length > 0) {
+            replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
           }
         } else {
           // 非强制模式：允许混合颜文字/表情库（原有逻辑）
@@ -1536,10 +1465,6 @@
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
     renderMomentsNotificationCard();
-
-    } catch(e) {
-      console.error('[Moments] triggerAutoReply error:', e);
-    }
   }
 
   // ========== Pull to Refresh ==========
@@ -2507,117 +2432,31 @@
     if (!text && !pendingCommentSticker) return;
     if (!currentCommentMomentId) return;
 
-    // ★ 在任何操作之前，先捕获当前值（防止后续被清空）
-    const _savedMomentId = currentCommentMomentId;
-    const _savedReplyToName = replyToName;
-
-    const m = momentsData.find(x => x.id === _savedMomentId);
+    const m = momentsData.find(x => x.id === currentCommentMomentId);
     if (m) {
       // 支持文字+表情包同时发送
       m.comments.push({
         name: userConfig.name,
         text: text,
         sticker: pendingCommentSticker || undefined,
-        replyTo: _savedReplyToName || undefined
+        replyTo: replyToName || undefined
       });
       pendingCommentSticker = null;
       saveMomentsToStorageSync();
       renderMoments();
       
-      // ===== 你发评论后对方100%自动回复（从字卡库抽取，遵从互动速度） =====
-      const replySpeed = getReplySpeed();
-      const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
-
-      setTimeout(() => {
-        try {
-          // 重新查找 moment（防止引用丢失）
-          const moment = momentsData.find(x => x.id === _savedMomentId);
-          if (!moment) { console.error('[Moments] autoReply: moment not found'); return; }
-
-          // 获取伴侣信息
-          const partnerName = getPartnerName();
-          const partnerAvatar = getPartnerAvatar();
-          if (!partnerName) { console.error('[Moments] autoReply: partnerName is empty'); return; }
-
-          // 从字卡库获取所有可用内容
-          const textPool = [
-            ...(window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean),
-            ...(window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean),
-            ...(window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean)
-          ];
-          const stickerPool = (window._stickerLibrary || []).filter(Boolean);
-
-          // 字卡库完全为空则不回复
-          if (textPool.length === 0 && stickerPool.length === 0) {
-            console.warn('[Moments] autoReply: 字卡库为空，跳过回复');
-            return;
-          }
-
-          // 决定回复内容：20%概率发表情包，80%概率发文字
-          let replyText = '';
-          let replySticker = undefined;
-          if (stickerPool.length > 0 && Math.random() < 0.2) {
-            replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-          } else if (textPool.length > 0) {
-            replyText = textPool[Math.floor(Math.random() * textPool.length)];
-          } else {
-            // 纯表情包兜底
-            replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-          }
-
-          // 找到"我"的评论作为回复目标
-          let replyToUser = null;
-          for (let i = moment.comments.length - 1; i >= 0; i--) {
-            if (moment.comments[i].name === userConfig.name) {
-              replyToUser = userConfig.name;
-              break;
-            }
-          }
-
-          // 添加回复
-          moment.comments.push({
-            name: partnerName,
-            text: replyText,
-            sticker: replySticker,
-            replyTo: replyToUser || undefined
-          });
-          saveMomentsToStorageSync();
-          renderMoments();
-          showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, moment.id, replyText || '[表情包]', getMomentPreviewImage(moment));
-
-          // 30%概率追加第二条回复
-          if (Math.random() < 0.3 && (textPool.length > 0 || stickerPool.length > 0)) {
-            const secondDelay = 800 + Math.floor(Math.random() * 1200);
-            setTimeout(() => {
-              try {
-                let text2 = '';
-                let sticker2 = undefined;
-                if (stickerPool.length > 0 && Math.random() < 0.2) {
-                  sticker2 = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-                } else if (textPool.length > 0) {
-                  text2 = textPool[Math.floor(Math.random() * textPool.length)];
-                } else {
-                  sticker2 = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-                }
-                moment.comments.push({
-                  name: partnerName,
-                  text: text2,
-                  sticker: sticker2,
-                  replyTo: replyToUser || undefined
-                });
-                saveMomentsToStorageSync();
-                renderMoments();
-                showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, moment.id, text2 || '[表情包]', getMomentPreviewImage(moment));
-              } catch(e) {
-                console.error('[Moments] autoReply second error:', e);
-              }
-            }, secondDelay);
-          }
-
-        } catch(e) {
-          console.error('[Moments] autoReply error:', e);
-        }
-      }, delay);
+      // 你发评论后对方自动回复（只要伴侣已配置，且不在冷却中）
+      const partnerName = getPartnerName();
+      if (partnerName && !_autoReplyCooldown) {
+        _autoReplyCooldown = true;
+        const replySpeed = getReplySpeed();
+        const delay = Math.random() * replySpeed * 1000;
+        setTimeout(() => {
+          triggerAutoReply(currentCommentMomentId, true);
+          // 冷却 3 秒后允许再次触发
+          setTimeout(() => { _autoReplyCooldown = false; }, 3000);
+        }, delay);
+      }
     }
     closeCommentEmojiPanel();
     closeAllPanels();
@@ -3109,7 +2948,62 @@
   }
 
   // ========== Trigger Moments Interaction (core.js calls this) ==========
-  // 旧版本已合并到下方完整版，此处不再重复定义
+  function triggerMomentsInteraction() {
+    // 1. 3% 概率：偷偷看朋友圈
+    if (Math.random() < 0.03) {
+      generateOneVisitorRecord(Date.now());
+      // 在朋友圈列表顶部显示通知
+      showMomentsNotification(getPartnerName(), getPartnerAvatar(), 'comment', 1, null, '对方偷偷看了你的朋友圈', '');
+    }
+
+    // 找到最新一条"我"发的朋友圈
+    const myLatestMoment = momentsData.find(m => m.nickname === userConfig.name);
+
+    // 2. 10% 概率：对方评论最新一条我发的朋友圈
+    if (myLatestMoment && Math.random() < 0.1) {
+      const partnerName = getPartnerName();
+      const randomComments = [
+        '赞！',
+        '好棒呀~',
+        '不错不错',
+        '哈哈',
+        '太好看了',
+        '我也想试试',
+        '真有趣',
+        '羡慕了',
+        '下次一起呀',
+        '记录生活真好'
+      ];
+      const commentText = randomComments[Math.floor(Math.random() * randomComments.length)];
+      myLatestMoment.comments.push({
+        name: partnerName,
+        text: commentText
+      });
+      saveMomentsToStorageSync();
+      renderMoments();
+      showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText, getMomentPreviewImage(myLatestMoment));
+    }
+
+    // 3. 10% 概率：对方点赞最新一条我发的朋友圈
+    if (myLatestMoment && Math.random() < 0.1) {
+      const partnerName = getPartnerName();
+      if (!myLatestMoment.likes.includes(partnerName)) {
+        myLatestMoment.likes.push(partnerName);
+        saveMomentsToStorageSync();
+        renderMoments();
+        showMomentsNotification(partnerName, getPartnerAvatar(), 'like', 1, myLatestMoment.id, '', getMomentPreviewImage(myLatestMoment));
+      }
+    }
+
+    // 4. 根据 settings.momentsPartnerPostChance 概率：对方发一条朋友圈
+    const postChance = (window.settings && window.settings.momentsPartnerPostChance) || 0.05;
+    if (Math.random() < postChance) {
+      partnerPostMoment();
+    }
+  }
+
+  // 挂载到 window
+  window.triggerMomentsInteraction = triggerMomentsInteraction;
 
   // ========== Publish ==========
   let publishPhotoCount = 0;
@@ -3492,10 +3386,9 @@
       }
     }
 
-    // 延迟后系统自动评论（在设定时长的 50%~100% 内随机回复）
+    // 延迟后系统自动评论（在设定时间内随机回复）
     var baseSpeed = getReplySpeed(); // 秒
-    var autoReplyDelay = Math.round(Math.max(500, baseSpeed * 0.5 + Math.random() * baseSpeed * 0.5) * 1000);
-
+    var autoReplyDelay = Math.random() * baseSpeed * 1000; // 0 ~ baseSpeed秒之间随机
     setTimeout(() => {
       triggerAutoReply(newMoment.id);
     }, autoReplyDelay);
@@ -4392,77 +4285,40 @@
   function triggerMomentsInteraction() {
     const partnerName = getPartnerName();
     const partnerAvatar = getPartnerAvatar();
-    const replySpeed = getReplySpeed(); // 用户设置的互动速度（秒）
 
-    // 从字卡库获取所有可用内容
-    const allTextPool = [
-      ...(window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean),
-      ...(window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean),
-      ...(window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean)
-    ];
-    const stickerPool = (window._stickerLibrary || []).filter(Boolean);
-
-    // 1. 偷偷看朋友圈（3%概率，即时）
+    // 1. 偷偷看朋友圈（概率3%，和拍一拍相同）
     if (Math.random() < 0.03) {
       generateOneVisitorRecord(Date.now());
       showMomentsNotification(partnerName, partnerAvatar, 'visit', 1, null, '偷偷看了你的朋友圈');
     }
 
-    // 找到我发的朋友圈
+    // 2. 对方评论最新一条我发的朋友圈（10%概率）
     const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
-    if (myMoments.length === 0) {
-      // 没有我发的朋友圈，跳过点赞评论，但继续处理发朋友圈
-    } else {
+    if (myMoments.length > 0 && Math.random() < 0.10) {
       const latestMyMoment = myMoments[0];
+      const commentTexts = [
+        '好棒呀！', '太厉害了！', '好喜欢这条~', '真的吗？', '哈哈哈哈', '可爱！',
+        '说得真好', '我也这么觉得', '太真实了', '好治愈', '赞赞赞', '好看！',
+        '这也太美了吧', '羡慕了', '学到了', 'mark一下', '期待后续！', '这也太会了'
+      ];
+      const randomComment = commentTexts[Math.floor(Math.random() * commentTexts.length)];
+      latestMyMoment.comments.push({
+        name: partnerName,
+        text: randomComment,
+        sticker: undefined,
+        replyTo: undefined
+      });
+      saveMomentsToStorageSync();
+      showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
+    }
 
-      // 2. 对方评论我最新的朋友圈（100%概率，从字卡库抽，遵从互动速度）
-      if (allTextPool.length > 0 || stickerPool.length > 0) {
-        const commentDelay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
-        setTimeout(() => {
-          try {
-            let commentText = '';
-            let commentSticker = undefined;
-
-            // 20% 概率发表情包
-            if (stickerPool.length > 0 && Math.random() < 0.2) {
-              commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-            } else if (allTextPool.length > 0) {
-              commentText = allTextPool[Math.floor(Math.random() * allTextPool.length)];
-            } else if (stickerPool.length > 0) {
-              // 纯表情包保底
-              commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-            }
-
-            latestMyMoment.comments.push({
-              name: partnerName,
-              text: commentText,
-              sticker: commentSticker,
-              replyTo: undefined
-            });
-            saveMomentsToStorageSync();
-            renderMoments();
-            showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, commentText || '[表情包]');
-          } catch(e) {
-            console.error('[Moments] autoComment error:', e);
-          }
-        }, commentDelay);
-      }
-
-      // 3. 对方点赞我最新的朋友圈（100%概率，延迟为互动速度的30%~60%）
+    // 3. 对方点赞最新一条我发的朋友圈（10%概率）
+    if (myMoments.length > 0 && Math.random() < 0.10) {
+      const latestMyMoment = myMoments[0];
       if (!latestMyMoment.likes.includes(partnerName)) {
-        const likeDelay = Math.round(Math.max(300, replySpeed * 0.3 + Math.random() * replySpeed * 0.3) * 1000);
-        setTimeout(() => {
-          try {
-            if (!latestMyMoment.likes.includes(partnerName)) {
-              latestMyMoment.likes.push(partnerName);
-              saveMomentsToStorageSync();
-              renderMoments();
-              showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
-            }
-          } catch(e) {
-            console.error('[Moments] autoLike error:', e);
-          }
-        }, likeDelay);
+        latestMyMoment.likes.push(partnerName);
+        saveMomentsToStorageSync();
+        showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
       }
     }
 
@@ -4520,10 +4376,7 @@
       }
     });
 
-    // 字卡库完全为空，不发朋友圈
-    if (selected.length === 0) return;
-
-    const randomText = textParts.join(' ');
+    const randomText = textParts.length > 0 ? textParts.join(' ') : '分享今日份好心情 ✨';
     const mainSticker = stickerParts.length > 0 ? stickerParts[0] : undefined;
 
     // 随机时间在过去 maxH 小时内
