@@ -3442,9 +3442,15 @@
       }
     }
 
-    // 已删除"延迟后系统自动评论"逻辑：
-    // 用户要求"不要一直在我的朋友圈底下回复"，
-    // 对方的回复只在我先评论后由 submitComment 触发
+    // 发布成功后，按互动速度延迟触发对方自动评论 + 点赞
+    if (typeof window.triggerMomentsInteraction === 'function') {
+      const speed = getReplySpeed();
+      const postDelay = Math.max(1500, Math.round(speed * 1000));
+      console.log('[publishMoment] 将在', postDelay, 'ms后触发 triggerMomentsInteraction');
+      setTimeout(() => {
+        try { window.triggerMomentsInteraction(); } catch(e) {}
+      }, postDelay);
+    }
   }
 
   // ========== Image Preview ==========
