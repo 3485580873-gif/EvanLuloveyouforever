@@ -1760,7 +1760,8 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         messageHTML += `<div class="reply-indicator" data-reply-id="${msg.replyTo.id || ''}" style="cursor:pointer;" onclick="scrollToQuotedMessage(this)"><span class="reply-indicator-sender">${repliedSender}</span><span class="reply-indicator-text">${repliedText}</span></div>`;
     }
 
-    const isImageOnly = !msg.text && !!msg.image;
+    const isStickerOnly = !msg.text && !msg.image && !!msg.sticker;
+    const isImageOnly = (!msg.text && !!msg.image) || isStickerOnly;
     const isRedPacket = msg.type === 'red-packet';
     const isVoice = msg.type === 'voice';
     let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
@@ -1784,7 +1785,8 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
     } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
     // 渲染表情包（sticker）
     if (msg.sticker) {
-        content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:120px;max-height:120px;border-radius:8px;${msg.text || msg.image ? ' margin-top:6px;' : ''} cursor:pointer;" onclick="viewImage('${msg.sticker}')">`;
+        const stickerSize = msg.sender === 'user' ? 100 : 120;
+        content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:${stickerSize}px;max-height:${stickerSize}px;border-radius:8px;${msg.text || msg.image ? ' margin-top:6px;' : ''} cursor:pointer;" onclick="viewImage('${msg.sticker}')">`;
     }
     messageHTML += content;
 
