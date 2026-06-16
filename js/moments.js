@@ -2959,33 +2959,42 @@
     // 找到最新一条"我"发的朋友圈
     const myLatestMoment = momentsData.find(m => m.nickname === userConfig.name);
 
-    // 2. 10% 概率：对方评论最新一条我发的朋友圈
-    if (myLatestMoment && Math.random() < 0.1) {
+    // 2. 100% 概率：对方评论最新一条我发的朋友圈（只从字卡库抽取）
+    if (myLatestMoment) {
       const partnerName = getPartnerName();
-      const randomComments = [
-        '赞！',
-        '好棒呀~',
-        '不错不错',
-        '哈哈',
-        '太好看了',
-        '我也想试试',
-        '真有趣',
-        '羡慕了',
-        '下次一起呀',
-        '记录生活真好'
-      ];
-      const commentText = randomComments[Math.floor(Math.random() * randomComments.length)];
-      myLatestMoment.comments.push({
-        name: partnerName,
-        text: commentText
-      });
-      saveMomentsToStorageSync();
-      renderMoments();
-      showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText, getMomentPreviewImage(myLatestMoment));
+      // 只从字卡库抽取内容
+      const textPool = [...(window._customReplies || []), ...(window._kaomojiLibrary || []), ...(window._customEmojis || [])].filter(Boolean);
+      const stickerPool = (window._stickerLibrary || []).filter(Boolean);
+
+      if (textPool.length > 0 || stickerPool.length > 0) {
+        let commentText = '';
+        let commentSticker = undefined;
+
+        // 70% 概率文字，30% 概率表情包
+        if (stickerPool.length > 0 && Math.random() < 0.3) {
+          commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+        } else if (textPool.length > 0) {
+          commentText = textPool[Math.floor(Math.random() * textPool.length)];
+        } else {
+          // 文字池空，用表情包
+          commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+        }
+
+        if (commentText || commentSticker) {
+          myLatestMoment.comments.push({
+            name: partnerName,
+            text: commentText,
+            sticker: commentSticker
+          });
+          saveMomentsToStorageSync();
+          renderMoments();
+          showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText || '[表情包]', getMomentPreviewImage(myLatestMoment));
+        }
+      }
     }
 
-    // 3. 10% 概率：对方点赞最新一条我发的朋友圈
-    if (myLatestMoment && Math.random() < 0.1) {
+    // 3. 100% 概率：对方点赞最新一条我发的朋友圈
+    if (myLatestMoment) {
       const partnerName = getPartnerName();
       if (!myLatestMoment.likes.includes(partnerName)) {
         myLatestMoment.likes.push(partnerName);
