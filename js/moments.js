@@ -520,13 +520,49 @@
     // 从 IndexedDB 恢复大图片（异步加载）
     await restoreImagesFromIDB();
 
-    listEl.innerHTML = momentsData.map(m => renderMomentCard(m)).join('');
+    // 分页渲染：只渲染 _displayCount 条
+    const displayData = momentsData.slice(0, _displayCount);
+    const hasMore = momentsData.length > _displayCount;
+
+    listEl.innerHTML = displayData.map(m => renderMomentCard(m)).join('')
+      + (hasMore
+        ? '<div class="load-more-area" id="loadMoreArea"><span class="load-more-spinner"></span>加载更多...</div>'
+        : (momentsData.length > 10 ? '<div class="load-more-area load-more-done">— 已经到底了 —</div>' : ''));
+    
     setupLongPress();
     setupCardLongPress();
+    setupLoadMore();
 
     // 渲染后重新显示通知（renderMoments 重建 DOM 会销毁通知元素）
     if (momentsNotifications.length > 0) {
       renderMomentsNotificationCard();
+    }
+  }
+
+  // 加载更多
+  function setupLoadMore() {
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+    const loadMoreArea = container.querySelector('#loadMoreArea');
+    if (!loadMoreArea) return;
+
+    // 使用 IntersectionObserver 自动触发加载
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          _displayCount += PAGE_SIZE;
+          renderMoments();
+          observer.disconnect();
+        }
+      }, { root: container, threshold: 0.1 });
+      observer.observe(loadMoreArea);
+    } else {
+      // 降级：点击加载
+      loadMoreArea.style.cursor = 'pointer';
+      loadMoreArea.addEventListener('click', () => {
+        _displayCount += PAGE_SIZE;
+        renderMoments();
+      });
     }
   }
 
@@ -1431,13 +1467,106 @@
     renderMomentsNotificationCard();
   }
 
-  // ========== Like ==========
+  // ========== Pull to Refresh ==========
+  let pullRefreshState = 'idle'; // idle | pulling | ready | refreshing
+  let pullStartY = 0;
+  let pullCurrentY = 0;
+  const PULL_THRESHOLD = 60;
+
+  function setupPullRefresh() {
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+
+    const indicator = container.querySelector('.pull-refresh-indicator');
+    if (!indicator) return;
+
+    container.addEventListener('touchstart', function(e) {
+      if (container.scrollTop <= 0 && pullRefreshState === 'idle') {
+        pullStartY = e.touches[0].clientY;
+        pullRefreshState = 'pulling';
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', function(e) {
+      if (pullRefreshState === 'idle') return;
+      pullCurrentY = e.touches[0].clientY;
+      const diff = pullCurrentY - pullStartY;
+      if (diff <= 0) {
+        pullRefreshState = 'idle';
+        indicator.className = 'pull-refresh-indicator';
+        return;
+      }
+      if (container.scrollTop > 0) {
+        pullRefreshState = 'idle';
+        indicator.className = 'pull-refresh-indicator';
+        return;
+      }
+      const progress = Math.min(diff / PULL_THRESHOLD, 1.5);
+      if (pullRefreshState === 'pulling' || pullRefreshState === 'ready') {
+        if (diff >= PULL_THRESHOLD) {
+          pullRefreshState = 'ready';
+          indicator.className = 'pull-refresh-indicator pulling ready';
+          indicator.querySelector('.pull-refresh-text').textContent = '松手刷新';
+        } else {
+          pullRefreshState = 'pulling';
+          indicator.className = 'pull-refresh-indicator pulling';
+          indicator.querySelector('.pull-refresh-text').textContent = '下拉刷新';
+          indicator.style.height = (progress * 50) + 'px';
+          indicator.style.padding = (progress * 8) + 'px 0';
+        }
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchend', function() {
+      if (pullRefreshState === 'ready') {
+        doRefresh();
+      } else if (pullRefreshState === 'pulling') {
+        indicator.className = 'pull-refresh-indicator';
+        indicator.style.height = '';
+        indicator.style.padding = '';
+      }
+      pullRefreshState = 'idle';
+    }, { passive: true });
+  }
+
+  async function doRefresh() {
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+    const indicator = container.querySelector('.pull-refresh-indicator');
+    if (!indicator) return;
+
+    indicator.className = 'pull-refresh-indicator refreshing';
+    indicator.style.height = '';
+    indicator.style.padding = '';
+    indicator.querySelector('.pull-refresh-text').textContent = '刷新中...';
+
+    // 刷新操作：重新同步头像、重新渲染
+    await syncAvatarFromHome();
+    await loadPartnerInfo();
+    await loadMomentsFriends();
+    // 重置分页
+    _displayCount = PAGE_SIZE;
+    await renderMoments();
+
+    // 模拟最小刷新时间（让用户看到刷新动画）
+    await new Promise(r => setTimeout(r, 600));
+
+    indicator.className = 'pull-refresh-indicator';
+    indicator.querySelector('.pull-refresh-text').textContent = '下拉刷新';
+  }
+
+  // ========== Pagination (Load More) ==========
+  const PAGE_SIZE = 20;
+  let _displayCount = PAGE_SIZE;
+
+  // ========== Like (with animation) ==========
   function toggleLike(momentId) {
     const m = momentsData.find(x => x.id === momentId);
     if (!m) return;
     const myName = userConfig.name;
     const idx = m.likes.indexOf(myName);
-    if (idx >= 0) {
+    const wasLiked = idx >= 0;
+    if (wasLiked) {
       m.likes.splice(idx, 1);
       m.likedByMe = false;
     } else {
@@ -1445,7 +1574,44 @@
       m.likedByMe = true;
     }
     saveMomentsToStorageSync();
+
+    // 动画：找到对应按钮，触发弹跳 + 粒子
+    const container = document.getElementById('moments-container');
+    if (container) {
+      const btn = container.querySelector(`[data-like-btn="${momentId}"]`);
+      if (btn) {
+        // 弹跳动画
+        btn.classList.remove('like-animating');
+        void btn.offsetWidth; // 强制 reflow 以重新触发动画
+        btn.classList.add('like-animating');
+        setTimeout(() => btn.classList.remove('like-animating'), 500);
+
+        // 仅在点赞（非取消）时飘出心形粒子
+        if (!wasLiked) {
+          spawnHeartParticles(btn);
+        }
+      }
+    }
+
     renderMoments();
+  }
+
+  // 心形粒子效果
+  function spawnHeartParticles(btn) {
+    const rect = btn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const hearts = ['❤️', '💗', '💖', '💕', '♥️'];
+    for (let i = 0; i < 6; i++) {
+      const el = document.createElement('span');
+      el.className = 'heart-particle';
+      el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+      const angle = (Math.PI * 2 / 6) * i + (Math.random() - 0.5) * 0.5;
+      const dist = 30 + Math.random() * 30;
+      el.style.cssText = `left:${cx}px;top:${cy}px;position:fixed;--tx:${Math.cos(angle) * dist}px;--ty:${Math.sin(angle) * dist - 20}px;`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 850);
+    }
   }
 
   // ========== Comment Emoji/Sticker Panel ==========
@@ -2773,6 +2939,7 @@
     };
 
     momentsData.unshift(newMoment);
+    _displayCount = Math.max(_displayCount, PAGE_SIZE);
     saveMomentsToStorageSync();
     renderMoments();
 
@@ -3190,6 +3357,7 @@
     };
 
     momentsData.unshift(newMoment);
+    _displayCount = Math.max(_displayCount, PAGE_SIZE); // 新发布时确保分页包含新内容
     saveMomentsToStorageSync();
     renderMoments();
     closeAllPanels();
@@ -3228,6 +3396,7 @@
 
   // ========== Image Preview ==========
   let previewData = { momentId: null, images: [], index: 0 };
+  let _previewLongPressTimer = null;
 
   function openPreview(momentId, imgIndex) {
     const m = momentsData.find(x => x.id === momentId);
@@ -3239,6 +3408,7 @@
     const container = document.getElementById('moments-container');
     if (container) {
       container.querySelector('#previewOverlay').classList.add('active');
+      setupPreviewLongPress(container);
     }
     document.body.style.overflow = 'hidden';
   }
@@ -3258,6 +3428,122 @@
     if (counter) counter.style.display = 'none';
     
     document.body.style.overflow = 'hidden';
+    setupPreviewLongPress(container);
+  }
+
+  // 图片长按保存
+  function setupPreviewLongPress(container) {
+    const previewImg = container.querySelector('#previewImage');
+    const videoCover = container.querySelector('#previewVideoCover');
+    
+    [previewImg, videoCover].forEach(el => {
+      if (!el) return;
+      el.addEventListener('touchstart', handlePreviewLongPressStart, { passive: true });
+      el.addEventListener('touchend', handlePreviewLongPressEnd);
+      el.addEventListener('touchmove', handlePreviewLongPressEnd);
+      el.addEventListener('contextmenu', handlePreviewContextMenu);
+    });
+  }
+
+  function handlePreviewLongPressStart(e) {
+    _previewLongPressTimer = setTimeout(() => {
+      showImageSaveMenu();
+    }, 600);
+  }
+
+  function handlePreviewLongPressEnd() {
+    if (_previewLongPressTimer) {
+      clearTimeout(_previewLongPressTimer);
+      _previewLongPressTimer = null;
+    }
+  }
+
+  function handlePreviewContextMenu(e) {
+    e.preventDefault();
+    showImageSaveMenu();
+  }
+
+  function showImageSaveMenu() {
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+    let menu = container.querySelector('.image-save-menu');
+    if (!menu) {
+      // 动态创建菜单
+      menu = document.createElement('div');
+      menu.className = 'image-save-menu';
+      menu.innerHTML = `
+        <div class="image-save-menu-item" onclick="MomentsApp.saveCurrentImage()">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          保存图片
+        </div>
+        <div class="image-save-menu-item cancel-item" onclick="MomentsApp.closeImageSaveMenu()">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          取消
+        </div>
+      `;
+      container.appendChild(menu);
+    }
+    menu.classList.add('active');
+  }
+
+  function closeImageSaveMenu() {
+    const container = document.getElementById('moments-container');
+    if (container) {
+      const menu = container.querySelector('.image-save-menu');
+      if (menu) menu.classList.remove('active');
+    }
+  }
+
+  function saveCurrentImage() {
+    closeImageSaveMenu();
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+
+    // 获取当前预览图片
+    const previewImg = container.querySelector('#previewImage');
+    const videoCover = container.querySelector('#previewVideoCover');
+    const imgSrc = (previewImg && previewImg.src) || (videoCover && videoCover.src);
+
+    if (!imgSrc) return;
+
+    // base64 图片直接下载
+    if (imgSrc.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = imgSrc;
+      link.download = 'moment_' + Date.now() + '.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    // URL 图片用 canvas 转 base64 后下载（处理跨域）
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = 'moment_' + Date.now() + '.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch(e) {
+        // 跨域失败，直接打开图片
+        window.open(imgSrc, '_blank');
+      }
+    };
+    img.onerror = function() {
+      // 加载失败，直接打开图片
+      window.open(imgSrc, '_blank');
+    };
+    img.src = imgSrc;
   }
 
   function updatePreview() {
@@ -3280,6 +3566,11 @@
     }
     document.body.style.overflow = '';
     videoPlaying = false;
+    if (_previewLongPressTimer) {
+      clearTimeout(_previewLongPressTimer);
+      _previewLongPressTimer = null;
+    }
+    closeImageSaveMenu();
   }
 
   // ========== Video Play ==========
@@ -3417,6 +3708,8 @@
     currentEditMomentId = null;
     pendingCommentSticker = null;
     commentEmojiPanelOpen = false;
+    // 关闭图片保存菜单
+    closeImageSaveMenu();
   }
 
   // ========== Beautify Panel ==========
@@ -3906,6 +4199,9 @@
     // 设置虚拟键盘适配
     setupVirtualKeyboardAdaptation();
     
+    // 设置下拉刷新
+    setupPullRefresh();
+    
     // 监听 Home 页数据更新事件，实时同步头像和昵称
     window.addEventListener('homeGlobalUpdated', async function(e) {
       const key = e.detail.key;
@@ -4101,6 +4397,7 @@
       collected: false
     };
     momentsData.unshift(newMoment);
+    _displayCount = Math.max(_displayCount, PAGE_SIZE);
     saveMomentsToStorageSync();
     const container = document.getElementById('moments-container');
     if (container && container.style.display !== 'none') {
@@ -4257,6 +4554,11 @@
     _visitorTouchStart,
     _visitorTouchMove,
     _visitorTouchEnd,
+
+    // 图片保存
+    showImageSaveMenu,
+    closeImageSaveMenu,
+    saveCurrentImage,
 
     // 互动触发
     triggerMomentsInteraction
