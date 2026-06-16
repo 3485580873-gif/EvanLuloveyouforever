@@ -4349,8 +4349,8 @@
     } else {
       const latestMyMoment = myMoments[0];
 
-      // 2. 对方评论我最新的朋友圈（70%概率，从字卡库抽）
-      if (Math.random() < 0.7 && (allTextPool.length > 0 || stickerPool.length > 0)) {
+      // 2. 对方评论我最新的朋友圈（100%概率，从字卡库抽，遵从互动速度）
+      if (allTextPool.length > 0 || stickerPool.length > 0) {
         const commentDelay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
         setTimeout(() => {
           try {
@@ -4382,23 +4382,21 @@
         }, commentDelay);
       }
 
-      // 3. 对方点赞我最新的朋友圈（80%概率，延迟为互动速度的30%~60%）
+      // 3. 对方点赞我最新的朋友圈（100%概率，延迟为互动速度的30%~60%）
       if (!latestMyMoment.likes.includes(partnerName)) {
-        if (Math.random() < 0.8) {
-          const likeDelay = Math.round(Math.max(300, replySpeed * 0.3 + Math.random() * replySpeed * 0.3) * 1000);
-          setTimeout(() => {
-            try {
-              if (!latestMyMoment.likes.includes(partnerName)) {
-                latestMyMoment.likes.push(partnerName);
-                saveMomentsToStorageSync();
-                renderMoments();
-                showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
-              }
-            } catch(e) {
-              console.error('[Moments] autoLike error:', e);
+        const likeDelay = Math.round(Math.max(300, replySpeed * 0.3 + Math.random() * replySpeed * 0.3) * 1000);
+        setTimeout(() => {
+          try {
+            if (!latestMyMoment.likes.includes(partnerName)) {
+              latestMyMoment.likes.push(partnerName);
+              saveMomentsToStorageSync();
+              renderMoments();
+              showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
             }
-          }, likeDelay);
-        }
+          } catch(e) {
+            console.error('[Moments] autoLike error:', e);
+          }
+        }, likeDelay);
       }
     }
 
