@@ -1283,16 +1283,19 @@
     }
 
     if (!anySessionHasReplies && !hasStickers) {
-      const container = document.getElementById('moments-container');
-      if (container) {
-        const hint = container.querySelector('#longPressHint');
-        if (hint) {
-          hint.textContent = '回复库为空，请先到字卡库添加内容';
-          hint.classList.add('active');
-          setTimeout(() => hint.classList.remove('active'), 2000);
+      // forceCurrent 模式下，只要有任何字卡库内容就不应阻断
+      if (!forceCurrent) {
+        const container = document.getElementById('moments-container');
+        if (container) {
+          const hint = container.querySelector('#longPressHint');
+          if (hint) {
+            hint.textContent = '回复库为空，请先到字卡库添加内容';
+            hint.classList.add('active');
+            setTimeout(() => hint.classList.remove('active'), 2000);
+          }
         }
+        return;
       }
-      return;
     }
 
     // 选择回复数量
@@ -1315,6 +1318,26 @@
           name: currentPartner.name,
           avatar: currentPartner.avatar,
           sessionId: currentPartner.sessionId,
+          replies: currentReplies
+        });
+      } else {
+        // sessionPartners 里找不到当前会话，直接用缓存的伴侣信息兜底
+        let partnerName = cachedPartnerName || '梦角';
+        let partnerAvatar = cachedPartnerAvatar || '';
+        if (window.settings) {
+          if (window.settings.partnerName) partnerName = window.settings.partnerName;
+          if (window.settings.partnerAvatar) partnerAvatar = window.settings.partnerAvatar;
+        }
+        const partnerStr = localStorage.getItem('profile_partner');
+        if (partnerStr) {
+          try { const p = JSON.parse(partnerStr); if (p.name) partnerName = p.name; if (p.avatar) partnerAvatar = p.avatar; } catch(e) {}
+        }
+        const savedAvatar = localStorage.getItem('home_avatar_partner');
+        if (savedAvatar) partnerAvatar = savedAvatar;
+        repliers.push({
+          name: partnerName,
+          avatar: partnerAvatar,
+          sessionId: currentSessionId || 'default',
           replies: currentReplies
         });
       }
@@ -1393,9 +1416,33 @@
         let replyText = '';
 
         if (forceCurrent) {
-          // forceCurrent：只用字卡库，空时不回复
-          if (planReplies.length === 0) continue;
-          replyText = planReplies[Math.floor(Math.random() * planReplies.length)];
+          // forceCurrent：从字卡库所有内容（字卡+颜文字+表情）中随机抽取
+          const allTextPool = [...planReplies, ...kaomojiLibrary, ...customEmojis];
+          if (allTextPool.length === 0 && !hasStickers) continue; // 所有字卡库都空才跳过
+          if (allTextPool.length === 0) {
+            // 纯表情包模式，上面20%概率已处理，这里补一个保底
+            const sticker = stickerLibraryFiltered[Math.floor(Math.random() * stickerLibraryFiltered.length)];
+            m.comments.push({
+              name: plan.name,
+              text: '',
+              sticker: sticker,
+              replyTo: replyToUser || undefined
+            });
+            showMomentsNotification(plan.name, plan.avatar, 'comment', 1, m.id, '[表情包]', getMomentPreviewImage(m));
+            continue;
+          }
+          replyText = allTextPool[Math.floor(Math.random() * allTextPool.length)];
+          // 颜文字/表情混入（30%概率追加一个不同类型的内容）
+          if (replyText && Math.random() < 0.3) {
+            // 如果主内容是字卡，追加颜文字或表情
+            if (planReplies.includes(replyText)) {
+              if (kaomojiLibrary.length > 0 && Math.random() < 0.5) {
+                replyText = replyText + ' ' + kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
+              } else if (customEmojis.length > 0) {
+                replyText = replyText + ' ' + customEmojis[Math.floor(Math.random() * customEmojis.length)];
+              }
+            }
+          }
         } else {
           // 非强制模式：允许混合颜文字/表情库（原有逻辑）
           const useKaomoji = planReplies.length === 0 || (kaomojiLibrary.length > 0 && Math.random() < 0.3);
@@ -2444,9 +2491,8 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 你发评论后对方自动回复（只要伴侣已配置，且不在冷却中）
-      const partnerName = getPartnerName();
-      if (partnerName && !_autoReplyCooldown) {
+      // 你发评论后对方自动回复（只要字卡库有内容，且不在冷却中）
+      if (!_autoReplyCooldown) {
         _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
         const delay = Math.round(Math.max(1, replySpeed * 0.2 + Math.random() * replySpeed * 0.8) * 1000);
