@@ -2495,7 +2495,8 @@
       if (!_autoReplyCooldown) {
         _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
-        const delay = Math.round(Math.max(1, replySpeed * 0.2 + Math.random() * replySpeed * 0.8) * 1000);
+        // 延迟在设置时长的 50%~100% 之间随机，更贴近用户设定值
+        const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
 
         // 在延迟期间并行预加载数据，避免延迟后再等异步操作
         const preloadPromise = (async () => {
@@ -3443,9 +3444,9 @@
       }
     }
 
-    // 延迟后系统自动评论（在设定时间内随机回复）
+    // 延迟后系统自动评论（在设定时长的 50%~100% 内随机回复）
     var baseSpeed = getReplySpeed(); // 秒
-    var autoReplyDelay = Math.round(Math.max(1, baseSpeed * 0.2 + Math.random() * baseSpeed * 0.8) * 1000);
+    var autoReplyDelay = Math.round(Math.max(500, baseSpeed * 0.5 + Math.random() * baseSpeed * 0.5) * 1000);
 
     setTimeout(() => {
       triggerAutoReply(newMoment.id);
