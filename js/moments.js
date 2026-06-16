@@ -2507,51 +2507,117 @@
     if (!text && !pendingCommentSticker) return;
     if (!currentCommentMomentId) return;
 
-    const m = momentsData.find(x => x.id === currentCommentMomentId);
+    // ★ 在任何操作之前，先捕获当前值（防止后续被清空）
+    const _savedMomentId = currentCommentMomentId;
+    const _savedReplyToName = replyToName;
+
+    const m = momentsData.find(x => x.id === _savedMomentId);
     if (m) {
       // 支持文字+表情包同时发送
       m.comments.push({
         name: userConfig.name,
         text: text,
         sticker: pendingCommentSticker || undefined,
-        replyTo: replyToName || undefined
+        replyTo: _savedReplyToName || undefined
       });
       pendingCommentSticker = null;
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 你发评论后对方自动回复（只要字卡库有内容，且不在冷却中）
-      if (!_autoReplyCooldown) {
-        _autoReplyCooldown = true;
-        const replySpeed = getReplySpeed();
-        // 延迟在设置时长的 50%~100% 之间随机，更贴近用户设定值
-        const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
+      // ===== 你发评论后对方100%自动回复（从字卡库抽取，遵从互动速度） =====
+      const replySpeed = getReplySpeed();
+      const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
 
-        // ★ 关键：在 closeAllPanels 清空前，先捕获当前 momentId 的值
-        const _savedMomentId = currentCommentMomentId;
+      setTimeout(() => {
+        try {
+          // 重新查找 moment（防止引用丢失）
+          const moment = momentsData.find(x => x.id === _savedMomentId);
+          if (!moment) { console.error('[Moments] autoReply: moment not found'); return; }
 
-        // 在延迟期间并行预加载数据，避免延迟后再等异步操作
-        const preloadPromise = (async () => {
-          try {
-            await loadPartnerInfo();
-            if (momentsFriends.length === 0) await loadMomentsFriends();
-          } catch(e) {
-            console.warn('[Moments] preload error:', e);
+          // 获取伴侣信息
+          const partnerName = getPartnerName();
+          const partnerAvatar = getPartnerAvatar();
+          if (!partnerName) { console.error('[Moments] autoReply: partnerName is empty'); return; }
+
+          // 从字卡库获取所有可用内容
+          const textPool = [
+            ...(window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean),
+            ...(window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean),
+            ...(window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean)
+          ];
+          const stickerPool = (window._stickerLibrary || []).filter(Boolean);
+
+          // 字卡库完全为空则不回复
+          if (textPool.length === 0 && stickerPool.length === 0) {
+            console.warn('[Moments] autoReply: 字卡库为空，跳过回复');
+            return;
           }
-        })();
 
-        setTimeout(async () => {
-          try {
-            await preloadPromise;
-            await triggerAutoReply(_savedMomentId, true);
-          } catch(e) {
-            console.error('[Moments] autoReply error:', e);
-          } finally {
-            // 冷却 1 秒后允许再次触发，支持连续对话
-            setTimeout(() => { _autoReplyCooldown = false; }, 1000);
+          // 决定回复内容：20%概率发表情包，80%概率发文字
+          let replyText = '';
+          let replySticker = undefined;
+          if (stickerPool.length > 0 && Math.random() < 0.2) {
+            replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+          } else if (textPool.length > 0) {
+            replyText = textPool[Math.floor(Math.random() * textPool.length)];
+          } else {
+            // 纯表情包兜底
+            replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
           }
-        }, delay);
-      }
+
+          // 找到"我"的评论作为回复目标
+          let replyToUser = null;
+          for (let i = moment.comments.length - 1; i >= 0; i--) {
+            if (moment.comments[i].name === userConfig.name) {
+              replyToUser = userConfig.name;
+              break;
+            }
+          }
+
+          // 添加回复
+          moment.comments.push({
+            name: partnerName,
+            text: replyText,
+            sticker: replySticker,
+            replyTo: replyToUser || undefined
+          });
+          saveMomentsToStorageSync();
+          renderMoments();
+          showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, moment.id, replyText || '[表情包]', getMomentPreviewImage(moment));
+
+          // 30%概率追加第二条回复
+          if (Math.random() < 0.3 && (textPool.length > 0 || stickerPool.length > 0)) {
+            const secondDelay = 800 + Math.floor(Math.random() * 1200);
+            setTimeout(() => {
+              try {
+                let text2 = '';
+                let sticker2 = undefined;
+                if (stickerPool.length > 0 && Math.random() < 0.2) {
+                  sticker2 = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+                } else if (textPool.length > 0) {
+                  text2 = textPool[Math.floor(Math.random() * textPool.length)];
+                } else {
+                  sticker2 = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+                }
+                moment.comments.push({
+                  name: partnerName,
+                  text: text2,
+                  sticker: sticker2,
+                  replyTo: replyToUser || undefined
+                });
+                saveMomentsToStorageSync();
+                renderMoments();
+                showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, moment.id, text2 || '[表情包]', getMomentPreviewImage(moment));
+              } catch(e) {
+                console.error('[Moments] autoReply second error:', e);
+              }
+            }, secondDelay);
+          }
+
+        } catch(e) {
+          console.error('[Moments] autoReply error:', e);
+        }
+      }, delay);
     }
     closeCommentEmojiPanel();
     closeAllPanels();
