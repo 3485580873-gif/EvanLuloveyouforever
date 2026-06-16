@@ -2445,15 +2445,49 @@
       saveMomentsToStorageSync();
       renderMoments();
       
-      // 你发评论后对方自动回复（只要伴侣已配置，且不在冷却中）
+      // 你发评论后对方自动回复：只回1条，只从字卡库抽
+      const _savedMomentId = currentCommentMomentId;
+      const _savedReplyToName = replyToName;
       const partnerName = getPartnerName();
-      if (partnerName && !_autoReplyCooldown) {
+      if (partnerName && !_autoReplyCooldown && _savedMomentId) {
         _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
-        const delay = Math.random() * replySpeed * 1000;
+        const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
         setTimeout(() => {
-          triggerAutoReply(currentCommentMomentId, true);
-          // 冷却 3 秒后允许再次触发
+          const moment = momentsData.find(x => x.id === _savedMomentId);
+          if (!moment) { _autoReplyCooldown = false; return; }
+
+          // 只从字卡库抽取
+          const textPool = [...(window._customReplies || []), ...(window._kaomojiLibrary || []), ...(window._customEmojis || [])].filter(Boolean);
+          const stickerPool = (window._stickerLibrary || []).filter(Boolean);
+
+          if (textPool.length > 0 || stickerPool.length > 0) {
+            let replyText = '';
+            let replySticker = undefined;
+
+            // 20% 概率发表情包，80% 发文字
+            if (stickerPool.length > 0 && Math.random() < 0.2) {
+              replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+            } else if (textPool.length > 0) {
+              replyText = textPool[Math.floor(Math.random() * textPool.length)];
+            } else {
+              replySticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+            }
+
+            if (replyText || replySticker) {
+              moment.comments.push({
+                name: partnerName,
+                text: replyText,
+                sticker: replySticker || undefined,
+                replyTo: _savedReplyToName || undefined
+              });
+              saveMomentsToStorageSync();
+              renderMoments();
+              showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, moment.id, replyText || '[表情包]', getMomentPreviewImage(moment));
+              renderMomentsNotificationCard();
+            }
+          }
+          // 冷却 3 秒
           setTimeout(() => { _autoReplyCooldown = false; }, 3000);
         }, delay);
       }
