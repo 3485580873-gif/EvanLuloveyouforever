@@ -527,6 +527,52 @@
   margin-left: 4px;
 }
 
+/* 评论 flex 布局：内容和回复按钮同行 */
+.moments-container .comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.moments-container .comment-item-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  padding: 4px 0;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+.moments-container .comment-item-body:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.moments-container.dark-mode .comment-item-body:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.moments-container .comment-reply-btn {
+  background: none;
+  border: 1px solid #e8e8e8;
+  color: #576b95;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: background 0.2s ease, color 0.2s ease;
+  line-height: 1.6;
+}
+.moments-container .comment-reply-btn:hover {
+  background: rgba(87, 107, 149, 0.1);
+  color: #415e86;
+}
+.moments-container.dark-mode .comment-reply-btn {
+  border-color: #3a3a4a;
+  color: #6eb0ff;
+}
+.moments-container.dark-mode .comment-reply-btn:hover {
+  background: rgba(110, 176, 255, 0.12);
+  color: #8ec4ff;
+}
+
 /* ========== Notification Card (inside card) ========== */
 .moments-container .moment-notification {
   text-align: center;

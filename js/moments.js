@@ -680,10 +680,11 @@
     const commentsHtml = m.comments.length > 0 ? `
       <div class="comment-section">
         ${m.comments.map((c, idx) => `
-          <div class="comment-item${c.replyTo ? ' comment-nested' : ''}" onclick="MomentsApp.replyToComment(${m.id}, ${idx}, '${c.name}')">
-            <div class="comment-item-inner">
+          <div class="comment-item${c.replyTo ? ' comment-nested' : ''}">
+            <div class="comment-item-body" onclick="MomentsApp.replyToComment(${m.id}, '${c.name}')">
               <span class="comment-name">${c.name}</span>${c.replyTo ? `<span class="reply-arrow">回复</span><span class="reply-to">${c.replyTo}</span>` : ''}：<span class="comment-text">${c.text}</span>${c.sticker ? `<img class="comment-sticker-img" src="${c.sticker}" alt="表情包" style="max-width:80px;max-height:80px;border-radius:4px;vertical-align:middle;display:inline-block;margin-left:4px;">` : ''}
             </div>
+            <button class="comment-reply-btn" onclick="event.stopPropagation(); MomentsApp.replyToComment(${m.id}, '${c.name}')">回复</button>
           </div>
         `).join('')}
       </div>
@@ -2406,7 +2407,7 @@
     if (toggleBtn) toggleBtn.classList.remove('active');
   }
 
-  function replyToComment(momentId, commentIdx, name) {
+  function replyToComment(momentId, name) {
     currentCommentMomentId = momentId;
     replyToName = name;
     
