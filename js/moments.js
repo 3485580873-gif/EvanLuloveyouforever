@@ -4346,6 +4346,8 @@
       if (e.key === 'home_avatar_partner' || e.key === 'profile_partner') {
         await initFriendList();
       }
+    });
+
     // 绑定触摸滑动事件
     const container = document.getElementById('moments-container');
     if (container) {
