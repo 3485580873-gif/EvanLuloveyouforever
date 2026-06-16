@@ -1237,8 +1237,9 @@
 
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId, forceCurrent) {
+    try {
     const m = momentsData.find(x => x.id === momentId);
-    if (!m) return;
+    if (!m) { console.warn('[Moments] triggerAutoReply: moment not found', momentId); return; }
 
     // forceCurrent 时，找到"我"的最后一条评论作为回复引用目标
     let replyToUser = null;
@@ -1376,6 +1377,28 @@
       });
     }
 
+    // forceCurrent 兜底：确保 repliers 不为空
+    if (forceCurrent && repliers.length === 0) {
+      let partnerName = cachedPartnerName || '梦角';
+      let partnerAvatar = cachedPartnerAvatar || '';
+      try {
+        const partnerStr = localStorage.getItem('profile_partner');
+        if (partnerStr) { const p = JSON.parse(partnerStr); if (p.name) partnerName = p.name; if (p.avatar) partnerAvatar = p.avatar; }
+      } catch(e) {}
+      if (window.settings && window.settings.partnerName) partnerName = window.settings.partnerName;
+      if (window.settings && window.settings.partnerAvatar) partnerAvatar = window.settings.partnerAvatar;
+      const savedAvatar = localStorage.getItem('home_avatar_partner');
+      if (savedAvatar) partnerAvatar = savedAvatar;
+      repliers.push({
+        name: partnerName,
+        avatar: partnerAvatar,
+        sessionId: currentSessionId || 'default',
+        replies: currentReplies
+      });
+    }
+
+    console.log('[Moments] triggerAutoReply: forceCurrent=' + forceCurrent + ', repliers=' + repliers.length + ', currentReplies=' + currentReplies.length + ', kaomoji=' + kaomojiLibrary.length + ', emojis=' + customEmojis.length + ', stickers=' + stickerLibraryFiltered.length);
+
     // 分配回复数量给各个回复者
     let remainingReplies = replyCount;
     const replyPlan = []; // { name, avatar, count, replies[] }
@@ -1393,9 +1416,11 @@
     }
 
     // 执行回复
+    console.log('[Moments] replyPlan count: ' + replyPlan.length);
     for (let r = 0; r < replyPlan.length; r++) {
       const plan = replyPlan[r];
       const planReplies = plan.replies;
+      console.log('[Moments] replier: ' + plan.name + ', planReplies=' + planReplies.length + ', count=' + plan.count);
 
       for (let i = 0; i < plan.count; i++) {
         // 20% 概率发送表情包
@@ -1511,6 +1536,10 @@
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
     renderMomentsNotificationCard();
+
+    } catch(e) {
+      console.error('[Moments] triggerAutoReply error:', e);
+    }
   }
 
   // ========== Pull to Refresh ==========
@@ -2509,10 +2538,15 @@
         })();
 
         setTimeout(async () => {
-          await preloadPromise;
-          triggerAutoReply(currentCommentMomentId, true);
-          // 冷却 1 秒后允许再次触发，支持连续对话
-          setTimeout(() => { _autoReplyCooldown = false; }, 1000);
+          try {
+            await preloadPromise;
+            await triggerAutoReply(currentCommentMomentId, true);
+          } catch(e) {
+            console.error('[Moments] autoReply error:', e);
+          } finally {
+            // 冷却 1 秒后允许再次触发，支持连续对话
+            setTimeout(() => { _autoReplyCooldown = false; }, 1000);
+          }
         }, delay);
       }
     }
