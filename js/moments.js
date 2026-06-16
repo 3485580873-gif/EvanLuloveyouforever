@@ -4231,6 +4231,34 @@
     } catch (e) {
       console.error('MomentsApp init error:', e);
     }
+
+    // 启动独立定时器：让对方主动互动不再依赖聊天触发
+    // 之前 triggerMomentsInteraction 只在 core.js 的 simulateReply（对方发聊天消息）里被调用，
+    // 导致用户发朋友圈 / 自己发评论时对方不会主动互动。
+    // 现在每 25 秒检查一次，主动评论、点赞、偷偷看、发朋友圈
+    if (!window._momentsAutoInteractionTimer) {
+      let _momentsLastTick = 0;
+      window._momentsAutoInteractionTimer = setInterval(() => {
+        try {
+          const now = Date.now();
+          if (now - _momentsLastTick < 20000) return;
+          _momentsLastTick = now;
+          if (typeof window.triggerMomentsInteraction === 'function') {
+            window.triggerMomentsInteraction();
+          }
+        } catch (e) {
+          console.warn('[moments-auto-tick] 出错:', e);
+        }
+      }, 25000);
+      // 立即触发一次，让用户发完朋友圈后立刻看到对方的反应
+      setTimeout(() => {
+        try {
+          if (typeof window.triggerMomentsInteraction === 'function') {
+            window.triggerMomentsInteraction();
+          }
+        } catch (e) {}
+      }, 2000);
+    }
     
     // 同步日夜模式
     const momentsContainer = document.getElementById('moments-container');
@@ -4312,8 +4340,6 @@
       if (e.key === 'home_avatar_partner' || e.key === 'profile_partner') {
         await initFriendList();
       }
-    });
-    
     // 绑定触摸滑动事件
     const container = document.getElementById('moments-container');
     if (container) {
@@ -4326,8 +4352,7 @@
         previewEl.addEventListener('touchend', e => {
           const diff = touchStartX - e.changedTouches[0].clientX;
           if (Math.abs(diff) > 50) {
-            if (diff > 0) nextImage();
-            else prevImage();
+            if (diff > 0) nextImage();            else prevImage();
           }
         }, { passive: true });
       }
@@ -4345,18 +4370,29 @@
       showMomentsNotification(partnerName, partnerAvatar, 'visit', 1, null, '偷偷看了你的朋友圈');
     }
 
-    // 2. 已删除：不再主动评论我最新一条朋友圈
-    //    用户的回复触发逻辑完全交给 submitComment 内部处理
-    //    这样就不会"一直在我的朋友圈下面回复"
-
-    // 3. 5% 概率：对方点赞我最新一条朋友圈（原来 10%，再降一半）
+    // 2. 我最新一条朋友圈 → 对方按互动速度自动评论 1 条 + 概率点赞
+    //    用 forceCurrent=true 强制只回 1 条；用 hasPartnerComment 避免连刷
     const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
-    if (myMoments.length > 0 && Math.random() < 0.05) {
+    if (myMoments.length > 0) {
       const latestMyMoment = myMoments[0];
-      if (!latestMyMoment.likes.includes(partnerName)) {
-        latestMyMoment.likes.push(partnerName);
-        saveMomentsToStorageSync();
-        showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
+      const hasPartnerComment = latestMyMoment.comments.some(c => c.name !== userConfig.name);
+      if (!hasPartnerComment) {
+        const replySpeed = getReplySpeed();
+        const delay = Math.max(800, Math.round(replySpeed * 1000));
+        const _savedId = latestMyMoment.id;
+        setTimeout(() => {
+          const m2 = momentsData.find(x => x.id === _savedId);
+          if (m2) triggerAutoReply(m2.id, true);
+        }, delay);
+      }
+
+      // 3. 30% 概率：对方点赞我最新一条朋友圈
+      if (Math.random() < 0.3) {
+        if (!latestMyMoment.likes.includes(partnerName)) {
+          latestMyMoment.likes.push(partnerName);
+          saveMomentsToStorageSync();
+          showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
+        }
       }
     }
 
