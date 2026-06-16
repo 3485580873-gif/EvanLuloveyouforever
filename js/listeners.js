@@ -1803,8 +1803,10 @@ const momentsAutoPostToggleGlobal = document.getElementById('moments-auto-post-t
 const momentsAutoPostSettingsGlobal = document.getElementById('moments-auto-post-settings');
 
 if (momentsAutoPostToggleGlobal) {
+    console.log('[DEBUG:init] moments-auto-post-toggle found, current settings.momentsAutoPostEnabled =', settings.momentsAutoPostEnabled, 'active class =', momentsAutoPostToggleGlobal.classList.contains('active'));
     momentsAutoPostToggleGlobal.addEventListener('click', () => {
         settings.momentsAutoPostEnabled = !settings.momentsAutoPostEnabled;
+        console.log('[DEBUG:click] toggled to', settings.momentsAutoPostEnabled);
         momentsAutoPostToggleGlobal.classList.toggle('active', !!settings.momentsAutoPostEnabled);
         if (momentsAutoPostSettingsGlobal) {
             momentsAutoPostSettingsGlobal.style.display = settings.momentsAutoPostEnabled ? 'block' : 'none';

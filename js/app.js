@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 if (typeof settings !== 'undefined') {
                     localStorage.setItem('__pending_settings__', JSON.stringify(settings));
+                    console.log('[DEBUG:pagehide] saved __pending_settings__, momentsAutoPostEnabled =', settings.momentsAutoPostEnabled);
                 }
             } catch (e) {}
         });

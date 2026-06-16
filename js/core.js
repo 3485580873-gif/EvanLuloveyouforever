@@ -417,7 +417,11 @@ const loadData = async () => {
 
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
-        if (savedSettings) Object.assign(settings, savedSettings);
+        if (savedSettings) {
+            console.log('[DEBUG:loadData] savedSettings.momentsAutoPostEnabled =', savedSettings.momentsAutoPostEnabled);
+            Object.assign(settings, savedSettings);
+        }
+        console.log('[DEBUG:loadData] after savedSettings assign: settings.momentsAutoPostEnabled =', settings.momentsAutoPostEnabled);
 
         // 紧急恢复：若 localStorage 中存在 __pending_settings__（beforeunload 时同步备份的），
         // 则用它覆盖当前 settings，防止异步 saveData 未完成导致设置丢失
@@ -426,9 +430,13 @@ const loadData = async () => {
             if (pending) {
                 const pendingObj = JSON.parse(pending);
                 if (pendingObj && typeof pendingObj === 'object') {
+                    console.log('[DEBUG:loadData] __pending_settings__.momentsAutoPostEnabled =', pendingObj.momentsAutoPostEnabled);
                     Object.assign(settings, pendingObj);
+                    console.log('[DEBUG:loadData] after pending assign: settings.momentsAutoPostEnabled =', settings.momentsAutoPostEnabled);
                     console.log('[loadData] 已从 __pending_settings__ 恢复设置');
                 }
+            } else {
+                console.log('[DEBUG:loadData] no __pending_settings__ in localStorage');
             }
         } catch (e) {
             console.warn('[loadData] __pending_settings__ 恢复失败:', e);
@@ -1533,6 +1541,9 @@ window.openMoyuFromNotification = function () {
                 if (el) {
                     const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
                     el.classList.toggle('active', val);
+                    if (sel === '#moments-auto-post-toggle') {
+                        console.log('[DEBUG:updateUI] moments-auto-post-toggle: settings.momentsAutoPostEnabled =', settings[prop], 'val =', val, 'set active =', val);
+                    }
                 }
             }
             const _immToggle = document.getElementById('immersive-toggle');
