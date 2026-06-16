@@ -3043,62 +3043,7 @@
   }
 
   // ========== Trigger Moments Interaction (core.js calls this) ==========
-  function triggerMomentsInteraction() {
-    // 1. 3% 概率：偷偷看朋友圈
-    if (Math.random() < 0.03) {
-      generateOneVisitorRecord(Date.now());
-      // 在朋友圈列表顶部显示通知
-      showMomentsNotification(getPartnerName(), getPartnerAvatar(), 'comment', 1, null, '对方偷偷看了你的朋友圈', '');
-    }
-
-    // 找到最新一条"我"发的朋友圈
-    const myLatestMoment = momentsData.find(m => m.nickname === userConfig.name);
-
-    // 2. 10% 概率：对方评论最新一条我发的朋友圈
-    if (myLatestMoment && Math.random() < 0.1) {
-      const partnerName = getPartnerName();
-      const randomComments = [
-        '赞！',
-        '好棒呀~',
-        '不错不错',
-        '哈哈',
-        '太好看了',
-        '我也想试试',
-        '真有趣',
-        '羡慕了',
-        '下次一起呀',
-        '记录生活真好'
-      ];
-      const commentText = randomComments[Math.floor(Math.random() * randomComments.length)];
-      myLatestMoment.comments.push({
-        name: partnerName,
-        text: commentText
-      });
-      saveMomentsToStorageSync();
-      renderMoments();
-      showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText, getMomentPreviewImage(myLatestMoment));
-    }
-
-    // 3. 10% 概率：对方点赞最新一条我发的朋友圈
-    if (myLatestMoment && Math.random() < 0.1) {
-      const partnerName = getPartnerName();
-      if (!myLatestMoment.likes.includes(partnerName)) {
-        myLatestMoment.likes.push(partnerName);
-        saveMomentsToStorageSync();
-        renderMoments();
-        showMomentsNotification(partnerName, getPartnerAvatar(), 'like', 1, myLatestMoment.id, '', getMomentPreviewImage(myLatestMoment));
-      }
-    }
-
-    // 4. 根据 settings.momentsPartnerPostChance 概率：对方发一条朋友圈
-    const postChance = (window.settings && window.settings.momentsPartnerPostChance) || 0.05;
-    if (Math.random() < postChance) {
-      partnerPostMoment();
-    }
-  }
-
-  // 挂载到 window
-  window.triggerMomentsInteraction = triggerMomentsInteraction;
+  // 旧版本已合并到下方完整版，此处不再重复定义
 
   // ========== Publish ==========
   let publishPhotoCount = 0;
@@ -4381,41 +4326,79 @@
   function triggerMomentsInteraction() {
     const partnerName = getPartnerName();
     const partnerAvatar = getPartnerAvatar();
+    const replySpeed = getReplySpeed(); // 用户设置的互动速度（秒）
 
-    // 1. 偷偷看朋友圈（概率3%，和拍一拍相同）
+    // 从字卡库获取所有可用内容
+    const allTextPool = [
+      ...(window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean),
+      ...(window._kaomojiLibrary || []).map(k => String(k || '').trim()).filter(Boolean),
+      ...(window._customEmojis || []).map(e => String(e || '').trim()).filter(Boolean)
+    ];
+    const stickerPool = (window._stickerLibrary || []).filter(Boolean);
+
+    // 1. 偷偷看朋友圈（3%概率，即时）
     if (Math.random() < 0.03) {
       generateOneVisitorRecord(Date.now());
       showMomentsNotification(partnerName, partnerAvatar, 'visit', 1, null, '偷偷看了你的朋友圈');
     }
 
-    // 2. 对方评论最新一条我发的朋友圈（10%概率）
+    // 找到我发的朋友圈
     const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
-    if (myMoments.length > 0 && Math.random() < 0.10) {
+    if (myMoments.length === 0) {
+      // 没有我发的朋友圈，跳过点赞评论，但继续处理发朋友圈
+    } else {
       const latestMyMoment = myMoments[0];
-      const commentTexts = [
-        '好棒呀！', '太厉害了！', '好喜欢这条~', '真的吗？', '哈哈哈哈', '可爱！',
-        '说得真好', '我也这么觉得', '太真实了', '好治愈', '赞赞赞', '好看！',
-        '这也太美了吧', '羡慕了', '学到了', 'mark一下', '期待后续！', '这也太会了'
-      ];
-      const randomComment = commentTexts[Math.floor(Math.random() * commentTexts.length)];
-      latestMyMoment.comments.push({
-        name: partnerName,
-        text: randomComment,
-        sticker: undefined,
-        replyTo: undefined
-      });
-      saveMomentsToStorageSync();
-      renderMoments();
-      showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
-    }
 
-    // 3. 对方点赞最新一条我发的朋友圈（10%概率）
-    if (myMoments.length > 0 && Math.random() < 0.10) {
-      const latestMyMoment = myMoments[0];
+      // 2. 对方评论我最新的朋友圈（70%概率，从字卡库抽）
+      if (Math.random() < 0.7 && (allTextPool.length > 0 || stickerPool.length > 0)) {
+        const commentDelay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
+        setTimeout(() => {
+          try {
+            let commentText = '';
+            let commentSticker = undefined;
+
+            // 20% 概率发表情包
+            if (stickerPool.length > 0 && Math.random() < 0.2) {
+              commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+            } else if (allTextPool.length > 0) {
+              commentText = allTextPool[Math.floor(Math.random() * allTextPool.length)];
+            } else if (stickerPool.length > 0) {
+              // 纯表情包保底
+              commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
+            }
+
+            latestMyMoment.comments.push({
+              name: partnerName,
+              text: commentText,
+              sticker: commentSticker,
+              replyTo: undefined
+            });
+            saveMomentsToStorageSync();
+            renderMoments();
+            showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, commentText || '[表情包]');
+          } catch(e) {
+            console.error('[Moments] autoComment error:', e);
+          }
+        }, commentDelay);
+      }
+
+      // 3. 对方点赞我最新的朋友圈（80%概率，延迟为互动速度的30%~60%）
       if (!latestMyMoment.likes.includes(partnerName)) {
-        latestMyMoment.likes.push(partnerName);
-        saveMomentsToStorageSync();
-        showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
+        if (Math.random() < 0.8) {
+          const likeDelay = Math.round(Math.max(300, replySpeed * 0.3 + Math.random() * replySpeed * 0.3) * 1000);
+          setTimeout(() => {
+            try {
+              if (!latestMyMoment.likes.includes(partnerName)) {
+                latestMyMoment.likes.push(partnerName);
+                saveMomentsToStorageSync();
+                renderMoments();
+                showMomentsNotification(partnerName, partnerAvatar, 'like', 1, latestMyMoment.id);
+              }
+            } catch(e) {
+              console.error('[Moments] autoLike error:', e);
+            }
+          }, likeDelay);
+        }
       }
     }
 
