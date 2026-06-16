@@ -2527,6 +2527,9 @@
         // 延迟在设置时长的 50%~100% 之间随机，更贴近用户设定值
         const delay = Math.round(Math.max(500, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
 
+        // ★ 关键：在 closeAllPanels 清空前，先捕获当前 momentId 的值
+        const _savedMomentId = currentCommentMomentId;
+
         // 在延迟期间并行预加载数据，避免延迟后再等异步操作
         const preloadPromise = (async () => {
           try {
@@ -2540,7 +2543,7 @@
         setTimeout(async () => {
           try {
             await preloadPromise;
-            await triggerAutoReply(currentCommentMomentId, true);
+            await triggerAutoReply(_savedMomentId, true);
           } catch(e) {
             console.error('[Moments] autoReply error:', e);
           } finally {
