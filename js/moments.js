@@ -2921,6 +2921,28 @@
   }
 
   // ========== Partner Posts (对方主动发朋友圈) ==========
+  // 对方发朋友圈时，从字卡库随机抽多条字卡拼接成一段文字
+  // 不再使用写死的 partnerPostTexts 文案池
+  function composeFromCardLibrary(minCount, maxCount) {
+    const pool = (window._customReplies || []).map(r => String(r || '').trim()).filter(Boolean);
+    if (pool.length === 0) return '';
+    const lo = Math.max(1, minCount || 1);
+    const hi = Math.max(lo, maxCount || lo);
+    const n = lo + Math.floor(Math.random() * (hi - lo + 1));
+    const picked = [];
+    const usedIdx = new Set();
+    // 池子不够时不重复抽
+    const take = Math.min(n, pool.length);
+    while (picked.length < take) {
+      const idx = Math.floor(Math.random() * pool.length);
+      if (usedIdx.has(idx)) continue;
+      usedIdx.add(idx);
+      picked.push(pool[idx]);
+    }
+    // 字卡之间用「，」分隔，整体加句号结尾
+    return picked.join('，') + '。';
+  }
+
   const partnerPostTexts = [
     "今天天气真好呀 ☀️",
     "心情不错，分享一首歌 🎵",
@@ -2949,7 +2971,11 @@
   function partnerPostMoment() {
     const partnerName = getPartnerName();
     const partnerAvatar = getPartnerAvatar();
-    const text = partnerPostTexts[Math.floor(Math.random() * partnerPostTexts.length)];
+    // 字卡库为空时回退到默认文案池，保证不会发空内容
+    let text = composeFromCardLibrary(2, 4);
+    if (!text) {
+      text = partnerPostTexts[Math.floor(Math.random() * partnerPostTexts.length)];
+    }
     const imageCount = Math.floor(Math.random() * 4); // 0-3 张
     const now = Date.now();
     const randomOffset = Math.floor(Math.random() * 24 * 60 * 60 * 1000); // 过去24小时内
@@ -2993,42 +3019,26 @@
     // 找到最新一条"我"发的朋友圈
     const myLatestMoment = momentsData.find(m => m.nickname === userConfig.name);
 
-    // 2. 100% 概率：对方评论最新一条我发的朋友圈（只从字卡库抽取）
+    // 2. 我发朋友圈 → 对方自动评论 1 条（从字卡库抽）+ 概率点赞
+    //    这是"第一条评论"：你说我发朋友圈对方会按互动速度设置进行第一条评论和点赞
+    //    必须保留，且对方在评论时严格只发 1 条
     if (myLatestMoment) {
-      const partnerName = getPartnerName();
-      // 只从字卡库抽取内容
-      const textPool = [...(window._customReplies || []), ...(window._kaomojiLibrary || []), ...(window._customEmojis || [])].filter(Boolean);
-      const stickerPool = (window._stickerLibrary || []).filter(Boolean);
-
-      if (textPool.length > 0 || stickerPool.length > 0) {
-        let commentText = '';
-        let commentSticker = undefined;
-
-        // 70% 概率文字，30% 概率表情包
-        if (stickerPool.length > 0 && Math.random() < 0.3) {
-          commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-        } else if (textPool.length > 0) {
-          commentText = textPool[Math.floor(Math.random() * textPool.length)];
-        } else {
-          // 文字池空，用表情包
-          commentSticker = stickerPool[Math.floor(Math.random() * stickerPool.length)];
-        }
-
-        if (commentText || commentSticker) {
-          myLatestMoment.comments.push({
-            name: partnerName,
-            text: commentText,
-            sticker: commentSticker
-          });
-          saveMomentsToStorageSync();
-          renderMoments();
-          showMomentsNotification(partnerName, getPartnerAvatar(), 'comment', 1, myLatestMoment.id, commentText || '[表情包]', getMomentPreviewImage(myLatestMoment));
-        }
+      // 只在"我"最新朋友圈**还没有任何对方评论**时才触发，避免对方在朋友圈下连刷
+      const hasPartnerComment = myLatestMoment.comments.some(c => c.name !== userConfig.name);
+      if (!hasPartnerComment) {
+        const replySpeed = getReplySpeed();
+        const delay = Math.round(Math.max(800, replySpeed * 0.5 + Math.random() * replySpeed * 0.5) * 1000);
+        setTimeout(() => {
+          const m2 = momentsData.find(x => x.id === myLatestMoment.id);
+          if (!m2) return;
+          // 用 forceCurrent=true，强制只回 1 条，且只从字卡库抽
+          triggerAutoReply(m2.id, true);
+        }, delay);
       }
     }
 
-    // 3. 100% 概率：对方点赞最新一条我发的朋友圈
-    if (myLatestMoment) {
+    // 3. 30% 概率：对方点赞我最新一条朋友圈
+    if (myLatestMoment && Math.random() < 0.3) {
       const partnerName = getPartnerName();
       if (!myLatestMoment.likes.includes(partnerName)) {
         myLatestMoment.likes.push(partnerName);
@@ -3038,7 +3048,7 @@
       }
     }
 
-    // 4. 根据 settings.momentsPartnerPostChance 概率：对方发一条朋友圈
+    // 4. 根据 settings.momentsPartnerPostChance 概率：对方发一条朋友圈（从字卡库抽）
     const postChance = (window.settings && window.settings.momentsPartnerPostChance) || 0.05;
     if (Math.random() < postChance) {
       partnerPostMoment();
@@ -3429,12 +3439,9 @@
       }
     }
 
-    // 延迟后系统自动评论（在设定时间内随机回复）
-    var baseSpeed = getReplySpeed(); // 秒
-    var autoReplyDelay = Math.random() * baseSpeed * 1000; // 0 ~ baseSpeed秒之间随机
-    setTimeout(() => {
-      triggerAutoReply(newMoment.id);
-    }, autoReplyDelay);
+    // 已删除"延迟后系统自动评论"逻辑：
+    // 用户要求"不要一直在我的朋友圈底下回复"，
+    // 对方的回复只在我先评论后由 submitComment 触发
   }
 
   // ========== Image Preview ==========
@@ -4335,28 +4342,13 @@
       showMomentsNotification(partnerName, partnerAvatar, 'visit', 1, null, '偷偷看了你的朋友圈');
     }
 
-    // 2. 对方评论最新一条我发的朋友圈（10%概率）
-    const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
-    if (myMoments.length > 0 && Math.random() < 0.10) {
-      const latestMyMoment = myMoments[0];
-      const commentTexts = [
-        '好棒呀！', '太厉害了！', '好喜欢这条~', '真的吗？', '哈哈哈哈', '可爱！',
-        '说得真好', '我也这么觉得', '太真实了', '好治愈', '赞赞赞', '好看！',
-        '这也太美了吧', '羡慕了', '学到了', 'mark一下', '期待后续！', '这也太会了'
-      ];
-      const randomComment = commentTexts[Math.floor(Math.random() * commentTexts.length)];
-      latestMyMoment.comments.push({
-        name: partnerName,
-        text: randomComment,
-        sticker: undefined,
-        replyTo: undefined
-      });
-      saveMomentsToStorageSync();
-      showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
-    }
+    // 2. 已删除：不再主动评论我最新一条朋友圈
+    //    用户的回复触发逻辑完全交给 submitComment 内部处理
+    //    这样就不会"一直在我的朋友圈下面回复"
 
-    // 3. 对方点赞最新一条我发的朋友圈（10%概率）
-    if (myMoments.length > 0 && Math.random() < 0.10) {
+    // 3. 5% 概率：对方点赞我最新一条朋友圈（原来 10%，再降一半）
+    const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
+    if (myMoments.length > 0 && Math.random() < 0.05) {
       const latestMyMoment = myMoments[0];
       if (!latestMyMoment.likes.includes(partnerName)) {
         latestMyMoment.likes.push(partnerName);
@@ -4463,6 +4455,9 @@
     
     // 时间格式化
     formatMomentTime,
+
+    // 字卡库组句（对方发朋友圈用）
+    composeFromCardLibrary,
     
     // 交互
     toggleTextExpand,
