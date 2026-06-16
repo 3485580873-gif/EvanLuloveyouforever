@@ -4364,6 +4364,8 @@
     const partnerName = getPartnerName();
     const partnerAvatar = getPartnerAvatar();
 
+    console.log('[triggerMomentsInteraction] 触发，partnerName=', partnerName, 'momentsData.length=', momentsData.length);
+
     // 1. 偷偷看朋友圈（概率3%，和拍一拍相同）
     if (Math.random() < 0.03) {
       generateOneVisitorRecord(Date.now());
@@ -4373,15 +4375,22 @@
     // 2. 我最新一条朋友圈 → 对方按互动速度自动评论 1 条 + 概率点赞
     //    用 forceCurrent=true 强制只回 1 条；用 hasPartnerComment 避免连刷
     const myMoments = momentsData.filter(m => m.nickname === userConfig.name);
+    console.log('[triggerMomentsInteraction] myMoments.length=', myMoments.length);
     if (myMoments.length > 0) {
+      // 按时间倒序，最新的在前面
+      myMoments.sort((a, b) => b.timestamp - a.timestamp);
       const latestMyMoment = myMoments[0];
+      console.log('[triggerMomentsInteraction] latestMyMoment.id=', latestMyMoment.id, 'comments=', latestMyMoment.comments.length);
       const hasPartnerComment = latestMyMoment.comments.some(c => c.name !== userConfig.name);
+      console.log('[triggerMomentsInteraction] hasPartnerComment=', hasPartnerComment);
       if (!hasPartnerComment) {
         const replySpeed = getReplySpeed();
+        console.log('[triggerMomentsInteraction] replySpeed=', replySpeed, 'delay=', Math.max(800, Math.round(replySpeed * 1000)));
         const delay = Math.max(800, Math.round(replySpeed * 1000));
         const _savedId = latestMyMoment.id;
         setTimeout(() => {
           const m2 = momentsData.find(x => x.id === _savedId);
+          console.log('[triggerAutoReply setTimeout] m2 found=', !!m2);
           if (m2) triggerAutoReply(m2.id, true);
         }, delay);
       }
