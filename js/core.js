@@ -2374,15 +2374,25 @@ if (!isBatchMode && type === 'normal') {
             const tiLabel = document.getElementById('typing-indicator-label');
             const tiAvatar = document.getElementById('typing-indicator-avatar');
             if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
-            if (tiWrapper) { 
-                positionTypingIndicator(); 
-                tiWrapper.style.display = 'block'; 
+            if (tiWrapper) {
+                positionTypingIndicator();
+                tiWrapper.style.display = 'block';
             }
             if (tiAvatar) {
                 const partnerImg = DOMElements.partner.avatar.querySelector('img');
                 tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
             }
             if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            // 安全兜底：无论如何，"正在输入中"不会超过 replyDelayMax + 10秒（上限60秒）
+            if (window._typingIndicatorAutoHideTimer) clearTimeout(window._typingIndicatorAutoHideTimer);
+            window._typingIndicatorAutoHideTimer = setTimeout(function() {
+                var _tiW = document.getElementById('typing-indicator-wrapper');
+                if (_tiW && _tiW.style.display !== 'none') {
+                    var _tiInner = _tiW.querySelector('.typing-indicator');
+                    if (_tiInner) { _tiInner.classList.add('hiding'); setTimeout(function() { _tiW.style.display = 'none'; _tiInner.classList.remove('hiding'); }, 240); }
+                    else { _tiW.style.display = 'none'; }
+                }
+            }, Math.min((settings.replyDelayMax || 7000) + 10000, 60000));
         }
         window._pendingReplyTimer = setTimeout(() => {
             window._pendingReplyTimer = null;
@@ -2486,8 +2496,20 @@ if (!isBatchMode && type === 'normal') {
                     playSound('send');
                 }, index * 300);
             });
-            const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+            const delayRange = Math.max(0, settings.replyDelayMax - settings.replyDelayMin);
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+            // 批量模式也显示"正在输入中"
+            if (settings.typingIndicatorEnabled) {
+                const tiWrapper = document.getElementById('typing-indicator-wrapper');
+                const tiLabel = document.getElementById('typing-indicator-label');
+                const tiAvatar = document.getElementById('typing-indicator-avatar');
+                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+                if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+                if (tiAvatar) {
+                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+                }
+            }
             setTimeout(simulateReply, batchMessages.length * 300 + randomDelay);
             isBatchMode = false; batchMessages = [];
             DOMElements.batchBtn.classList.remove('active'); DOMElements.batchPreview.style.display = 'none';
@@ -2593,8 +2615,8 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     const shuffled = allCards.sort(() => Math.random() - 0.5);
                     const picked = shuffled.slice(0, Math.min(cardCount, shuffled.length));
                     const mergedText = picked.join('，');
-                    const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                    const delay = settings.replyDelayMin + Math.random() * delayRange;
+                    const _delayRange = Math.max(0, settings.replyDelayMax - settings.replyDelayMin);
+                    const _delay = settings.replyDelayMin + Math.random() * _delayRange;
                     setTimeout(() => {
                         addMessage({
                             id: Date.now(),
@@ -2610,7 +2632,19 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         if (typeof window._sendPartnerNotification === 'function') {
                             window._sendPartnerNotification(settings.partnerName || '对方', mergedText);
                         }
-                    }, delay);
+                        // 隐藏"正在输入中"（拼字卡路径也需要隐藏）
+                        (function(){
+                            try { if (window._typingIndicatorAutoHideTimer) { clearTimeout(window._typingIndicatorAutoHideTimer); window._typingIndicatorAutoHideTimer = null; } } catch(e) {}
+                            var _tiW = document.getElementById('typing-indicator-wrapper');
+                            if (_tiW) {
+                                var _tiInner = _tiW.querySelector('.typing-indicator');
+                                if (_tiInner) {
+                                    _tiInner.classList.add('hiding');
+                                    setTimeout(function() { _tiW.style.display = 'none'; if (_tiInner) _tiInner.classList.remove('hiding'); }, 240);
+                                } else { _tiW.style.display = 'none'; }
+                            }
+                        })();
+                    }, _delay);
                     return;
                 }
             }
@@ -2639,15 +2673,19 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                 return;
             }
 
-            // 确认有可用回复后再展示“正在输入中”，避免空转
-            showTypingIndicator();
-            let delay = 0;
+            // 确认有可用回复后再展示"正在输入中"，避免空转
+            // 注意：sendMessage 中已经显示了 typing indicator，
+            // 此处不再重复显示，避免 typing 显示时长翻倍
+            // 第一条消息的延迟：sendMessage 已经包含了 [replyDelayMin, replyDelayMax] 的主延迟，
+            // 此处仅加一个小延迟模拟"输入完成→发送"的自然感（200~500ms）
+            const baseReplyDelay = 200 + Math.floor(Math.random() * 300);
+            // 多条消息之间的间隔：600~1400ms（模拟逐条输入的感觉）
+            const interMsgDelay = 600 + Math.floor(Math.random() * 800);
             const recentUserMsgs = settings.replyEnabled
                 ? messages.filter(m => m.sender === 'user' && m.text).slice(-10)
                 : [];
             for (let i = 0; i < replyCount; i++) {
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                delay += settings.replyDelayMin + Math.random() * delayRange;
+                const msgDelay = baseReplyDelay + i * interMsgDelay;
                 setTimeout(() => {
                     try {
                     const replyPool = replyPoolOnce;
@@ -2815,7 +2853,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         }, 500 + Math.random() * 800);
                     }
 
-                    if (i === replyCount - 1) {
+                    if (i === 0) {
                         (function() {
                             try {
                                 if (window._typingIndicatorAutoHideTimer) {
@@ -2837,7 +2875,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 }
                             }
                         })();
-                        // 系统随机发红包（在回复完成后触发）
+                        // 系统随机发红包（在第一条消息发出后触发）
                         if (typeof window.trySystemRedPacket === 'function') {
                             setTimeout(function() { window.trySystemRedPacket(); }, 800 + Math.random() * 1200);
                         }
@@ -2865,7 +2903,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                             })();
                         } catch (e2) {}
                     }
-                }, delay);
+                }, msgDelay);
             }
         }
 

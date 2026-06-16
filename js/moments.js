@@ -1238,7 +1238,10 @@
   // ========== Auto Reply (从字卡库/表情包/颜文字随机选取，支持多会话) ==========
   async function triggerAutoReply(momentId, forceCurrent) {
     const m = momentsData.find(x => x.id === momentId);
-    if (!m) return;
+    if (!m) {
+      hideMomentsTyping();
+      return;
+    }
 
     // forceCurrent 时，找到"我"的最后一条评论作为回复引用目标
     let replyToUser = null;
@@ -1249,6 +1252,20 @@
           break;
         }
       }
+    }
+
+    // ── 如果外部尚未显示"正在输入中"，在此处显示 ──
+    // 检查是否已有 typing indicator 在显示
+    const container = document.getElementById('moments-container');
+    const existingIndicator = container ? container.querySelector('.moments-typing-indicator.active') : null;
+    if (!existingIndicator) {
+      // 外部没有显示，这里自己显示
+      const replySpeedSec = getReplySpeed();
+      const delaySec = Math.max(1, replySpeedSec * 0.2 + Math.random() * replySpeedSec * 0.8);
+      const delayMs = Math.round(delaySec * 1000);
+      const partnerName = getPartnerName();
+      const partnerAvatar = getPartnerAvatar();
+      showMomentsTyping(partnerName, partnerAvatar, delayMs);
     }
 
     // 刷新系统（伴侣）信息缓存
@@ -1283,6 +1300,7 @@
     }
 
     if (!anySessionHasReplies && !hasStickers) {
+      hideMomentsTyping();
       const container = document.getElementById('moments-container');
       if (container) {
         const hint = container.querySelector('#longPressHint');
@@ -1465,6 +1483,9 @@
 
     // 重新渲染通知卡片（确保评论通知也能正确显示）
     renderMomentsNotificationCard();
+
+    // ── 隐藏"正在输入中"提示 ──
+    hideMomentsTyping();
   }
 
   // ========== Pull to Refresh ==========
@@ -1619,6 +1640,8 @@
   let commentEmojiTab = 'emoji';
   let pendingCommentSticker = null;
   let _autoReplyCooldown = false;
+  let _momentsTypingTimer = null;       // 朋友圈"正在输入"定时器
+  let _momentsTypingTimeout = null;    // 硬性最大超时保护
 
   // ========== Visitor Records ==========
   const VISITOR_STORAGE_KEY = 'moments_visitor_records';
@@ -2450,8 +2473,29 @@
       if (partnerName && !_autoReplyCooldown) {
         _autoReplyCooldown = true;
         const replySpeed = getReplySpeed();
-        const delay = Math.random() * replySpeed * 1000;
-        setTimeout(() => {
+        // 改进：在 [replySpeed*0.2, replySpeed] 范围内随机，避免极端 0 秒
+        const delay = Math.round(Math.max(1, replySpeed * 0.2 + Math.random() * replySpeed * 0.8) * 1000);
+
+        // 立即显示"正在输入中"提示
+        showMomentsTyping(partnerName, getPartnerAvatar(), delay);
+
+        // 在延迟期间并行预加载数据，避免延迟后再等异步操作
+        const preloadedData = {};
+        const preloadPromise = (async () => {
+          try {
+            await loadPartnerInfo();
+            preloadedData.partnerName = getPartnerName();
+            preloadedData.partnerAvatar = getPartnerAvatar();
+            if (momentsFriends.length === 0) await loadMomentsFriends();
+            preloadedData.friendsLoaded = true;
+          } catch(e) {
+            console.warn('[Moments] preload error:', e);
+          }
+        })();
+
+        setTimeout(async () => {
+          // 确保预加载完成（如果还没完成的话）
+          await preloadPromise;
           triggerAutoReply(currentCommentMomentId, true);
           // 冷却 3 秒后允许再次触发
           setTimeout(() => { _autoReplyCooldown = false; }, 3000);
@@ -3388,7 +3432,14 @@
 
     // 延迟后系统自动评论（在设定时间内随机回复）
     var baseSpeed = getReplySpeed(); // 秒
-    var autoReplyDelay = Math.random() * baseSpeed * 1000; // 0 ~ baseSpeed秒之间随机
+    // 改进：在 [baseSpeed*0.2, baseSpeed] 范围内随机，避免极端 0 秒或超长延迟
+    var autoReplyDelay = Math.round(Math.max(1, baseSpeed * 0.2 + Math.random() * baseSpeed * 0.8) * 1000);
+
+    // 显示"正在输入中"提示
+    var _publishPartnerName = getPartnerName();
+    var _publishPartnerAvatar = getPartnerAvatar();
+    showMomentsTyping(_publishPartnerName, _publishPartnerAvatar, autoReplyDelay);
+
     setTimeout(() => {
       triggerAutoReply(newMoment.id);
     }, autoReplyDelay);
@@ -3710,6 +3761,61 @@
     commentEmojiPanelOpen = false;
     // 关闭图片保存菜单
     closeImageSaveMenu();
+  }
+
+  // ========== Moments Typing Indicator ==========
+  /**
+   * 在朋友圈评论区内显示"正在输入中"提示
+   * @param {string} name - 回复者名字
+   * @param {string} avatarUrl - 回复者头像URL
+   * @param {number} durationMs - 输入中持续时长（毫秒），超过后自动隐藏
+   */
+  function showMomentsTyping(name, avatarUrl, durationMs) {
+    // 清理旧的定时器和超时保护
+    if (_momentsTypingTimer) { clearTimeout(_momentsTypingTimer); _momentsTypingTimer = null; }
+    if (_momentsTypingTimeout) { clearTimeout(_momentsTypingTimeout); _momentsTypingTimeout = null; }
+
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+
+    // 查找或创建 typing indicator
+    let indicator = container.querySelector('.moments-typing-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'moments-typing-indicator';
+      indicator.innerHTML = '<img class="moments-typing-avatar" src=""><span class="moments-typing-name"></span><span class="moments-typing-dots"><span></span><span></span><span></span></span>';
+      // 插入到 momentsList 之前
+      const listEl = container.querySelector('#momentsList');
+      if (listEl && listEl.parentNode) {
+        listEl.parentNode.insertBefore(indicator, listEl);
+      } else {
+        container.appendChild(indicator);
+      }
+    }
+
+    // 更新内容
+    const avatarImg = indicator.querySelector('.moments-typing-avatar');
+    const nameEl = indicator.querySelector('.moments-typing-name');
+    if (avatarImg && avatarUrl) avatarImg.src = avatarUrl;
+    if (nameEl) nameEl.textContent = (name || '对方') + ' 正在输入';
+
+    indicator.classList.add('active');
+
+    // 硬性最大超时保护：无论什么情况，最多显示 durationMs + 3秒
+    const hardLimit = durationMs + 3000;
+    _momentsTypingTimeout = setTimeout(() => {
+      hideMomentsTyping();
+    }, hardLimit);
+  }
+
+  function hideMomentsTyping() {
+    if (_momentsTypingTimer) { clearTimeout(_momentsTypingTimer); _momentsTypingTimer = null; }
+    if (_momentsTypingTimeout) { clearTimeout(_momentsTypingTimeout); _momentsTypingTimeout = null; }
+
+    const container = document.getElementById('moments-container');
+    if (!container) return;
+    const indicator = container.querySelector('.moments-typing-indicator');
+    if (indicator) indicator.classList.remove('active');
   }
 
   // ========== Beautify Panel ==========
@@ -4302,14 +4408,24 @@
         '这也太美了吧', '羡慕了', '学到了', 'mark一下', '期待后续！', '这也太会了'
       ];
       const randomComment = commentTexts[Math.floor(Math.random() * commentTexts.length)];
-      latestMyMoment.comments.push({
-        name: partnerName,
-        text: randomComment,
-        sticker: undefined,
-        replyTo: undefined
-      });
-      saveMomentsToStorageSync();
-      showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
+
+      // 显示"正在输入中"再延迟发布评论
+      const replySpeedSec = getReplySpeed();
+      const commentDelay = Math.round(Math.max(1, replySpeedSec * 0.2 + Math.random() * replySpeedSec * 0.5) * 1000);
+      showMomentsTyping(partnerName, partnerAvatar, commentDelay);
+
+      setTimeout(() => {
+        latestMyMoment.comments.push({
+          name: partnerName,
+          text: randomComment,
+          sticker: undefined,
+          replyTo: undefined
+        });
+        saveMomentsToStorageSync();
+        renderMoments();
+        showMomentsNotification(partnerName, partnerAvatar, 'comment', 1, latestMyMoment.id, randomComment);
+        hideMomentsTyping();
+      }, commentDelay);
     }
 
     // 3. 对方点赞最新一条我发的朋友圈（10%概率）
@@ -4435,6 +4551,8 @@
     selectCommentSticker,
     removePendingCommentSticker,
     triggerAutoReply,
+    showMomentsTyping,
+    hideMomentsTyping,
     
     // 通知
     updateMomentsBadge,
