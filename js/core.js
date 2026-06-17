@@ -1762,8 +1762,19 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                 return;
             }
 
-            // 确认有可用回复后再展示“正在输入中”，避免空转
+            // 确认有可用回复后再展示"正在输入中"，避免空转
             showTypingIndicator();
+            // 兜底：30秒后强制隐藏"正在输入中"，防止因异常导致卡住
+            clearTimeout(window._simulateReplySafetyTimer);
+            window._simulateReplySafetyTimer = setTimeout(() => {
+                try {
+                    var _tiW3 = document.getElementById('typing-indicator-wrapper');
+                    if (_tiW3 && _tiW3.style.display !== 'none') {
+                        _tiW3.style.display = 'none';
+                        console.warn('[simulateReply] 兜底隐藏"正在输入中"（超时）');
+                    }
+                } catch(e) {}
+            }, 30000);
             let delay = 0;
             const recentUserMsgs = settings.replyEnabled
                 ? messages.filter(m => m.sender === 'user' && m.text).slice(-10)
@@ -1783,8 +1794,11 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                             break;
                         }
                     }
-                    if (!replyText && i === replyCount - 1) {
-                        (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
+                    // 没有可用回复则跳过本条，最后一条时确保隐藏"正在输入中"
+                    if (!replyText) {
+                        if (i === replyCount - 1) {
+                            (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}if(window._simulateReplySafetyTimer){clearTimeout(window._simulateReplySafetyTimer);window._simulateReplySafetyTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
+                        }
                         return;
                     }
 
@@ -1899,6 +1913,10 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 if (window._typingIndicatorAutoHideTimer) {
                                     clearTimeout(window._typingIndicatorAutoHideTimer);
                                     window._typingIndicatorAutoHideTimer = null;
+                                }
+                                if (window._simulateReplySafetyTimer) {
+                                    clearTimeout(window._simulateReplySafetyTimer);
+                                    window._simulateReplySafetyTimer = null;
                                 }
                             } catch (e) {}
                             var _tiW = document.getElementById('typing-indicator-wrapper');
