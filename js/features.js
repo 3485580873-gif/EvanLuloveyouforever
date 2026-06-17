@@ -451,7 +451,7 @@ function showEmojiTab() {
                 showNotification('已添加到批量发送', 'success', 1200);
                 document.getElementById('user-sticker-picker').classList.remove('active');
             } else {
-                // 将表情包放入输入框预览区，与文字配套发送
+                // 将表情包放入预览区，可以和文字一起发送或单独发送
                 window.setChatStickerPreview(src);
                 document.getElementById('user-sticker-picker').classList.remove('active');
                 const input = document.getElementById('message-input');
