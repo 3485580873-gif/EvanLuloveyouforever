@@ -427,13 +427,15 @@ const loadData = async () => {
         }
 
         if (savedChatBg) {
-            applyBackground(savedChatBg);
+            try { applyBackground(savedChatBg); } catch(e) { console.warn('应用聊天背景失败:', e); }
         } else {
-            const lsBg = safeGetItem(getStorageKey('chatBackground'));
-            if (lsBg) {
-                applyBackground(lsBg);
-                localforage.setItem(getStorageKey('chatBackground'), lsBg);
-            }
+            try {
+                const lsBg = safeGetItem(getStorageKey('chatBackground'));
+                if (lsBg) {
+                    applyBackground(lsBg);
+                    localforage.setItem(getStorageKey('chatBackground'), lsBg);
+                }
+            } catch(e) { console.warn('应用 localStorage 背景失败:', e); }
         }
 
         try { await initMoodData(); } catch(e) { console.warn("心情数据加载失败", e); }
@@ -442,10 +444,10 @@ const loadData = async () => {
         displayedMessageCount = HISTORY_BATCH_SIZE;
         
         setTimeout(() => {
-            applyAllAvatarFrames();
-            manageAutoSendTimer(); 
-            checkEnvelopeStatus(); 
-            updateUI();
+            try { applyAllAvatarFrames(); } catch(e) {}
+            try { manageAutoSendTimer(); } catch(e) {}
+            try { checkEnvelopeStatus(); } catch(e) {}
+            try { updateUI(); } catch(e) { console.error('updateUI 失败:', e); }
             if (settings.customBubbleCss) {
                 try { applyCustomBubbleCss(settings.customBubbleCss); } catch(e) {}
             }
@@ -453,8 +455,27 @@ const loadData = async () => {
 
     } catch (e) {
         console.error("LoadData 内部致命错误:", e);
-        settings = getDefaultSettings();
-        messages = [];
+        // 不直接清空消息！先尝试从紧急备份恢复
+        try {
+            const backup = _tryRecoverFromBackup();
+            if (backup && Array.isArray(backup.messages) && backup.messages.length > 0) {
+                console.warn('[loadData] 加载失败，尝试从紧急备份恢复');
+                messages = backup.messages.map(m => ({
+                    ...m, timestamp: new Date(m.timestamp)
+                }));
+                settings = getDefaultSettings();
+                if (backup.settings) Object.assign(settings, backup.settings);
+                showNotification('⚠ 数据加载异常，已从本地备份恢复', 'warning', 5000);
+            } else {
+                messages = [];
+                settings = getDefaultSettings();
+                showNotification('⚠ 数据加载失败，存档可能已丢失', 'error', 5000);
+            }
+        } catch (e2) {
+            messages = [];
+            settings = getDefaultSettings();
+            console.error('[loadData] 紧急备份恢复也失败了:', e2);
+        }
         updateUI();
     }
 };
