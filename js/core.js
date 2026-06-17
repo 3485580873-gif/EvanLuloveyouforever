@@ -1631,6 +1631,12 @@ if (!isBatchMode && type === 'normal') {
         })();
 
         window.simulateReply = function() {
+            // 互斥锁：防止重复调用导致回复丢失
+            if (window._simulateReplyRunning) {
+                console.log('[simulateReply] 已有回复进行中，跳过重复调用');
+                return;
+            }
+            window._simulateReplyRunning = true;
             function showTypingIndicator() {
                 if (!settings.typingIndicatorEnabled) return;
                 const tiWrapper = document.getElementById('typing-indicator-wrapper');
@@ -1678,6 +1684,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             if (Math.random() < 0.03) {
                 // ── 对方拍一拍：调用提取的通用函数（同时供 /测试拍一拍 指令使用）──
                 if (typeof window._triggerPartnerPoke === 'function') window._triggerPartnerPoke();
+                window._simulateReplyRunning = false;
                 return;
             }
 
@@ -1732,6 +1739,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                     setTimeout(function() { _tiW.style.display = 'none'; if (_tiInner) _tiInner.classList.remove('hiding'); }, 240);
                                 } else { _tiW.style.display = 'none'; }
                             }
+                            window._simulateReplyRunning = false;
                         })();
                     }, _delay);
                     return;
@@ -1741,6 +1749,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             const replyCount = Math.random() < 0.75 ? 1: (Math.random() < 0.95 ? 2: 3);
             if (!customReplies || customReplies.length === 0) {
                 showNotification('回复库为空，请先到「自定义回复」中添加内容', 'info', 3500);
+                window._simulateReplyRunning = false;
                 return;
             }
             const disabledItemsOnce = (() => {
@@ -1759,6 +1768,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                 .filter(Boolean);
             if (!replyPoolOnce.length) {
                 showNotification('回复库可用内容为空（可能被分组禁用或屏蔽），请到「自定义回复」中调整', 'info', 4000);
+                window._simulateReplyRunning = false;
                 return;
             }
 
@@ -1773,6 +1783,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         _tiW3.style.display = 'none';
                         console.warn('[simulateReply] 兜底隐藏"正在输入中"（超时）');
                     }
+                    window._simulateReplyRunning = false;
                 } catch(e) {}
             }, 30000);
             let delay = 0;
@@ -1797,7 +1808,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     // 没有可用回复则跳过本条，最后一条时确保隐藏"正在输入中"
                     if (!replyText) {
                         if (i === replyCount - 1) {
-                            (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}if(window._simulateReplySafetyTimer){clearTimeout(window._simulateReplySafetyTimer);window._simulateReplySafetyTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
+                            (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}if(window._simulateReplySafetyTimer){clearTimeout(window._simulateReplySafetyTimer);window._simulateReplySafetyTimer=null;}window._simulateReplyRunning=false;}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
                         }
                         return;
                     }
@@ -1918,6 +1929,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                     clearTimeout(window._simulateReplySafetyTimer);
                                     window._simulateReplySafetyTimer = null;
                                 }
+                                window._simulateReplyRunning = false;
                             } catch (e) {}
                             var _tiW = document.getElementById('typing-indicator-wrapper');
                             if (_tiW) {
@@ -1936,7 +1948,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     }
                     } catch (e) {
                         console.error('[simulateReply] 渲染/回填出错:', e);
-                        // 机制性兜底：出错时至少让“正在输入中”消失，避免假死
+                        // 机制性兜底：出错时至少让"正在输入中"消失，避免假死
                         try {
                             (function(){
                                 try { if (window._typingIndicatorAutoHideTimer) { clearTimeout(window._typingIndicatorAutoHideTimer); window._typingIndicatorAutoHideTimer = null; } } catch (e2) {}
@@ -1944,6 +1956,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 if (_tiW2) _tiW2.style.display = 'none';
                             })();
                         } catch (e2) {}
+                        window._simulateReplyRunning = false;
                     }
                 }, delay);
             }
