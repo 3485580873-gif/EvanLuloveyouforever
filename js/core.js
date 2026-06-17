@@ -299,16 +299,17 @@ const loadData = async () => {
             localforage.getItem(getStorageKey('customMottos')),
             localforage.getItem(getStorageKey('customIntros')),
             localforage.getItem(getStorageKey('anniversaries')),
-            localforage.getItem(getStorageKey('stickerLibrary')),
-            localforage.getItem(getStorageKey('kaomojiLibrary')),
-            localforage.getItem(`${APP_PREFIX}customThemes`),
+            // 大体积数据（表情包库/颜文字/主题）改为懒加载，不再阻塞首屏
+            // localforage.getItem(getStorageKey('stickerLibrary')),
+            // localforage.getItem(getStorageKey('kaomojiLibrary')),
+            // localforage.getItem(`${APP_PREFIX}customThemes`),
             localforage.getItem(getStorageKey('chatBackground')),
             localforage.getItem(getStorageKey('partnerAvatar')),
             localforage.getItem(getStorageKey('myAvatar')),
             localforage.getItem(getStorageKey('partnerPersonas')), 
             localforage.getItem(getStorageKey('showPartnerNameInChat')),
-            localforage.getItem(`${APP_PREFIX}themeSchemes`),
-            localforage.getItem(getStorageKey('myStickerLibrary')),
+            // localforage.getItem(`${APP_PREFIX}themeSchemes`),
+            // localforage.getItem(getStorageKey('myStickerLibrary')),
             localforage.getItem(getStorageKey('customReplyGroups')),
             localforage.getItem(getStorageKey('customPokeGroups')),
             localforage.getItem(getStorageKey('customStatusGroups'))
@@ -324,19 +325,14 @@ const loadData = async () => {
         const savedMottos = getVal(6);
         const savedIntros = getVal(7);
         const savedAnniversaries = getVal(8);
-        const savedStickers = getVal(9);
-        const savedKaomojiLibrary = getVal(10);
-        const savedCustomThemes = getVal(11);
-        const savedChatBg = getVal(12);
-        const partnerAvatarSrc = getVal(13);
-        const myAvatarSrc = getVal(14);
-        const savedPartnerPersonas = getVal(15);
-        const savedShowNameConfig = getVal(16);
-        const savedThemeSchemes = getVal(17);
-        const savedMyStickers = getVal(18);
-        const savedReplyGroups = getVal(19);
-        const savedPokeGroups = getVal(20);
-        const savedStatusGroups = getVal(21);
+        const savedChatBg = getVal(9);
+        const partnerAvatarSrc = getVal(10);
+        const myAvatarSrc = getVal(11);
+        const savedPartnerPersonas = getVal(12);
+        const savedShowNameConfig = getVal(13);
+        const savedReplyGroups = getVal(14);
+        const savedPokeGroups = getVal(15);
+        const savedStatusGroups = getVal(16);
 
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
@@ -403,11 +399,23 @@ const loadData = async () => {
         if (savedPokeGroups) window.customPokeGroups = savedPokeGroups;
         if (savedStatusGroups) window.customStatusGroups = savedStatusGroups;
         if (savedAnniversaries) anniversaries = savedAnniversaries;
-        if (savedStickers) stickerLibrary = savedStickers;
-        if (savedKaomojiLibrary) kaomojiLibrary = savedKaomojiLibrary;
-        if (savedMyStickers) myStickerLibrary = savedMyStickers;
-        if (savedCustomThemes) customThemes = savedCustomThemes;
-        if (savedThemeSchemes) themeSchemes = savedThemeSchemes;
+        // 大体积数据懒加载：不阻塞首屏，在 loadData 完成后异步加载
+        setTimeout(async () => {
+            try {
+                const [_savedStickers, _savedKaomoji, _savedThemes, _savedSchemes, _savedMyStickers] = await Promise.allSettled([
+                    localforage.getItem(getStorageKey('stickerLibrary')),
+                    localforage.getItem(getStorageKey('kaomojiLibrary')),
+                    localforage.getItem(`${APP_PREFIX}customThemes`),
+                    localforage.getItem(`${APP_PREFIX}themeSchemes`),
+                    localforage.getItem(getStorageKey('myStickerLibrary'))
+                ]).then(r => r.map(x => x.status === 'fulfilled' ? x.value : null));
+                if (_savedStickers) { stickerLibrary = _savedStickers; window._stickerLibrary = _savedStickers; }
+                if (_savedKaomoji) { kaomojiLibrary = _savedKaomoji; window._kaomojiLibrary = _savedKaomoji; }
+                if (_savedMyStickers) myStickerLibrary = _savedMyStickers;
+                if (_savedThemes) customThemes = _savedThemes;
+                if (_savedSchemes) themeSchemes = _savedSchemes;
+            } catch(e) { console.warn('[lazyLoad] 大体积数据懒加载失败:', e); }
+        }, 800);
         try { const ce = await localforage.getItem(getStorageKey('customEmojis')); if (ce && Array.isArray(ce)) customEmojis = ce; } catch(e) {}
         window._customReplies = customReplies;
         window._kaomojiLibrary = kaomojiLibrary;
