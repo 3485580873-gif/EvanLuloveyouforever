@@ -15,10 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.classList.add('hidden');
         setTimeout(() => {
             welcomeScreen.style.display = 'none';
-            // 加载动画结束后显示主页
-            if (typeof window.showHomePage === 'function') {
-                window.showHomePage();
-            }
         }, 800);
     };
 
@@ -59,7 +55,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLoader('正在渲染我们的世界...', '70%');
         
         await Promise.allSettled([
-            safeAwait(initializeRandomUI?.())
+            safeAwait(initializeRandomUI?.()),
+            safeAwait(initMusicPlayer?.())
         ]);
 
         setInterval(checkStatusChange, 60000);
@@ -124,25 +121,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         window.addEventListener('pagehide', () => {
             try { _backupCriticalData(); } catch (e) {}
-            try { typeof saveData === 'function' && saveData(); } catch (e) {}
-            // 同步备份 settings 到 localStorage，防止异步 saveData 未完成导致设置丢失
-            try {
-                if (typeof settings !== 'undefined') {
-                    localStorage.setItem('__pending_settings__', JSON.stringify(settings));
-                    console.log('[DEBUG:pagehide] saved __pending_settings__, momentsAutoPostEnabled =', settings.momentsAutoPostEnabled);
-                }
-            } catch (e) {}
         });
 
         window.addEventListener('beforeunload', () => {
             try { _backupCriticalData(); } catch (e) {}
-            try { typeof saveData === 'function' && saveData(); } catch (e) {}
-            // 同步备份 settings 到 localStorage，防止异步 saveData 未完成导致设置丢失
-            try {
-                if (typeof settings !== 'undefined') {
-                    localStorage.setItem('__pending_settings__', JSON.stringify(settings));
-                }
-            } catch (e) {}
         });
 
         setInterval(() => {
@@ -217,19 +199,12 @@ const stickerInput = document.getElementById('sticker-file-input');
                         try {
                             const base64 = await optimizeImage(file, 300, 0.8);
                             stickerLibrary.push(base64);
-                            // 同步更新全局变量
-                            window._stickerLibrary = stickerLibrary;
                             successCount++;
                         } catch (err) {
                             console.error(err);
                             failCount++;
                         }
                     }
-
-                    // 通知其他模块表情包已更新
-                    try {
-                        window.dispatchEvent(new CustomEvent('stickerLibraryUpdated', { detail: { count: stickerLibrary.length } }));
-                    } catch(e) {}
 
                     throttledSaveData();
                     renderReplyLibrary();
@@ -262,7 +237,6 @@ if (myStickerQuickUpload) {
             } catch(err) { fail++; }
         }
         throttledSaveData();
-        if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         showNotification(fail > 0 ? `上传完成：${ok} 成功 ${fail} 失败` : `✓ 已添加 ${ok} 张到我的表情库`, fail > 0 ? 'warning' : 'success');
         e.target.value = '';

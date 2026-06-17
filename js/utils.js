@@ -225,6 +225,7 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
 
                     // 兼容其它旧声音类型（不走两方预设）
                     if (type === 'favorite') return { osc1Type: 'sine', osc2Type: 'sine', freq: 1200, dur: 0.18, up: 1.06, down: 0.70 };
+                    if (type === 'anniversary') return { osc1Type: 'sawtooth', osc2Type: 'triangle', freq: 660, dur: 0.22, up: 1.10, down: 0.62 };
                     if (type === 'mood') return { osc1Type: 'sine', osc2Type: 'square', freq: 440, dur: 0.16, up: 1.12, down: 0.60 };
                     if (type === 'import') return { osc1Type: 'square', osc2Type: 'triangle', freq: 330, dur: 0.16, up: 1.25, down: 0.70 };
                     if (type === 'export') return { osc1Type: 'triangle', osc2Type: 'sine', freq: 520, dur: 0.16, up: 1.15, down: 0.66 };
@@ -292,16 +293,6 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
                 }
             }, 500);
         };
-        window.throttledSaveData = throttledSaveData;
-
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
 
 async function applyCustomFont(url) {
     if (!url || !url.trim()) {
@@ -392,27 +383,10 @@ async function exportAllData() {
                 inclMsgs: true,
                 inclSet: true,
                 inclCustom: true,
+                inclAnn: true,
                 inclThemes: true,
                 inclDg: true,
-                inclStickers: true,
-                inclHome: true,
-                inclMoyu: true,
-                inclShop: true,
-                inclMoments: true,
-                inclMap: true,
-                inclTaPhone: true,
-                inclPet: true,
-                inclDiary: true,
-                inclAccounting: true,
-                inclEnvelope: true,
-                inclMood: true,
-                inclTarot: true,
-                inclCall: true,
-                inclGroupChat: true,
-                inclSpark: true,
-                inclFeatures: true,
-                inclCoreExtra: true,
-                inclOnboarding: true
+                inclStickers: true
             });
             const jsonString = ChatBackup.serializeBackupV4(payload);
             const dateStr = new Date().toISOString().slice(0, 10);
@@ -475,6 +449,12 @@ async function importAllData(file) {
                 localStorageNeedles: ['disabledStickerItems']
             },
             {
+                id: 'ann',
+                label: '纪念日',
+                indexedDBNeedles: ['anniversaries'],
+                localStorageNeedles: []
+            },
+            {
                 id: 'mood',
                 label: '心晴手账',
                 indexedDBNeedles: ['moodCalendar', 'customMoodOptions', 'moodTrash'],
@@ -487,54 +467,18 @@ async function importAllData(file) {
                 localStorageNeedles: []
             },
             {
-                id: 'home',
-                label: '首页 / 图标美化 / 布局',
-                indexedDBNeedles: ['home_app_icons', 'home_page_bg', 'home_card_bg', 'home_icon_color', 'home_hero_subtitle', 'home_theme', 'home_app_order', 'home_session_bind', 'home_avatar_sync', 'home_bg_sync', 'home_card_bg_custom', 'home_page_bg_custom', 'home_profile_', 'home_avatar_me'],
-                localStorageNeedles: ['profile_me']
-            },
-            {
                 id: 'dg',
                 label: '每日公告 / 运势 / 天气',
                 indexedDBNeedles: [],
                 localStorageNeedles: ['dg_custom_data', 'dg_status_pool', 'weekly_fortune', 'daily_fortune'],
                 localStoragePrefixes: ['customWeather_']
-            },
-            {
-                id: 'moments',
-                label: '朋友圈',
-                indexedDBNeedles: [],
-                localStorageNeedles: ['moments_data', 'moments_visitor_records', 'moments_friends', 'moments_reply_speed', 'moments_reply_count_min', 'moments_reply_count_max', 'moments_friend_like', 'moments_cover', 'moments_visitor_last_online', 'moments_visitor_last_viewed_count', 'home_avatar_me', 'profile_me']
-            },
-            {
-                id: 'shop',
-                label: '商城',
-                indexedDBNeedles: [],
-                localStorageNeedles: ['shop_balance', 'shop_search_history', 'shop_gift_cabinet', 'shop_products', 'shop_cart', 'shop_orders']
-            },
-            {
-                id: 'diary',
-                label: '朝夕心记',
-                indexedDBNeedles: ['diaryTodos', 'diaryHabits', 'diaryHabitRecords', 'diaryPeriodRecords', 'diaryAnniversaries', 'diaryTodoCategories'],
-                localStorageNeedles: ['diaryPeriodLastReminderDate']
-            },
-            {
-                id: 'accounting',
-                label: '同心记账',
-                indexedDBNeedles: ['accountingRecords', 'accountingLabels'],
-                localStorageNeedles: []
-            },
-            {
-                id: 'taPhone',
-                label: 'TA的手机',
-                indexedDBNeedles: [],
-                localStorageNeedles: ['ta_phone_collections']
             }
         ];
 
         const pickSelected = () => new Promise((resolve) => {
             const overlay = document.createElement('div');
             overlay.style.cssText = `
-                position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.6);
+                position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);
                 backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;
             `;
             overlay.innerHTML = `

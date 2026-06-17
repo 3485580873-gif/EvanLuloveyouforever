@@ -3,7 +3,6 @@ window.switchStatsTab = function(tab) {
     var favoritesPanel = document.getElementById('favorites-panel');
     var searchPanel = document.getElementById('search-panel');
     var wordcloudPanel = document.getElementById('wordcloud-panel');
-    var timelinePanel = document.getElementById('timeline-panel');
     var allBtns = document.querySelectorAll('.stats-nav-btn');
     allBtns.forEach(function(b) { b.classList.remove('active'); });
     var activeBtn = document.querySelector('.stats-nav-btn[data-tab="' + tab + '"]');
@@ -13,7 +12,6 @@ window.switchStatsTab = function(tab) {
     if (favoritesPanel) favoritesPanel.style.display = 'none';
     if (searchPanel) searchPanel.style.display = 'none';
     if (wordcloudPanel) wordcloudPanel.style.display = 'none';
-    if (timelinePanel) timelinePanel.style.display = 'none';
 
     if (tab === 'stats') {
         if (statsPanel) statsPanel.style.display = 'block';
@@ -27,11 +25,6 @@ window.switchStatsTab = function(tab) {
         if (wordcloudPanel) wordcloudPanel.style.display = 'block';
         requestAnimationFrame(function() {
             if (typeof renderWordCloud === 'function') renderWordCloud();
-        });
-    } else if (tab === 'timeline') {
-        if (timelinePanel) timelinePanel.style.display = 'block';
-        requestAnimationFrame(function() {
-            if (typeof renderMsgTimeline === 'function') renderMsgTimeline();
         });
     } else {
         if (favoritesPanel) favoritesPanel.style.display = 'block';
@@ -261,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
 if (exportAllBtn) {
         exportAllBtn.addEventListener('click', async function() {
             const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
             overlay.innerHTML = `
                 <div style="background:var(--secondary-bg);border-radius:20px;padding:24px;width:88%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:modalContentSlideIn 0.3s ease forwards;">
                     <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:4px;display:flex;align-items:center;gap:8px;">
@@ -304,56 +297,6 @@ if (exportAllBtn) {
                             <i class="fas fa-sticky-note" style="color:var(--accent-color);width:16px;text-align:center;"></i>
                             <span>表情库 <span style="font-size:11px;color:var(--text-secondary);">(默认关，勾选后去重打包)</span></span>
                         </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_home" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-home" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>Home美化</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_moyu" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-briefcase" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>摸鱼小记</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_shop" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-shopping-bag" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>商城 / 礼物柜</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_moments" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-camera" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>朋友圈 / 访客记录</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_map" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-map-marked-alt" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>Zmilk地图</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_taphone" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-mobile-alt" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>TA的手机</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_pet" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-paw" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>萌宠屋 / 像素宠物</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_diary" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-book" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>朝夕心记</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_accounting" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-calculator" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>同心记账</span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);">
-                            <input type="checkbox" id="_bk_envelope" checked style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-envelope" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>信封投递</span>
-                        </label>
                     </div>
                     <div style="display:flex;gap:10px;">
                         <button id="_bk_cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:none;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">取消</button>
@@ -378,20 +321,8 @@ if (exportAllBtn) {
                 const inclThemes  = document.getElementById('_bk_themes').checked;
                 const inclDg      = document.getElementById('_bk_dg').checked;
                 const inclStickers = document.getElementById('_bk_stickers') && document.getElementById('_bk_stickers').checked;
-                const inclMoyu    = document.getElementById('_bk_moyu').checked;
-                const inclHome    = document.getElementById('_bk_home').checked;
-                const inclShop    = document.getElementById('_bk_shop').checked;
-                const inclMoments = document.getElementById('_bk_moments').checked;
-                const inclMap     = document.getElementById('_bk_map').checked;
-                const inclTaPhone = document.getElementById('_bk_taphone').checked;
-                const inclPet     = document.getElementById('_bk_pet').checked;
-                const inclDiary   = document.getElementById('_bk_diary').checked;
-                const inclAccounting = document.getElementById('_bk_accounting').checked;
-                const inclEnvelope = document.getElementById('_bk_envelope').checked;
 
-                if (!inclMsgs && !inclSet && !inclCustom && !inclAnn && !inclThemes && !inclDg && !inclStickers &&
-                    !inclHome && !inclMoyu && !inclShop && !inclMoments && !inclMap && !inclTaPhone && !inclPet &&
-                    !inclDiary && !inclAccounting && !inclEnvelope) {
+                if (!inclMsgs && !inclSet && !inclCustom && !inclAnn && !inclThemes && !inclDg && !inclStickers) {
                     showNotification('请至少选择一项', 'error');
                     return;
                 }
@@ -406,17 +337,7 @@ if (exportAllBtn) {
                             inclAnn: inclAnn,
                             inclThemes: inclThemes,
                             inclDg: inclDg,
-                            inclStickers: inclStickers,
-                            inclHome: inclHome,
-                            inclMoyu: inclMoyu,
-                            inclShop: inclShop,
-                            inclMoments: inclMoments,
-                            inclMap: inclMap,
-                            inclTaPhone: inclTaPhone,
-                            inclPet: inclPet,
-                            inclDiary: inclDiary,
-                            inclAccounting: inclAccounting,
-                            inclEnvelope: inclEnvelope
+                            inclStickers: inclStickers
                         });
                         const jsonString = ChatBackup.serializeBackupV4(payload);
                         const dateStr = new Date().toISOString().slice(0, 10);
@@ -609,289 +530,11 @@ window._runMsgSearch = function() {
 };
 
 window.scrollToMessage = function(msgId) {
-    // 关闭统计弹窗（hideModal 可能不在全局作用域，直接操作 DOM）
-    var statsModal = document.getElementById('stats-modal');
-    if (statsModal) {
-        var content = statsModal.querySelector('.modal-content');
-        if (content) {
-            content.style.opacity = '0';
-            content.style.transform = 'translateY(20px) scale(0.95)';
-        }
-        if (statsModal._hideTimeout) clearTimeout(statsModal._hideTimeout);
-        statsModal._hideTimeout = setTimeout(function() {
-            statsModal.style.display = 'none';
-        }, 300);
+    var el = document.querySelector('[data-id="' + msgId + '"]');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.transition = 'background 0.3s';
+        el.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.18)';
+        setTimeout(function() { el.style.background = ''; }, 1500);
     }
-
-    // 延迟等弹窗关闭动画完成，再尝试滚动
-    setTimeout(function() {
-        var el = document.querySelector('[data-id="' + msgId + '"]') || document.querySelector('[data-msg-id="' + msgId + '"]');
-
-        if (el) {
-            // 消息已在 DOM 中，直接滚动
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.style.transition = 'background 0.3s';
-            el.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.18)';
-            setTimeout(function() { el.style.background = ''; }, 1500);
-        } else {
-            // 消息不在当前视图中，需要加载更多历史消息
-            var msgIndex = -1;
-            if (typeof messages !== 'undefined') {
-                for (var i = 0; i < messages.length; i++) {
-                    if (String(messages[i].id) === String(msgId)) {
-                        msgIndex = i;
-                        break;
-                    }
-                }
-            }
-            if (msgIndex === -1) {
-                if (typeof showNotification === 'function') showNotification('消息可能已被删除', 'info');
-                return;
-            }
-            // 增加显示的消息数量以包含目标消息
-            if (typeof displayedMessageCount !== 'undefined') {
-                var needed = messages.length - msgIndex;
-                if (needed > displayedMessageCount) {
-                    displayedMessageCount = needed + 10; // 多加载一些
-                    if (typeof renderMessages === 'function') renderMessages(false);
-                    // 渲染完成后再尝试滚动
-                    setTimeout(function() {
-                        var el2 = document.querySelector('[data-id="' + msgId + '"]') || document.querySelector('[data-msg-id="' + msgId + '"]');
-                        if (el2) {
-                            el2.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            el2.style.transition = 'background 0.3s';
-                            el2.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.18)';
-                            setTimeout(function() { el2.style.background = ''; }, 1500);
-                        } else {
-                            if (typeof showNotification === 'function') showNotification('消息定位失败', 'info');
-                        }
-                    }, 200);
-                }
-            }
-        }
-    }, 350);
 };
-
-/* ===== 消息统计 - 日历热力图时间轴 ===== */
-(function() {
-    var _tlYear = new Date().getFullYear();
-    var _tlMonth = new Date().getMonth(); // 0-based
-
-    // 根据消息数量返回热力图颜色（从浅到深，5级）
-    function getHeatColor(count, maxCount) {
-        if (count === 0) return 'transparent';
-        var ratio = maxCount > 0 ? count / maxCount : 0;
-        if (ratio <= 0) return 'rgba(var(--accent-color-rgb, 180,140,100), 0.08)';
-        if (ratio <= 0.2) return 'rgba(var(--accent-color-rgb, 180,140,100), 0.2)';
-        if (ratio <= 0.4) return 'rgba(var(--accent-color-rgb, 180,140,100), 0.4)';
-        if (ratio <= 0.7) return 'rgba(var(--accent-color-rgb, 180,140,100), 0.65)';
-        return 'rgba(var(--accent-color-rgb, 180,140,100), 0.9)';
-    }
-
-    // 统计每天的消息数量
-    function countMessagesByDay(year, month) {
-        var counts = {};
-        var firstDay = new Date(year, month, 1);
-        var lastDay = new Date(year, month + 1, 0);
-        var firstDayTime = firstDay.getTime();
-        var lastDayTime = lastDay.getTime() + 86400000 - 1; // 包含最后一天
-
-        if (typeof messages !== 'undefined' && messages.length > 0) {
-            messages.forEach(function(msg) {
-                if (msg.timestamp && msg.type !== 'system') {
-                    var t = new Date(msg.timestamp).getTime();
-                    if (t >= firstDayTime && t <= lastDayTime) {
-                        var d = new Date(msg.timestamp);
-                        var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                        counts[key] = (counts[key] || 0) + 1;
-                    }
-                }
-            });
-        }
-        return counts;
-    }
-
-    // 获取某天的第一条消息ID
-    function getFirstMsgIdOfDay(dateStr) {
-        if (typeof messages === 'undefined' || messages.length === 0) return null;
-        for (var i = 0; i < messages.length; i++) {
-            var msg = messages[i];
-            if (msg.timestamp && msg.type !== 'system') {
-                var d = new Date(msg.timestamp);
-                var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                if (key === dateStr) return msg.id;
-            }
-        }
-        return null;
-    }
-
-    window.renderMsgTimeline = function() {
-        var container = document.getElementById('timeline-container');
-        if (!container) return;
-
-        var counts = countMessagesByDay(_tlYear, _tlMonth);
-        var values = Object.values(counts);
-        var maxCount = values.length > 0 ? Math.max.apply(null, values) : 1;
-
-        var year = _tlYear;
-        var month = _tlMonth;
-        var firstDayOfMonth = new Date(year, month, 1);
-        var lastDayOfMonth = new Date(year, month + 1, 0);
-        var startWeekday = firstDayOfMonth.getDay(); // 0=周日
-        var daysInMonth = lastDayOfMonth.getDate();
-
-        var today = new Date();
-        var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-
-        var monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-
-        // 计算总消息数
-        var totalMonthMsgs = values.reduce(function(a, b) { return a + b; }, 0);
-        // 计算活跃天数
-        var activeDays = values.filter(function(v) { return v > 0; }).length;
-
-        var html = '';
-        // 头部导航
-        html += '<div class="tl-calendar-header">';
-        html += '  <button class="tl-cal-nav-btn" id="tl-prev-month"><i class="fas fa-chevron-left"></i></button>';
-        html += '  <div class="tl-month-label">' + year + '年 ' + monthNames[month] + '</div>';
-        html += '  <button class="tl-cal-nav-btn" id="tl-next-month"><i class="fas fa-chevron-right"></i></button>';
-        html += '</div>';
-
-        // 概览统计
-        html += '<div class="tl-summary-row">';
-        html += '  <div class="tl-summary-item"><span class="tl-summary-value">' + totalMonthMsgs + '</span><span class="tl-summary-label">条消息</span></div>';
-        html += '  <div class="tl-summary-item"><span class="tl-summary-value">' + activeDays + '</span><span class="tl-summary-label">天活跃</span></div>';
-        html += '  <div class="tl-summary-item"><span class="tl-summary-value">' + (activeDays > 0 ? Math.round(totalMonthMsgs / activeDays) : 0) + '</span><span class="tl-summary-label">日均</span></div>';
-        html += '</div>';
-
-        // 星期标题
-        html += '<div class="tl-cal-weekdays">';
-        html += '  <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>';
-        html += '</div>';
-
-        // 日历网格
-        html += '<div class="tl-cal-grid">';
-        // 填充前面的空白
-        for (var i = 0; i < startWeekday; i++) {
-            html += '<div class="tl-cal-day empty"></div>';
-        }
-        // 填充每一天
-        for (var day = 1; day <= daysInMonth; day++) {
-            var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-            var count = counts[dateStr] || 0;
-            var bgColor = getHeatColor(count, maxCount);
-            var isToday = (dateStr === todayStr);
-            var hasMsg = count > 0;
-            var firstId = hasMsg ? getFirstMsgIdOfDay(dateStr) : null;
-
-            var classes = 'tl-cal-day';
-            if (isToday) classes += ' today';
-            if (hasMsg) classes += ' has-msg';
-
-            html += '<div class="' + classes + '" data-date="' + dateStr + '" data-count="' + count + '"';
-            if (firstId) {
-                html += ' onclick="window._jumpToDayMsg(' + firstId + ')"';
-            }
-            html += ' style="background-color:' + bgColor + ';">';
-            html += '  <span class="tl-day-num">' + day + '</span>';
-            if (hasMsg) {
-                html += '  <span class="tl-day-count">' + count + '</span>';
-            }
-            html += '</div>';
-        }
-        html += '</div>';
-
-        // 图例
-        html += '<div class="tl-legend">';
-        html += '  <span class="tl-legend-label">少</span>';
-        html += '  <div class="tl-legend-block" style="background:rgba(var(--accent-color-rgb,180,140,100),0.08);"></div>';
-        html += '  <div class="tl-legend-block" style="background:rgba(var(--accent-color-rgb,180,140,100),0.2);"></div>';
-        html += '  <div class="tl-legend-block" style="background:rgba(var(--accent-color-rgb,180,140,100),0.4);"></div>';
-        html += '  <div class="tl-legend-block" style="background:rgba(var(--accent-color-rgb,180,140,100),0.65);"></div>';
-        html += '  <div class="tl-legend-block" style="background:rgba(var(--accent-color-rgb,180,140,100),0.9);"></div>';
-        html += '  <span class="tl-legend-label">多</span>';
-        html += '</div>';
-
-        container.innerHTML = html;
-
-        // 绑定月份切换事件
-        var prevBtn = document.getElementById('tl-prev-month');
-        var nextBtn = document.getElementById('tl-next-month');
-        if (prevBtn) prevBtn.onclick = function() {
-            _tlMonth--;
-            if (_tlMonth < 0) { _tlMonth = 11; _tlYear--; }
-            renderMsgTimeline();
-        };
-        if (nextBtn) nextBtn.onclick = function() {
-            _tlMonth++;
-            if (_tlMonth > 11) { _tlMonth = 0; _tlYear++; }
-            renderMsgTimeline();
-        };
-    };
-
-    // 点击日期跳转到对应日期的第一条消息
-    window._jumpToDayMsg = function(msgId) {
-        // 关闭统计弹窗（hideModal 可能不在全局作用域，直接操作 DOM）
-        var statsModal = document.getElementById('stats-modal');
-        if (statsModal) {
-            var content = statsModal.querySelector('.modal-content');
-            if (content) {
-                content.style.opacity = '0';
-                content.style.transform = 'translateY(20px) scale(0.95)';
-            }
-            if (statsModal._hideTimeout) clearTimeout(statsModal._hideTimeout);
-            statsModal._hideTimeout = setTimeout(function() {
-                statsModal.style.display = 'none';
-            }, 300);
-        }
-
-        // 延迟等弹窗关闭动画完成，再尝试滚动
-        setTimeout(function() {
-            var el = document.querySelector('[data-id="' + msgId + '"]') || document.querySelector('[data-msg-id="' + msgId + '"]');
-
-            if (el) {
-                // 消息已在 DOM 中，直接滚动
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.style.transition = 'background 0.3s';
-                el.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.18)';
-                setTimeout(function() { el.style.background = ''; }, 1500);
-            } else {
-                // 消息不在当前视图中，需要加载更多历史消息
-                var msgIndex = -1;
-                if (typeof messages !== 'undefined') {
-                    for (var i = 0; i < messages.length; i++) {
-                        if (String(messages[i].id) === String(msgId)) {
-                            msgIndex = i;
-                            break;
-                        }
-                    }
-                }
-                if (msgIndex === -1) {
-                    if (typeof showNotification === 'function') showNotification('消息可能已被删除', 'info');
-                    return;
-                }
-                // 增加显示的消息数量以包含目标消息
-                if (typeof displayedMessageCount !== 'undefined') {
-                    var needed = messages.length - msgIndex;
-                    if (needed > displayedMessageCount) {
-                        displayedMessageCount = needed + 10; // 多加载一些
-                        if (typeof renderMessages === 'function') renderMessages(false);
-                        // 渲染完成后再尝试滚动
-                        setTimeout(function() {
-                            var el2 = document.querySelector('[data-id="' + msgId + '"]') || document.querySelector('[data-msg-id="' + msgId + '"]');
-                            if (el2) {
-                                el2.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                el2.style.transition = 'background 0.3s';
-                                el2.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.18)';
-                                setTimeout(function() { el2.style.background = ''; }, 1500);
-                            } else {
-                                if (typeof showNotification === 'function') showNotification('消息定位失败', 'info');
-                            }
-                        }, 200);
-                    }
-                }
-            }
-        }, 350);
-    };
-})();

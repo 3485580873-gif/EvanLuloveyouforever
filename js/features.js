@@ -1,27 +1,4 @@
 (function() {
-    // 压缩图片工具：缩小尺寸 + JPEG 编码，返回 base64
-    function compressHomeImage(base64, maxWidth, quality) {
-        return new Promise(function(resolve) {
-            var img = new Image();
-            img.onload = function() {
-                if (img.width <= maxWidth && base64.length < 200000) {
-                    resolve(base64);
-                    return;
-                }
-                var ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
-                var w = Math.round(img.width * ratio);
-                var h = Math.round(img.height * ratio);
-                var canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', quality));
-            };
-            img.onerror = function() { resolve(base64); };
-            img.src = base64;
-        });
-    }
-
     var MY_SYM_KEY   = 'pokeSym_my';
     var PTR_SYM_KEY  = 'pokeSym_partner';
     var MY_CUST_KEY  = 'pokeSym_my_custom';
@@ -373,65 +350,17 @@
     };
 
     window._scrollToMsg = function(id) {
-        // 关闭统计弹窗（hideModal 可能不在全局作用域，直接操作 DOM）
-        var m = document.getElementById('stats-modal');
-        if (m) {
-            var content = m.querySelector('.modal-content');
-            if (content) {
-                content.style.opacity = '0';
-                content.style.transform = 'translateY(20px) scale(0.95)';
-            }
-            if (m._hideTimeout) clearTimeout(m._hideTimeout);
-            m._hideTimeout = setTimeout(function() {
-                m.style.display = 'none';
-            }, 300);
+        var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]');
+        if (el) {
+            el.scrollIntoView({behavior:'smooth',block:'center'});
+            el.style.transition='background .3s ease';
+            el.style.background='rgba(var(--accent-color-rgb),.14)';
+            setTimeout(function(){ el.style.background=''; }, 1800);
+            var m = document.getElementById('stats-modal');
+            if (m && typeof hideModal==='function') setTimeout(function(){ hideModal(m); }, 350);
+        } else {
+            if (typeof showNotification==='function') showNotification('消息不在当前视图中','info',2000);
         }
-
-        // 延迟等弹窗关闭动画完成，再尝试滚动
-        setTimeout(function() {
-            var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]');
-            if (el) {
-                el.scrollIntoView({behavior:'smooth',block:'center'});
-                el.style.transition='background .3s ease';
-                el.style.background='rgba(var(--accent-color-rgb),.14)';
-                setTimeout(function(){ el.style.background=''; }, 1800);
-            } else {
-                // 消息不在当前视图中，需要加载更多历史消息
-                var msgIndex = -1;
-                if (typeof messages !== 'undefined') {
-                    for (var i = 0; i < messages.length; i++) {
-                        if (String(messages[i].id) === String(id)) {
-                            msgIndex = i;
-                            break;
-                        }
-                    }
-                }
-                if (msgIndex === -1) {
-                    if (typeof showNotification==='function') showNotification('消息可能已被删除','info',2000);
-                    return;
-                }
-                // 增加显示的消息数量以包含目标消息
-                if (typeof displayedMessageCount !== 'undefined') {
-                    var needed = messages.length - msgIndex;
-                    if (needed > displayedMessageCount) {
-                        displayedMessageCount = needed + 10; // 多加载一些
-                        if (typeof renderMessages === 'function') renderMessages(false);
-                        // 渲染完成后再尝试滚动
-                        setTimeout(function() {
-                            var el2 = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]');
-                            if (el2) {
-                                el2.scrollIntoView({behavior:'smooth',block:'center'});
-                                el2.style.transition='background .3s ease';
-                                el2.style.background='rgba(var(--accent-color-rgb),.14)';
-                                setTimeout(function(){ el2.style.background=''; }, 1800);
-                            } else {
-                                if (typeof showNotification==='function') showNotification('消息定位失败','info',2000);
-                            }
-                        }, 200);
-                    }
-                }
-            }
-        }, 350);
     };
 })();
 
@@ -447,9 +376,6 @@ function renderComboMenu() {
         </button>
         <button class="combo-tab" data-tab="poke" style="flex:1; padding:8px; border:none; background:var(--secondary-bg); color:var(--text-primary); border-radius:8px; cursor:pointer;">
             ✨ 拍一拍
-        </button>
-        <button class="combo-tab" data-tab="voice" style="flex:1; padding:8px; border:none; background:var(--secondary-bg); color:var(--text-primary); border-radius:8px; cursor:pointer;">
-            🎤 语音
         </button>
     `;
     
@@ -475,10 +401,8 @@ function renderComboMenu() {
             
             if (btn.dataset.tab === 'emoji') {
                 showEmojiTab();
-            } else if (btn.dataset.tab === 'poke') {
+            } else {
                 showPokeTab();
-            } else if (btn.dataset.tab === 'voice') {
-                showVoiceTab();
             }
         });
     });
@@ -544,228 +468,75 @@ function showPokeTab() {
     area.style.display = 'flex';
     area.style.flexDirection = 'column';
     area.style.gap = '8px';
-
-    // 使用独立的 myPokes 库（表情快捷栏专用），不继承预设
-    const pokes = (typeof myPokes !== 'undefined' && Array.isArray(myPokes)) ? myPokes : [];
-
-    if (pokes.length === 0) {
-        const empty = document.createElement('div');
-        empty.style.cssText = 'text-align:center;padding:30px 10px;color:var(--text-secondary);font-size:13px;';
-        empty.innerHTML = '<i class="fas fa-hand-sparkles" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.4;"></i>暂无拍一拍<br><span style="font-size:11px;opacity:0.6;">点击下方按钮添加</span>';
-        area.appendChild(empty);
-    }
-
-    pokes.forEach((pokeText, idx) => {
+    
+    const quickPokes = customPokes.slice(0, 6);
+    
+    quickPokes.forEach(pokeText => {
         const cleanPokeText = (typeof window._sanitizePokeTextForDisplay === 'function')
             ? window._sanitizePokeTextForDisplay(pokeText)
             : pokeText;
-        const item = document.createElement('div');
-        item.style.cssText = `
-            display:flex;align-items:center;gap:8px;padding:10px 12px;
-            background:var(--primary-bg);border:1px solid var(--border-color);
-            border-radius:12px;cursor:pointer;
-            transition:all 0.2s;font-family:var(--font-family);
+        const btn = document.createElement('button');
+        btn.textContent = cleanPokeText;
+        btn.style.cssText = `
+            padding: 10px 14px;
+            background: linear-gradient(135deg, var(--secondary-bg), rgba(var(--accent-color-rgb),0.04));
+            border: 1px solid rgba(var(--accent-color-rgb),0.15);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            width: 100%;
         `;
-        const _esc = (typeof window !== 'undefined' && window.escapeHtml) ? window.escapeHtml : (s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
-        item.innerHTML = `
-            <div style="flex:1;min-width:0;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${_esc(cleanPokeText)}">${_esc(cleanPokeText)}</div>
-            <button class="poke-send-btn" title="发送" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-color);background:var(--accent-color);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-            <button class="poke-del-btn" title="删除" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;">
-                <i class="fas fa-trash"></i>
-            </button>
-        `;
-        item.addEventListener('mouseover', () => {
-            item.style.borderColor = 'var(--accent-color)';
-            item.style.background = 'rgba(var(--accent-color-rgb),0.04)';
+        btn.addEventListener('mouseover', () => {
+            btn.style.background = 'linear-gradient(135deg, rgba(var(--accent-color-rgb),0.12), rgba(var(--accent-color-rgb),0.06))';
+            btn.style.borderColor = 'var(--accent-color)';
+            btn.style.transform = 'translateX(4px)';
         });
-        item.addEventListener('mouseout', () => {
-            item.style.borderColor = 'var(--border-color)';
-            item.style.background = 'var(--primary-bg)';
+        btn.addEventListener('mouseout', () => {
+            btn.style.background = 'linear-gradient(135deg, var(--secondary-bg), rgba(var(--accent-color-rgb),0.04))';
+            btn.style.borderColor = 'rgba(var(--accent-color-rgb),0.15)';
+            btn.style.transform = '';
         });
-        // 发送按钮
-        item.querySelector('.poke-send-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
+        btn.onclick = () => {
             addMessage({
-                id: Date.now(),
-                text: _formatPokeText(`${settings.myName} ${cleanPokeText}`),
-                timestamp: new Date(),
+                id: Date.now(), 
+                text: _formatPokeText(`${settings.myName} ${cleanPokeText}`), 
+                timestamp: new Date(), 
                 type: 'system'
             });
             document.getElementById('user-sticker-picker').classList.remove('active');
-            if (typeof playSound === 'function') playSound('poke');
             const delayRange = settings.replyDelayMax - settings.replyDelayMin;
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
             setTimeout(simulateReply, randomDelay);
-        });
-        // 删除按钮
-        item.querySelector('.poke-del-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm('确定删除此拍一拍？')) {
-                myPokes.splice(idx, 1);
-                if (typeof throttledSaveData === 'function') throttledSaveData();
-                showPokeTab(); // 刷新列表
-            }
-        });
-        // 点击整行也发送
-        item.addEventListener('click', () => {
-            addMessage({
-                id: Date.now(),
-                text: _formatPokeText(`${settings.myName} ${cleanPokeText}`),
-                timestamp: new Date(),
-                type: 'system'
-            });
-            document.getElementById('user-sticker-picker').classList.remove('active');
-            if (typeof playSound === 'function') playSound('poke');
-            const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-            const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-            setTimeout(simulateReply, randomDelay);
-        });
-        area.appendChild(item);
+        };
+        area.appendChild(btn);
     });
-
-    // 底部操作按钮
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px;';
-
-    const addBtn = document.createElement('button');
-    addBtn.innerHTML = '<i class="fas fa-plus"></i> 添加拍一拍';
-    addBtn.style.cssText = `
-        flex:1;padding:11px 14px;
-        background:linear-gradient(135deg, var(--accent-color), rgba(var(--accent-color-rgb),0.8));
-        color:#fff;border:none;border-radius:12px;cursor:pointer;
-        font-weight:600;font-size:13px;width:100%;
-        letter-spacing:0.3px;box-shadow:0 4px 14px rgba(var(--accent-color-rgb),0.25);
-        font-family:var(--font-family);
+    
+    const customBtn = document.createElement('button');
+    customBtn.innerHTML = '<i class="fas fa-edit"></i> 自定义拍一拍';
+    customBtn.style.cssText = `
+        padding: 11px 14px;
+        background: linear-gradient(135deg, var(--accent-color), rgba(var(--accent-color-rgb),0.8));
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        width: 100%;
+        letter-spacing: 0.3px;
+        margin-top: 4px;
+        box-shadow: 0 4px 14px rgba(var(--accent-color-rgb), 0.25);
     `;
-    addBtn.onclick = () => {
+    customBtn.onclick = () => {
         document.getElementById('user-sticker-picker').classList.remove('active');
         showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
     };
-    btnRow.appendChild(addBtn);
-
-    // 清空全部按钮（仅当有内容时显示）
-    if (pokes.length > 0) {
-        const clearBtn = document.createElement('button');
-        clearBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-        clearBtn.title = '清空全部';
-        clearBtn.style.cssText = `
-            width:42px;height:42px;border-radius:12px;border:1px solid var(--border-color);
-            background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;
-            display:flex;align-items:center;justify-content:center;font-size:13px;
-            flex-shrink:0;font-family:var(--font-family);
-        `;
-        clearBtn.onmouseover = () => { clearBtn.style.color = '#e74c3c'; clearBtn.style.borderColor = '#e74c3c'; };
-        clearBtn.onmouseout = () => { clearBtn.style.color = 'var(--text-secondary)'; clearBtn.style.borderColor = 'var(--border-color)'; };
-        clearBtn.onclick = () => {
-            if (confirm('确定清空所有拍一拍？此操作不可恢复。')) {
-                myPokes = [];
-                if (typeof throttledSaveData === 'function') throttledSaveData();
-                showPokeTab();
-            }
-        };
-        btnRow.appendChild(clearBtn);
-    }
-
-    area.appendChild(btnRow);
+    area.appendChild(customBtn);
 }
-
-function showVoiceTab() {
-    const area = document.getElementById('combo-content-area');
-    area.innerHTML = '';
-    area.style.display = 'flex';
-    area.style.flexDirection = 'column';
-    area.style.gap = '8px';
-
-    const voices = (typeof customVoices !== 'undefined' && Array.isArray(customVoices)) ? customVoices : [];
-
-    if (voices.length === 0) {
-        const empty = document.createElement('div');
-        empty.style.cssText = 'text-align:center;padding:30px 10px;color:var(--text-secondary);font-size:13px;';
-        empty.innerHTML = '<i class="fas fa-microphone-slash" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.4;"></i>暂无语音<br><span style="font-size:11px;opacity:0.6;">请在自定义回复-语音中添加</span>';
-        area.appendChild(empty);
-        return;
-    }
-
-    voices.forEach((voice, idx) => {
-        const item = document.createElement('div');
-        item.style.cssText = `
-            display:flex;align-items:center;gap:10px;padding:10px 12px;
-            background:var(--primary-bg);border:1px solid var(--border-color);
-            border-radius:12px;cursor:pointer;
-            transition:all 0.2s;font-family:var(--font-family);
-        `;
-        item.innerHTML = `
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-color);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:13px;">
-                <i class="fas fa-play"></i>
-            </div>
-            <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(voice.text || '未命名语音')}</div>
-            </div>
-            <i class="fas fa-paper-plane" style="color:var(--text-secondary);font-size:12px;flex-shrink:0;"></i>
-        `;
-        item.addEventListener('mouseover', () => {
-            item.style.borderColor = 'var(--accent-color)';
-            item.style.background = 'rgba(var(--accent-color-rgb,180,140,100),0.06)';
-        });
-        item.addEventListener('mouseout', () => {
-            item.style.borderColor = 'var(--border-color)';
-            item.style.background = 'var(--primary-bg)';
-        });
-        item.onclick = () => {
-            // 发送语音消息
-            const voiceMsg = {
-                id: Date.now(),
-                sender: 'user',
-                text: '',
-                timestamp: new Date(),
-                type: 'voice',
-                voiceUrl: voice.audioUrl,
-                voiceText: voice.text,
-                voiceDuration: 0,
-                status: 'sent',
-                favorited: false,
-                note: null,
-                replyTo: null
-            };
-            // 获取音频时长（带超时保底）
-            let sent = false;
-            const doSend = () => {
-                if (sent) return;
-                sent = true;
-                addMessage(voiceMsg);
-            };
-            if (voice.audioUrl) {
-                try {
-                    const tmpAudio = new Audio(voice.audioUrl);
-                    tmpAudio.addEventListener('loadedmetadata', () => {
-                        voiceMsg.voiceDuration = Math.round(tmpAudio.duration) || 0;
-                        doSend();
-                    });
-                    tmpAudio.addEventListener('canplaythrough', () => {
-                        voiceMsg.voiceDuration = Math.round(tmpAudio.duration) || 0;
-                        doSend();
-                    });
-                    tmpAudio.addEventListener('error', () => { doSend(); });
-                    // 超时保底：2秒后无论如何发送
-                    setTimeout(doSend, 2000);
-                } catch(e) {
-                    doSend();
-                }
-            } else {
-                doSend();
-            }
-            document.getElementById('user-sticker-picker').classList.remove('active');
-            playSound('send');
-            const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-            const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-            setTimeout(simulateReply, randomDelay);
-        };
-        area.appendChild(item);
-    });
-}
-
         function initCoreListeners() {
 
 
@@ -1484,18 +1255,17 @@ window.onDgOverlayOpacityChange = function(val) {
     if (tintLayer) tintLayer.style.background = 'rgba(0,0,0,' + tint + ')';
 };
 
-window.handleDgOverlayBgUpload = async function(input) {
+window.handleDgOverlayBgUpload = function(input) {
     var file = input.files[0];
     if (!file) return;
     var reader = new FileReader();
-    reader.onload = async function(ev) {
-        // 压缩公告全屏背景图
-        var compressed = await compressHomeImage(ev.target.result, 1600, 0.75);
-        localStorage.setItem('dg_overlay_bg', compressed);
-        applyDgOverlayBg(compressed);
+    reader.onload = function(ev) {
+        var data = ev.target.result;
+        localStorage.setItem('dg_overlay_bg', data);
+        applyDgOverlayBg(data);
         var prev = document.getElementById('dg-overlay-bg-preview');
         var prevImg = document.getElementById('dg-overlay-bg-preview-img');
-        if (prev && prevImg) { prevImg.src = compressed; prev.style.display = 'block'; }
+        if (prev && prevImg) { prevImg.src = data; prev.style.display = 'block'; }
         var opRow = document.getElementById('dg-overlay-opacity-row');
         if (opRow) opRow.style.display = 'block';
         var savedTint = parseFloat(localStorage.getItem('dg_overlay_bg_tint'));

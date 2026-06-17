@@ -603,7 +603,7 @@ function populateThemeSelector() {
                 }
             }
             
-            if (scheme.customFontUrl && scheme.customFontUrl !== '__local__') {
+            if (scheme.customFontUrl) {
                 try { applyCustomFont(scheme.customFontUrl); } catch(e) {}
             } else {
                 document.documentElement.style.setProperty('--message-font-family', scheme.messageFontFamily || "'Noto Serif SC', serif");

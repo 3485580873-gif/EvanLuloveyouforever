@@ -29,28 +29,18 @@
         let customStatuses = [];
         let customPokeGroups = [];
         let customStatusGroups = [];
-        let myPokes = []; // 表情快捷栏专用拍一拍库
         let customMottos = [];
         let customIntros = []; 
         let currentMajorTab = 'reply'; 
         let currentSubTab = 'custom';  
         let currentReplyTab = 'custom';
         let customEmojis = [];
-        let kaomojiLibrary = [];  // 颜文字库
-        let moyuRecords = [];     // 摸鱼小记记录
-        let moyuLocations = [];   // 摸鱼地点库
-        window.moyuActivities = [];  // 摸鱼活动库（独立管理）
-        window.currentMoyuRecord = null; // 当前显示的摸鱼记录
-        let moyuUnread = false; // 摸鱼小记未读标记
-        window.moyuWorkSession = null; // 当前工作会话 {startTime, endTime, location, activities: [], totalHours}
-        let stickerLibrary = [];
-        let myStickerLibrary = [];
+        let anniversaries = [];
+        let stickerLibrary = []; 
+        let myStickerLibrary = []; 
+        let currentAnniversaryType = 'anniversary';
         let customThemes = [];
-        let themeSchemes = [];
-        window.transferData = null; // 转账数据 { myBalance, systemBalance, records[] }
-        let customVoices = []; // 语音库 { text, audioUrl }[]
-        let customVoiceGroups = []; // 语音分组
-
+        let themeSchemes = []; 
         const DOMElements = {
             html: document.documentElement,
             chatContainer: document.getElementById('chat-container'),
@@ -100,8 +90,7 @@
                 modal: document.getElementById('poke-modal'),
                 input: document.getElementById('poke-input'),
                 cancel: document.getElementById('cancel-poke'),
-                save: document.getElementById('send-poke'),
-                shortcut: document.getElementById('save-poke-shortcut')
+                save: document.getElementById('send-poke')
             },
             settingsModal: {
                 modal: document.getElementById('settings-modal'),
@@ -110,7 +99,7 @@
             },
             favoritesModal: {
                 modal: document.getElementById('stats-modal'),
-                favoritesBtn: null, // 群聊设置已合并到会话管理
+                favoritesBtn: document.getElementById('group-chat-btn'),
                 list: document.getElementById('favorites-list'),
                 cancel: document.getElementById('close-stats')
             },
@@ -152,6 +141,26 @@
                 avatar: document.getElementById('my-avatar'),
                 statusContainer: document.getElementById('my-status-container'),
                 statusText: document.getElementById('my-status-text')
+            },
+            anniversaryModal: {
+                modal: document.getElementById('anniversary-modal'),
+                closeBtn: document.getElementById('close-anniversary-modal'),
+                saveBtn: document.getElementById('save-ann-btn'),
+                addBtn: document.getElementById('open-ann-add-btn'),
+                dateInput: document.getElementById('ann-input-date'),
+                nameInput: document.getElementById('ann-input-name'),
+                displayArea: document.getElementById('anniversary-display'),
+                daysElement: document.getElementById('anniversary-days'),
+                dateShowElement: document.getElementById('anniversary-date-show'),
+                list: document.getElementById('ann-list-container'),
+                typeHint: document.getElementById('ann-type-desc')
+            },            
+            anniversaryAnimation: {
+                modal: document.getElementById('anniversary-animation'),
+                title: document.getElementById('anniversary-animation-title'),
+                days: document.getElementById('anniversary-animation-days'),
+                message: document.getElementById('anniversary-animation-message'),
+                closeBtn: document.getElementById('close-anniversary-animation')
             },
             appearanceModal: {
                 modal: document.getElementById('appearance-modal'),

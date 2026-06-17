@@ -9,9 +9,9 @@ function setupEventListeners() {
         setupTutorialListeners();
         initMoodListeners();
         initDecisionModule(); 
+        initAnniversaryModule(); 
         initThemeEditor(); 
         initThemeSchemes();
-        if (typeof window.initMoyu === 'function') window.initMoyu();
         
         initComboMenu(); 
         
@@ -90,52 +90,6 @@ if (target.classList.contains('delete-btn')) {
     }
     return;
 }
-                if (target.classList.contains('recall-btn')) {
-                    // 检查是否在5分钟内
-                    if (message.timestamp) {
-                        var elapsed = Date.now() - new Date(message.timestamp).getTime();
-                        if (elapsed > 5 * 60 * 1000) {
-                            showNotification('该消息已无法撤回', 'info', 2000);
-                            return;
-                        }
-                    }
-                    // 撤回：将消息内容放入输入框，然后删除消息
-                    if (message.text) {
-                        DOMElements.messageInput.value = message.text;
-                        DOMElements.messageInput.focus();
-                    }
-                    var idx = messages.findIndex(m => m.id === messageId);
-                    if (idx > -1) {
-                        var savedScrollTop = DOMElements.chatContainer.scrollTop;
-                        messages.splice(idx, 1);
-                        throttledSaveData();
-                        renderMessages(true);
-                        requestAnimationFrame(() => {
-                            DOMElements.chatContainer.scrollTop = savedScrollTop;
-                        });
-                        showNotification('消息已撤回', 'success');
-                    }
-                    return;
-                }
-                if (target.classList.contains('mention-btn')) {
-                    // @对方：在输入框插入 @昵称
-                    // 群聊模式下使用群成员角色名
-                    var grpMem = (typeof getGroupMemberForMessage === 'function') ? getGroupMemberForMessage(messageId) : null;
-                    var mentionName = grpMem ? (grpMem.name || '对方').trim() : (settings.partnerName || '对方').trim();
-                    var mentionInput = DOMElements.messageInput;
-                    if (mentionInput) {
-                        var mStart = mentionInput.selectionStart;
-                        var mEnd = mentionInput.selectionEnd;
-                        var mBefore = mentionInput.value.substring(0, mStart);
-                        var mAfter = mentionInput.value.substring(mEnd);
-                        mentionInput.value = mBefore + '@' + mentionName + ' ' + mAfter;
-                        mentionInput.focus();
-                        var mNewPos = mStart + mentionName.length + 2;
-                        mentionInput.setSelectionRange(mNewPos, mNewPos);
-                        mentionInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    return;
-                }
                 if (target.classList.contains('reply-btn')) {
                     currentReplyTo = {
                         id: message.id,
@@ -227,19 +181,15 @@ if (target.classList.contains('delete-btn')) {
 
                 if (shouldSaveToLibrary) {
                     try {
-                        // 保存到表情快捷栏独立的 myPokes 库，不再同步到氛围感拍一拍
-                        if (!Array.isArray(myPokes)) myPokes = [];
-                        const exists = myPokes.some(r => String(r) === String(pokeText));
+                        if (!Array.isArray(customPokes)) customPokes = [];
+                        const exists = customPokes.some(r => String(r) === String(pokeText));
                         if (!exists) {
-                            myPokes.unshift(pokeText);
+                            customPokes.unshift(pokeText);
                             if (typeof throttledSaveData === 'function') throttledSaveData();
-                            if (typeof showNotification === 'function') showNotification('✓ 已保存到快捷栏', 'success');
-                        } else {
-                            if (typeof showNotification === 'function') showNotification('该拍一拍已存在', 'info');
+                            if (typeof renderReplyLibrary === 'function') renderReplyLibrary();
                         }
                     } catch (e) {
-                        console.warn('拍一拍保存到快捷栏失败:', e);
-                        if (typeof showNotification === 'function') showNotification('保存失败', 'error');
+                        console.warn('拍一拍保存到库失败:', e);
                     }
                 }
                 hideModal(DOMElements.pokeModal.modal);
@@ -248,30 +198,6 @@ if (target.classList.contains('delete-btn')) {
                 const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
                 setTimeout(simulateReply, randomDelay);
             });
-
-            // 存快捷：只保存到 myPokes，不发送
-            if (DOMElements.pokeModal.shortcut) {
-                DOMElements.pokeModal.shortcut.addEventListener('click', () => {
-                    let pokeText = DOMElements.pokeModal.input.value.trim();
-                    if (!pokeText) {
-                        pokeText = `${settings.myName} 拍了拍 ${settings.partnerName}`;
-                    }
-                    if (typeof window._sanitizePokeTextForDisplay === 'function') {
-                        pokeText = window._sanitizePokeTextForDisplay(pokeText);
-                    }
-                    if (!Array.isArray(myPokes)) myPokes = [];
-                    const exists = myPokes.some(r => String(r) === String(pokeText));
-                    if (!exists) {
-                        myPokes.unshift(pokeText);
-                        if (typeof throttledSaveData === 'function') throttledSaveData();
-                        if (typeof showNotification === 'function') showNotification('✓ 已存入快捷拍一拍', 'success');
-                    } else {
-                        if (typeof showNotification === 'function') showNotification('该拍一拍已存在', 'info');
-                    }
-                    hideModal(DOMElements.pokeModal.modal);
-                    DOMElements.pokeModal.input.value = '';
-                });
-            }
 
 
             DOMElements.cancelCoinResult.addEventListener('click', () => {
@@ -317,11 +243,6 @@ if (target.classList.contains('delete-btn')) {
                         throttledSaveData();
                         updateUI();
                         showNotification('昵称已更新', 'success');
-
-                        // 同步更新 Home 界面的昵称显示
-                        if (typeof window.updateHomeNicknames === 'function') {
-                            window.updateHomeNicknames();
-                        }
                     }
                     hideModal(modal.modal);
                 };
@@ -442,11 +363,6 @@ fileInput.addEventListener('change', function(e) {
                             throttledSaveData();
                             showNotification('头像已更新', 'success');
                             hideModal(modal.modal);
-
-                            // 同步更新 Home 界面的头像（仅在头像绑定开启时）
-                            if (typeof window._getAvatarSyncEnabled === 'function' && window._getAvatarSyncEnabled() && typeof window.updateHomeAvatar === 'function') {
-                                window.updateHomeAvatar(isPartner ? 'partner' : 'me', currentAvatarData);
-                            }
                         }
                     });
 
@@ -492,7 +408,9 @@ fileInput.addEventListener('change', function(e) {
             DOMElements.settingsModal.settingsBtn.addEventListener('click', () => {
                 showModal(DOMElements.settingsModal.modal);
             });
-            // 群聊设置按钮已合并到会话管理中
+            DOMElements.favoritesModal.favoritesBtn.addEventListener('click', () => {
+                showModal(document.getElementById('group-chat-modal'));
+            });
 
 
 window.setReadReceiptStyle = function(style) {
@@ -517,8 +435,8 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
         '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
         '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
         '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
-        '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入' },
-        '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' }
+        '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字消息' },
+        '#pinyin-card-toggle': { prop: 'pinyinCardEnabled', name: '拼字卡' }
     };
     for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
         const el = document.querySelector(selector);
@@ -569,22 +487,6 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
     updateDelayUI();
     const immToggle = document.getElementById('immersive-toggle');
     if (immToggle) immToggle.classList.toggle('active', document.body.classList.contains('immersive-mode'));
-    // 同步信封相关开关
-    const envAutoToggle = document.getElementById('envelope-auto-send-toggle');
-    if (envAutoToggle) envAutoToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
-    const envCustomToggle = document.getElementById('envelope-custom-rule-toggle');
-    if (envCustomToggle) envCustomToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
-    if (typeof updateEnvelopeSettingsUI === 'function') updateEnvelopeSettingsUI();
-    // 同步摸鱼显示详情开关
-    const moyuDetailToggle = document.getElementById('moyu-show-detail-toggle');
-    if (moyuDetailToggle) moyuDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
-    // 同步底部栏收纳开关
-    const collapseToggle = document.getElementById('bottom-collapse-cs-toggle');
-    if (collapseToggle) collapseToggle.classList.toggle('active', !!settings.bottomCollapseMode);
-    // 同步摸鱼自动生成开关
-    const moyuAutoToggle = document.getElementById('moyu-auto-generate-toggle');
-    if (moyuAutoToggle) moyuAutoToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
-    if (typeof updateMoyuAutoGenerateUI === 'function') updateMoyuAutoGenerateUI();
     const rrStyle = settings.readReceiptStyle || 'icon';
     const rrIconBtn = document.getElementById('rr-style-icon');
     const rrTextBtn = document.getElementById('rr-style-text');
@@ -694,91 +596,10 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 });
             }
 
-            // 本地上传字体文件
-            const uploadFontBtn = document.getElementById('upload-font-btn');
-            const localFontInput = document.getElementById('local-font-input');
-            const localFontName = document.getElementById('local-font-name');
-            
-            if (uploadFontBtn && localFontInput) {
-                uploadFontBtn.addEventListener('click', () => {
-                    localFontInput.click();
-                });
-                
-                localFontInput.addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    
-                    // 检查文件类型
-                    const validExts = ['.ttf', '.otf', '.woff', '.woff2'];
-                    const ext = '.' + file.name.split('.').pop().toLowerCase();
-                    if (!validExts.includes(ext)) {
-                        showNotification('请选择 TTF/OTF/WOFF/WOFF2 格式的字体文件', 'error');
-                        return;
-                    }
-                    
-                    showNotification('正在加载本地字体...', 'info', 1500);
-                    
-                    try {
-                        // 读取文件为 ArrayBuffer，存到 localforage
-                        const arrayBuffer = await file.arrayBuffer();
-                        const base64 = arrayBufferToBase64(arrayBuffer);
-                        
-                        // 保存到 localforage
-                        await localforage.setItem(getStorageKey('localFontFile'), {
-                            name: file.name,
-                            data: base64,
-                            mime: file.type || 'font/' + ext.slice(1)
-                        });
-                        
-                        settings.customFontUrl = '__local__';
-                        settings.localFontName = file.name;
-                        
-                        // 创建 Blob URL 加载字体
-                        const blob = new Blob([arrayBuffer], { type: file.type || 'font/' + ext.slice(1) });
-                        const blobUrl = URL.createObjectURL(blob);
-                        
-                        await applyCustomFont(blobUrl);
-                        
-                        // 更新显示
-                        if (fontUrlInput) fontUrlInput.value = '__local__';
-                        if (localFontName) {
-                            localFontName.textContent = '✅ 已加载: ' + file.name;
-                        }
-                        
-                        throttledSaveData();
-                        showNotification('本地字体已应用: ' + file.name, 'success');
-                    } catch (err) {
-                        console.error('本地字体加载失败:', err);
-                        showNotification('字体加载失败，请检查文件是否有效', 'error');
-                    }
-                    
-                    // 清空 input 以便重复选择同一文件
-                    localFontInput.value = '';
-                });
-            }
-            
-            // 恢复上次的本地字体（如果有）
-            (async () => {
-                try {
-                    const saved = await localforage.getItem(getStorageKey('localFontFile'));
-                    if (saved && saved.data && settings.customFontUrl === '__local__') {
-                        const binaryStr = atob(saved.data);
-                        const bytes = new Uint8Array(binaryStr.length);
-                        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-                        const blob = new Blob([bytes], { type: saved.mime || 'font/ttf' });
-                        const blobUrl = URL.createObjectURL(blob);
-                        await applyCustomFont(blobUrl);
-                        if (localFontName) {
-                            localFontName.textContent = '✅ 已加载: ' + saved.name;
-                        }
-                    }
-                } catch(e) {}
-            })();
-
             
             const followSystemBtn = document.getElementById('follow-system-font-btn');
             if (followSystemBtn) {
-                followSystemBtn.addEventListener('click', async () => {
+                followSystemBtn.addEventListener('click', () => {
                     
                     const systemFontStack = 'system-ui, -apple-system, sans-serif';
                     
@@ -787,23 +608,13 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                     
                     
                     settings.customFontUrl = "";
-                    settings.localFontName = "";
-                    
-                    // 清除本地字体缓存
-                    await localforage.removeItem(getStorageKey('localFontFile'));
                     
                     
                     settings.messageFontFamily = systemFontStack;
                     
                     
-                    document.documentElement.style.removeProperty('--font-family');
-                    document.documentElement.style.removeProperty('--message-font-family');
                     document.documentElement.style.setProperty('--font-family', systemFontStack);
                     document.documentElement.style.setProperty('--message-font-family', systemFontStack);
-                    
-                    // 隐藏本地字体名称
-                    const lnf = document.getElementById('local-font-name');
-                    if (lnf) lnf.textContent = '';
                     
                     
                     throttledSaveData();
@@ -1220,100 +1031,6 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
             }
             updateDelayUI();
 
-            // 朋友圈：对方主动发朋友圈开关
-            const momentsAutoPostToggle = document.getElementById('moments-auto-post-toggle');
-            const momentsAutoPostSettings = document.getElementById('moments-auto-post-settings');
-            if (momentsAutoPostToggle) {
-                momentsAutoPostToggle.classList.toggle('active', !!settings.momentsAutoPostEnabled);
-            }
-            if (momentsAutoPostSettings) {
-                momentsAutoPostSettings.style.display = settings.momentsAutoPostEnabled ? 'block' : 'none';
-            }
-
-            // 初始化朋友圈时长滑块（单位：小时）
-            const momentsMinIntervalSlider = document.getElementById('moments-post-min-interval-slider');
-            const momentsMinIntervalValue = document.getElementById('moments-post-min-interval-value');
-            if (momentsMinIntervalSlider) {
-                const val = settings.momentsPostMinInterval || 1;
-                momentsMinIntervalSlider.value = val;
-                momentsMinIntervalValue.textContent = val + '小时';
-            }
-            const momentsMaxIntervalSlider = document.getElementById('moments-post-max-interval-slider');
-            const momentsMaxIntervalValue = document.getElementById('moments-post-max-interval-value');
-            if (momentsMaxIntervalSlider) {
-                const val = settings.momentsPostMaxInterval || 3;
-                momentsMaxIntervalSlider.value = val;
-                momentsMaxIntervalValue.textContent = val + '小时';
-            }
-            // 初始化朋友圈字卡滑块（1-8条）
-            const momentsMinCardsSlider = document.getElementById('moments-post-min-cards-slider');
-            const momentsMinCardsValue = document.getElementById('moments-post-min-cards-value');
-            if (momentsMinCardsSlider) {
-                const val = settings.momentsPostMinCards || 1;
-                momentsMinCardsSlider.value = val;
-                momentsMinCardsValue.textContent = val + '条';
-            }
-            const momentsMaxCardsSlider = document.getElementById('moments-post-max-cards-slider');
-            const momentsMaxCardsValue = document.getElementById('moments-post-max-cards-value');
-            if (momentsMaxCardsSlider) {
-                const val = settings.momentsPostMaxCards || 3;
-                momentsMaxCardsSlider.value = val;
-                momentsMaxCardsValue.textContent = val + '条';
-            }
-
-            // 朋友圈：最短时长事件监听
-            if (momentsMinIntervalSlider) {
-                momentsMinIntervalSlider.addEventListener('input', (e) => {
-                    let val = parseFloat(e.target.value);
-                    if (val > (settings.momentsPostMaxInterval || 3)) {
-                        val = settings.momentsPostMaxInterval || 3;
-                        momentsMinIntervalSlider.value = val;
-                    }
-                    settings.momentsPostMinInterval = val;
-                    momentsMinIntervalValue.textContent = val + '小时';
-                });
-                momentsMinIntervalSlider.addEventListener('change', () => { throttledSaveData(); });
-            }
-            // 朋友圈：最长时长事件监听
-            if (momentsMaxIntervalSlider) {
-                momentsMaxIntervalSlider.addEventListener('input', (e) => {
-                    let val = parseFloat(e.target.value);
-                    if (val < (settings.momentsPostMinInterval || 1)) {
-                        val = settings.momentsPostMinInterval || 1;
-                        momentsMaxIntervalSlider.value = val;
-                    }
-                    settings.momentsPostMaxInterval = val;
-                    momentsMaxIntervalValue.textContent = val + '小时';
-                });
-                momentsMaxIntervalSlider.addEventListener('change', () => { throttledSaveData(); });
-            }
-            // 朋友圈：最少字卡事件监听
-            if (momentsMinCardsSlider) {
-                momentsMinCardsSlider.addEventListener('input', (e) => {
-                    let val = parseInt(e.target.value);
-                    if (val > (settings.momentsPostMaxCards || 3)) {
-                        val = settings.momentsPostMaxCards || 3;
-                        momentsMinCardsSlider.value = val;
-                    }
-                    settings.momentsPostMinCards = val;
-                    momentsMinCardsValue.textContent = val + '条';
-                });
-                momentsMinCardsSlider.addEventListener('change', () => { throttledSaveData(); });
-            }
-            // 朋友圈：最多字卡事件监听
-            if (momentsMaxCardsSlider) {
-                momentsMaxCardsSlider.addEventListener('input', (e) => {
-                    let val = parseInt(e.target.value);
-                    if (val < (settings.momentsPostMinCards || 1)) {
-                        val = settings.momentsPostMinCards || 1;
-                        momentsMaxCardsSlider.value = val;
-                    }
-                    settings.momentsPostMaxCards = val;
-                    momentsMaxCardsValue.textContent = val + '条';
-                });
-                momentsMaxCardsSlider.addEventListener('change', () => { throttledSaveData(); });
-            }
-
             minDelaySlider.addEventListener('input', (e) => {
                 settings.replyDelayMin = parseInt(e.target.value, 10);
                 if (settings.replyDelayMin > settings.replyDelayMax) {
@@ -1350,20 +1067,6 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                     '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' },
                     '#pinyin-card-toggle': { prop: 'pinyinCardEnabled', name: '拼字卡' }
 };
-
-            // 以下开关已有独立的 click 处理器，只需在初始化时同步 UI 状态
-            const _extraToggleSync = {
-                '#auto-send-toggle': 'autoSendEnabled',
-                '#moyu-auto-generate-toggle': 'moyuAutoGenerateEnabled',
-                '#moyu-show-detail-toggle': 'moyuShowDetail',
-                '#envelope-auto-send-toggle': 'envelopeAutoSendEnabled',
-                '#envelope-custom-rule-toggle': 'envelopeCustomRuleEnabled',
-                '#bottom-collapse-cs-toggle': 'bottomCollapseMode'
-            };
-            for (const [sel, prop] of Object.entries(_extraToggleSync)) {
-                const el = document.querySelector(sel);
-                if (el) el.classList.toggle('active', !!settings[prop]);
-            }
 
             for (const [selector, {
                 prop, name
@@ -1493,8 +1196,8 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
             if (_appearanceEl) _appearanceEl.addEventListener('click', () => {
                 hideModal(DOMElements.settingsModal.modal);
                 window.hideAppearancePanel && window.hideAppearancePanel();
-                try { renderBackgroundGallery(); } catch(e) { console.error('[appearance] renderBackgroundGallery出错:', e); }
-                try { renderThemeSchemesList(); } catch(e) { console.error('[appearance] renderThemeSchemesList出错:', e); }
+                renderBackgroundGallery();
+                renderThemeSchemesList();
                 
                 const fontSizeSliderEl = document.getElementById('font-size-slider');
                 const fontSizeValueEl = document.getElementById('font-size-value');
@@ -1521,8 +1224,6 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 setTimeout(() => { 
                     updateAvatarSettingsUI && updateAvatarSettingsUI(); 
                     setupAppearancePanelFrameSettings && setupAppearancePanelFrameSettings();
-                    // 更新主页绑定会话开关UI
-                    if (typeof updateHomeSessionBindUI === 'function') updateHomeSessionBindUI();
                 }, 100);
             });
             DOMElements.appearanceModal.closeBtn.addEventListener('click', () => {
@@ -1551,7 +1252,7 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                         });
                         saveBackgroundGallery();
                         renderBackgroundGallery();
-                        window.applyBackground && window.applyBackground(base64);
+                        applyBackground(base64);
                         localforage.setItem(getStorageKey('chatBackground'), base64);
                         showNotification('新背景已添加并应用', 'success');
                     };
@@ -1593,7 +1294,7 @@ autoSendSlider.addEventListener('input', (e) => {
 });
 
 autoSendSlider.addEventListener('change', () => {
-    manageAutoSendTimer();
+    manageAutoSendTimer(); 
     throttledSaveData();
 });
 
@@ -1607,14 +1308,14 @@ const pinyinCardMaxValue = document.getElementById('pinyin-card-max-value');
 const updatePinyinCardUI = () => {
     if (pinyinCardSettings) pinyinCardSettings.style.display = settings.pinyinCardEnabled ? 'block' : 'none';
     if (pinyinCardMinSlider) {
-        const minVal = settings.pinyinCardMin || 1;
+        const minVal = settings.pinyinCardMin || 2;
         pinyinCardMinSlider.value = minVal;
-        pinyinCardMinValue.textContent = minVal + '句';
+        if (pinyinCardMinValue) pinyinCardMinValue.textContent = minVal + '句';
     }
     if (pinyinCardMaxSlider) {
         const maxVal = settings.pinyinCardMax || 3;
         pinyinCardMaxSlider.value = maxVal;
-        pinyinCardMaxValue.textContent = maxVal + '句';
+        if (pinyinCardMaxValue) pinyinCardMaxValue.textContent = maxVal + '句';
     }
 };
 updatePinyinCardUI();
@@ -1627,7 +1328,7 @@ if (pinyinCardMinSlider) {
             pinyinCardMinSlider.value = val;
         }
         settings.pinyinCardMin = val;
-        pinyinCardMinValue.textContent = val + '句';
+        if (pinyinCardMinValue) pinyinCardMinValue.textContent = val + '句';
     });
     pinyinCardMinSlider.addEventListener('change', () => { throttledSaveData(); });
 }
@@ -1640,180 +1341,9 @@ if (pinyinCardMaxSlider) {
             pinyinCardMaxSlider.value = val;
         }
         settings.pinyinCardMax = val;
-        pinyinCardMaxValue.textContent = val + '句';
+        if (pinyinCardMaxValue) pinyinCardMaxValue.textContent = val + '句';
     });
     pinyinCardMaxSlider.addEventListener('change', () => { throttledSaveData(); });
-}
-
-// 摸鱼自动生成设置
-const moyuAutoGenerateToggle = document.getElementById('moyu-auto-generate-toggle');
-const moyuAutoGenerateControl = document.getElementById('moyu-auto-generate-control');
-const moyuAutoGenerateSlider = document.getElementById('moyu-auto-generate-slider');
-const moyuAutoGenerateValue = document.getElementById('moyu-auto-generate-value');
-
-const updateMoyuAutoGenerateUI = () => {
-    if (moyuAutoGenerateToggle) {
-        moyuAutoGenerateToggle.classList.toggle('active', !!settings.moyuAutoGenerateEnabled);
-    }
-    if (moyuAutoGenerateControl) {
-        moyuAutoGenerateControl.style.display = settings.moyuAutoGenerateEnabled ? "flex" : "none";
-    }
-    const currentVal = settings.moyuAutoGenerateInterval || 60;
-    if (moyuAutoGenerateSlider) {
-        moyuAutoGenerateSlider.value = currentVal;
-    }
-    if (moyuAutoGenerateValue) {
-        moyuAutoGenerateValue.textContent = `${currentVal}秒`;
-    }
-};
-
-updateMoyuAutoGenerateUI();
-
-if (moyuAutoGenerateToggle) {
-    moyuAutoGenerateToggle.addEventListener('click', () => {
-        settings.moyuAutoGenerateEnabled = !settings.moyuAutoGenerateEnabled;
-        updateMoyuAutoGenerateUI();
-        manageMoyuAutoGenerateTimer();
-        throttledSaveData();
-        showNotification(`摸鱼自动生成已${settings.moyuAutoGenerateEnabled ? '开启' : '关闭'}`, 'success');
-    });
-}
-
-if (moyuAutoGenerateSlider) {
-    moyuAutoGenerateSlider.value = settings.moyuAutoGenerateInterval || 60;
-    moyuAutoGenerateSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.moyuAutoGenerateInterval = val;
-        if (moyuAutoGenerateValue) {
-            moyuAutoGenerateValue.textContent = `${val}秒`;
-        }
-    });
-    moyuAutoGenerateSlider.addEventListener('change', () => {
-        manageMoyuAutoGenerateTimer();
-        throttledSaveData();
-    });
-}
-
-// 摸鱼显示详情设置
-const moyuShowDetailToggle = document.getElementById('moyu-show-detail-toggle');
-
-const updateMoyuShowDetailUI = () => {
-    if (moyuShowDetailToggle) {
-        moyuShowDetailToggle.classList.toggle('active', !!settings.moyuShowDetail);
-    }
-};
-
-updateMoyuShowDetailUI();
-
-if (moyuShowDetailToggle) {
-    moyuShowDetailToggle.addEventListener('click', () => {
-        settings.moyuShowDetail = !settings.moyuShowDetail;
-        updateMoyuShowDetailUI();
-        throttledSaveData();
-        showNotification(`显示具体信息已${settings.moyuShowDetail ? '开启' : '关闭'}`, 'success');
-    });
-}
-
-// 信封投递设置
-const envelopeAutoSendToggle = document.getElementById('envelope-auto-send-toggle');
-const envelopeAutoSendSettings = document.getElementById('envelope-auto-send-settings');
-const envelopeAutoSendMinValSlider = document.getElementById('envelope-auto-send-min-val-slider');
-const envelopeAutoSendMinUnit = document.getElementById('envelope-auto-send-min-unit');
-const envelopeAutoSendMinValDisplay = document.getElementById('envelope-auto-send-min-val-display');
-const envelopeAutoSendMaxValSlider = document.getElementById('envelope-auto-send-max-val-slider');
-const envelopeAutoSendMaxUnit = document.getElementById('envelope-auto-send-max-unit');
-const envelopeAutoSendMaxValDisplay = document.getElementById('envelope-auto-send-max-val-display');
-const envelopeCustomRuleToggle = document.getElementById('envelope-custom-rule-toggle');
-const envelopeCustomRuleSettings = document.getElementById('envelope-custom-rule-settings');
-const envelopeReplyMinValSlider = document.getElementById('envelope-reply-min-val-slider');
-const envelopeReplyMinUnit = document.getElementById('envelope-reply-min-unit');
-const envelopeReplyMinValDisplay = document.getElementById('envelope-reply-min-val-display');
-const envelopeReplyMaxValSlider = document.getElementById('envelope-reply-max-val-slider');
-const envelopeReplyMaxUnit = document.getElementById('envelope-reply-max-unit');
-const envelopeReplyMaxValDisplay = document.getElementById('envelope-reply-max-val-display');
-const envelopeReplyMinSentencesSlider = document.getElementById('envelope-reply-min-sentences-slider');
-const envelopeReplyMinSentencesValue = document.getElementById('envelope-reply-min-sentences-value');
-const envelopeReplyMaxSentencesSlider = document.getElementById('envelope-reply-max-sentences-slider');
-const envelopeReplyMaxSentencesValue = document.getElementById('envelope-reply-max-sentences-value');
-
-const unitLabelMap = { minutes: '分钟', hours: '小时', days: '天' };
-const unitToMs = { minutes: 60 * 1000, hours: 60 * 60 * 1000, days: 24 * 60 * 60 * 1000 };
-
-function getEnvelopeMinMs() {
-    return (settings.envelopeReplyMinVal || 10) * (unitToMs[settings.envelopeReplyMinUnit] || unitToMs.hours);
-}
-function getEnvelopeMaxMs() {
-    return (settings.envelopeReplyMaxVal || 24) * (unitToMs[settings.envelopeReplyMaxUnit] || unitToMs.hours);
-}
-
-const updateEnvelopeSettingsUI = () => {
-    if (envelopeAutoSendToggle) {
-        envelopeAutoSendToggle.classList.toggle('active', !!settings.envelopeAutoSendEnabled);
-    }
-    if (envelopeAutoSendSettings) {
-        envelopeAutoSendSettings.style.display = settings.envelopeAutoSendEnabled ? 'block' : 'none';
-    }
-    if (envelopeCustomRuleToggle) {
-        envelopeCustomRuleToggle.classList.toggle('active', !!settings.envelopeCustomRuleEnabled);
-    }
-    if (envelopeCustomRuleSettings) {
-        envelopeCustomRuleSettings.style.display = settings.envelopeCustomRuleEnabled ? 'block' : 'none';
-    }
-    // 更新时空来信间隔滑块
-    const autoMinV = settings.envelopeAutoSendMinVal || 1;
-    const autoMaxV = settings.envelopeAutoSendMaxVal || 3;
-    const autoMinU = settings.envelopeAutoSendMinUnit || 'hours';
-    const autoMaxU = settings.envelopeAutoSendMaxUnit || 'hours';
-    if (envelopeAutoSendMinValSlider) envelopeAutoSendMinValSlider.value = Math.min(autoMinV, 10);
-    if (envelopeAutoSendMinUnit) envelopeAutoSendMinUnit.value = autoMinU;
-    if (envelopeAutoSendMinValDisplay) envelopeAutoSendMinValDisplay.textContent = autoMinV + unitLabelMap[autoMinU];
-    if (envelopeAutoSendMaxValSlider) envelopeAutoSendMaxValSlider.value = Math.min(autoMaxV, 10);
-    if (envelopeAutoSendMaxUnit) envelopeAutoSendMaxUnit.value = autoMaxU;
-    if (envelopeAutoSendMaxValDisplay) envelopeAutoSendMaxValDisplay.textContent = autoMaxV + unitLabelMap[autoMaxU];
-    // 更新回信间隔滑块
-    const minV = settings.envelopeReplyMinVal || 10;
-    const maxV = settings.envelopeReplyMaxVal || 24;
-    const minU = settings.envelopeReplyMinUnit || 'hours';
-    const maxU = settings.envelopeReplyMaxUnit || 'hours';
-    if (envelopeReplyMinValSlider) envelopeReplyMinValSlider.value = Math.min(minV, 10);
-    if (envelopeReplyMinUnit) envelopeReplyMinUnit.value = minU;
-    if (envelopeReplyMinValDisplay) envelopeReplyMinValDisplay.textContent = minV + unitLabelMap[minU];
-    if (envelopeReplyMaxValSlider) envelopeReplyMaxValSlider.value = Math.min(maxV, 10);
-    if (envelopeReplyMaxUnit) envelopeReplyMaxUnit.value = maxU;
-    if (envelopeReplyMaxValDisplay) envelopeReplyMaxValDisplay.textContent = maxV + unitLabelMap[maxU];
-    // 更新回信句数滑块
-    const minS = settings.envelopeReplyMinSentences || 8;
-    const maxS = settings.envelopeReplyMaxSentences || 12;
-    if (envelopeReplyMinSentencesSlider) envelopeReplyMinSentencesSlider.value = minS;
-    if (envelopeReplyMinSentencesValue) envelopeReplyMinSentencesValue.textContent = minS + '句';
-    if (envelopeReplyMaxSentencesSlider) envelopeReplyMaxSentencesSlider.value = maxS;
-    if (envelopeReplyMaxSentencesValue) envelopeReplyMaxSentencesValue.textContent = maxS + '句';
-    // 更新提示文本中的梦角昵称
-    const envelopeAutoSendHint = document.getElementById('envelope-auto-send-hint');
-    if (envelopeAutoSendHint) {
-        const pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
-        envelopeAutoSendHint.textContent = '开启后，' + pName + '会随机主动写信';
-    }
-};
-
-updateEnvelopeSettingsUI();
-
-// 朋友圈：对方主动发朋友圈开关
-const momentsAutoPostToggleGlobal = document.getElementById('moments-auto-post-toggle');
-const momentsAutoPostSettingsGlobal = document.getElementById('moments-auto-post-settings');
-
-if (momentsAutoPostToggleGlobal) {
-    console.log('[DEBUG:init] moments-auto-post-toggle found, current settings.momentsAutoPostEnabled =', settings.momentsAutoPostEnabled, 'active class =', momentsAutoPostToggleGlobal.classList.contains('active'));
-    momentsAutoPostToggleGlobal.addEventListener('click', () => {
-        settings.momentsAutoPostEnabled = !settings.momentsAutoPostEnabled;
-        console.log('[DEBUG:click] toggled to', settings.momentsAutoPostEnabled);
-        momentsAutoPostToggleGlobal.classList.toggle('active', !!settings.momentsAutoPostEnabled);
-        if (momentsAutoPostSettingsGlobal) {
-            momentsAutoPostSettingsGlobal.style.display = settings.momentsAutoPostEnabled ? 'block' : 'none';
-        }
-        throttledSaveData();
-        showNotification(`对方主动发朋友圈已${settings.momentsAutoPostEnabled ? '开启' : '关闭'}`, 'success');
-    });
 }
 
 // 表情包快捷栏按钮（复用 user-sticker-picker 面板）
@@ -1839,128 +1369,10 @@ if (stickerBarBtn) {
     });
 }
 
-if (envelopeAutoSendToggle) {
-    envelopeAutoSendToggle.addEventListener('click', () => {
-        settings.envelopeAutoSendEnabled = !settings.envelopeAutoSendEnabled;
-        updateEnvelopeSettingsUI();
-        throttledSaveData();
-        if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer();
-        showNotification(`主动写信已${settings.envelopeAutoSendEnabled ? '开启' : '关闭'}`, 'success');
-    });
-}
-
-// 时空来信间隔 - 最少
-if (envelopeAutoSendMinValSlider) {
-    envelopeAutoSendMinValSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeAutoSendMinVal = val;
-        if (envelopeAutoSendMinValDisplay) envelopeAutoSendMinValDisplay.textContent = val + unitLabelMap[settings.envelopeAutoSendMinUnit || 'hours'];
-    });
-    envelopeAutoSendMinValSlider.addEventListener('change', () => { throttledSaveData(); if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer(); });
-}
-if (envelopeAutoSendMinUnit) {
-    envelopeAutoSendMinUnit.addEventListener('change', (e) => {
-        settings.envelopeAutoSendMinUnit = e.target.value;
-        if (envelopeAutoSendMinValDisplay) envelopeAutoSendMinValDisplay.textContent = (settings.envelopeAutoSendMinVal || 1) + unitLabelMap[settings.envelopeAutoSendMinUnit];
-        throttledSaveData();
-        if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer();
-    });
-}
-
-// 时空来信间隔 - 最多
-if (envelopeAutoSendMaxValSlider) {
-    envelopeAutoSendMaxValSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeAutoSendMaxVal = val;
-        if (envelopeAutoSendMaxValDisplay) envelopeAutoSendMaxValDisplay.textContent = val + unitLabelMap[settings.envelopeAutoSendMaxUnit || 'hours'];
-    });
-    envelopeAutoSendMaxValSlider.addEventListener('change', () => { throttledSaveData(); if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer(); });
-}
-if (envelopeAutoSendMaxUnit) {
-    envelopeAutoSendMaxUnit.addEventListener('change', (e) => {
-        settings.envelopeAutoSendMaxUnit = e.target.value;
-        if (envelopeAutoSendMaxValDisplay) envelopeAutoSendMaxValDisplay.textContent = (settings.envelopeAutoSendMaxVal || 3) + unitLabelMap[settings.envelopeAutoSendMaxUnit];
-        throttledSaveData();
-        if (typeof manageEnvelopeAutoSendTimer === 'function') manageEnvelopeAutoSendTimer();
-    });
-}
-
-if (envelopeCustomRuleToggle) {
-    envelopeCustomRuleToggle.addEventListener('click', () => {
-        settings.envelopeCustomRuleEnabled = !settings.envelopeCustomRuleEnabled;
-        updateEnvelopeSettingsUI();
-        throttledSaveData();
-        showNotification(`自定义回信规律已${settings.envelopeCustomRuleEnabled ? '开启' : '关闭'}`, 'success');
-    });
-}
-
-// 回信间隔 - 最少
-if (envelopeReplyMinValSlider) {
-    envelopeReplyMinValSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeReplyMinVal = val;
-        if (envelopeReplyMinValDisplay) envelopeReplyMinValDisplay.textContent = val + unitLabelMap[settings.envelopeReplyMinUnit || 'hours'];
-    });
-    envelopeReplyMinValSlider.addEventListener('change', throttledSaveData);
-}
-if (envelopeReplyMinUnit) {
-    envelopeReplyMinUnit.addEventListener('change', (e) => {
-        settings.envelopeReplyMinUnit = e.target.value;
-        if (envelopeReplyMinValDisplay) envelopeReplyMinValDisplay.textContent = (settings.envelopeReplyMinVal || 10) + unitLabelMap[settings.envelopeReplyMinUnit];
-        throttledSaveData();
-    });
-}
-
-// 回信间隔 - 最多
-if (envelopeReplyMaxValSlider) {
-    envelopeReplyMaxValSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeReplyMaxVal = val;
-        if (envelopeReplyMaxValDisplay) envelopeReplyMaxValDisplay.textContent = val + unitLabelMap[settings.envelopeReplyMaxUnit || 'hours'];
-    });
-    envelopeReplyMaxValSlider.addEventListener('change', throttledSaveData);
-}
-if (envelopeReplyMaxUnit) {
-    envelopeReplyMaxUnit.addEventListener('change', (e) => {
-        settings.envelopeReplyMaxUnit = e.target.value;
-        if (envelopeReplyMaxValDisplay) envelopeReplyMaxValDisplay.textContent = (settings.envelopeReplyMaxVal || 24) + unitLabelMap[settings.envelopeReplyMaxUnit];
-        throttledSaveData();
-    });
-}
-
-// 回信句数滑块
-if (envelopeReplyMinSentencesSlider) {
-    envelopeReplyMinSentencesSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeReplyMinSentences = val;
-        if (envelopeReplyMinSentencesValue) envelopeReplyMinSentencesValue.textContent = val + '句';
-        if (settings.envelopeReplyMaxSentences < val) {
-            settings.envelopeReplyMaxSentences = val;
-            if (envelopeReplyMaxSentencesSlider) envelopeReplyMaxSentencesSlider.value = val;
-            if (envelopeReplyMaxSentencesValue) envelopeReplyMaxSentencesValue.textContent = val + '句';
-        }
-    });
-    envelopeReplyMinSentencesSlider.addEventListener('change', throttledSaveData);
-}
-
-if (envelopeReplyMaxSentencesSlider) {
-    envelopeReplyMaxSentencesSlider.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value);
-        settings.envelopeReplyMaxSentences = val;
-        if (envelopeReplyMaxSentencesValue) envelopeReplyMaxSentencesValue.textContent = val + '句';
-        if (settings.envelopeReplyMinSentences > val) {
-            settings.envelopeReplyMinSentences = val;
-            if (envelopeReplyMinSentencesSlider) envelopeReplyMinSentencesSlider.value = val;
-            if (envelopeReplyMinSentencesValue) envelopeReplyMinSentencesValue.textContent = val + '句';
-        }
-    });
-    envelopeReplyMaxSentencesSlider.addEventListener('change', throttledSaveData);
-}
-
             const resetBgBtn = document.getElementById('reset-default-bg');
             if (resetBgBtn) {
                 resetBgBtn.addEventListener('click', () => {
-                    window.removeBackground && window.removeBackground();
+                    removeBackground();
                     renderBackgroundGallery();
                     showNotification('已移除背景图', 'success');
                 });
@@ -1993,26 +1405,14 @@ if (envelopeReplyMaxSentencesSlider) {
             currentEnvTab = 'outbox';
             document.getElementById('env-tab-outbox').classList.add('active');
             document.getElementById('env-tab-inbox').classList.remove('active');
-            document.getElementById('env-tab-spacetime').classList.remove('active');
             document.getElementById('env-outbox-section').style.display = 'block';
             document.getElementById('env-inbox-section').style.display = 'none';
-            document.getElementById('env-spacetime-section').style.display = 'none';
             document.getElementById('env-compose-form').style.display = 'none';
             document.getElementById('env-main-close-btn').style.display = 'flex';
             renderEnvelopeLists();
             showModal(document.getElementById('envelope-modal'));
         });
     }
-    const moyuEntryBtn = document.getElementById('moyu-function');
-    if (moyuEntryBtn) {
-        moyuEntryBtn.addEventListener('click', () => {
-            hideModal(DOMElements.advancedModal.modal);
-            if (typeof window.openMoyuModal === 'function') {
-                window.openMoyuModal();
-            }
-        });
-    }
-
     const galleryBanner = document.getElementById('gallery-banner-entry');
     if (galleryBanner) {
         galleryBanner.addEventListener('click', () => {
@@ -2029,23 +1429,6 @@ const _cancelEnvEl = document.getElementById('cancel-envelope');
 if (_cancelEnvEl) _cancelEnvEl.addEventListener('click', () => {
     hideModal(document.getElementById('envelope-modal'));
 });
-
-// 定时发送复选框事件监听
-const _scheduleSendCheckbox = document.getElementById('env-schedule-send');
-const _scheduleTimeContainer = document.getElementById('env-schedule-time-container');
-const _scheduleTimeInput = document.getElementById('env-schedule-time');
-if (_scheduleSendCheckbox && _scheduleTimeContainer) {
-    _scheduleSendCheckbox.addEventListener('change', () => {
-        _scheduleTimeContainer.style.display = _scheduleSendCheckbox.checked ? 'block' : 'none';
-        if (_scheduleSendCheckbox.checked && _scheduleTimeInput) {
-            // 设置默认时间为明天同一时间
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset());
-            _scheduleTimeInput.value = tomorrow.toISOString().slice(0, 16);
-        }
-    });
-}
             const closeFortune = document.getElementById('close-fortune');
             if (closeFortune) {
                 closeFortune.addEventListener('click', () => {
@@ -2064,6 +1447,11 @@ if (_scheduleSendCheckbox && _scheduleTimeContainer) {
 
 
             
+            DOMElements.anniversaryAnimation.closeBtn.addEventListener('click', () => {
+                DOMElements.anniversaryAnimation.modal.classList.remove('active');
+            });
+
+
             const _statsFuncEl = document.getElementById('stats-function');
             if (_statsFuncEl) _statsFuncEl.addEventListener('click', () => {
                 hideModal(DOMElements.advancedModal.modal);
@@ -2078,7 +1466,46 @@ if (_scheduleSendCheckbox && _scheduleTimeContainer) {
                     handleCoinToss();
                 });
             }
+            const musicToggle = document.getElementById('music-player-toggle');
+            musicToggle.addEventListener('click', () => {
+                settings.musicPlayerEnabled = !settings.musicPlayerEnabled;
+                throttledSaveData();
+
+                const player = document.getElementById('player');
+                if (settings.musicPlayerEnabled) {
+                    player.classList.add('visible');
+                    showNotification('音乐播放器已开启', 'success');
+                } else {
+                    player.classList.remove('visible');
+                    document.getElementById('playlist').classList.remove('active');
+                    const audio = document.getElementById('audio');
+                    if (audio) audio.pause();
+                    showNotification('音乐播放器已关闭', 'info');
+                }
+                hideModal(DOMElements.advancedModal.modal);
+            });
         }
+    const annToggleBtn = document.getElementById('ann-toggle-btn');
+    const annFormWrapper = document.getElementById('ann-form-wrapper');
+
+    if (annToggleBtn && annFormWrapper) {
+        annToggleBtn.addEventListener('click', () => {
+            const isActive = annFormWrapper.classList.contains('active');
+            
+            if (isActive) {
+                annFormWrapper.classList.remove('active');
+                annToggleBtn.classList.remove('active');
+            } else {
+                annFormWrapper.classList.add('active');
+                annToggleBtn.classList.add('active');
+                
+                setTimeout(() => {
+                    annFormWrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            }
+        });
+    }
+
         function getBubbleStyleName(style) {
             const names = {
                 'standard': '标准',
@@ -2117,14 +1544,6 @@ if (_scheduleSendCheckbox && _scheduleTimeContainer) {
         DOMElements.sessionModal.managerBtn.addEventListener('click', () => {
             renderSessionList(); showModal(DOMElements.sessionModal.modal);
         });
-        // 会话管理中的群聊设置按钮
-        const groupChatSettingsBtn = document.getElementById('open-group-chat-settings');
-        if (groupChatSettingsBtn) {
-            groupChatSettingsBtn.addEventListener('click', () => {
-                hideModal(DOMElements.sessionModal.modal);
-                showModal(document.getElementById('group-chat-modal'));
-            });
-        }
         DOMElements.sessionModal.createBtn.addEventListener('click', async () => {
             await createNewSession(false);
             renderSessionList();
@@ -2190,7 +1609,1337 @@ if (sessionId === currentSessionId) {
             }
         });
 
+        const initMusicPlayer = async () => {
+    const latestSystemSongs = [
+  {
+    "title": "ANSWER",
+    "sub": "들리니 I'm callin' you",
+    "url": "https://files.catbox.moe/hzpr94.mp3"
+  },
+  {
+    "title": "All I Have Is Love",
+    "sub": "Feel the beating of my heart",
+    "url": "http://music.163.com/song/media/outer/url?id=1940368.mp3"
+  },
+  {
+    "title": "第三个吻痕",
+    "sub": "非要做 贪心的坏人",
+    "url": "https://img.heliar.top/file/1773902740144_下载您的文件_—_Convertio_1425997963.mp3"
+  },
+  {
+    "title": "小半",
+    "sub": "我的心借了你的光是明是暗",
+    "url": "https://img.heliar.top/file/1772964128402_陈粒_-_小半.mp3"
+  },
+  {
+    "title": "当你",
+    "sub": "好喜欢你 知不知道",
+    "url": "https://img.heliar.top/file/1772964503074_林俊杰_-_当你.mp3"
+  },
+  {
+    "title": "恶作剧",
+    "sub": "我想我会开始想念你",
+    "url": "https://img.heliar.top/file/1772965264360_林依晨_-_恶作剧.mp3"
+  },
+  {
+    "title": "孤单北半球",
+    "sub": "想念不会偷懒 我的梦通通给你保管",
+    "url": "https://img.heliar.top/file/1772963472128_林依晨_-_孤单北半球.mp3"
+  },
+  {
+    "title": "_Dear_D__",
+    "sub": "好想好想在一起",
+    "url": "https://img.heliar.top/file/1772970137585_项睿娴_-_Dear_D__亲爱的告诉你_.mp3"
+  },
+  {
+    "title": "初雪",
+    "sub": "바보 같은 난 아무 말 못해",
+    "url": "https://img.heliar.top/file/1773547905373_%EC%B2%AB_%EB%88%88__%E5%88%9D%E9%9B%AA_.m4a"
+  },
+  {
+    "title": "My Love Mine All Mine",
+    "sub": "But my love mine all mine",
+    "url": "https://img.heliar.top/file/1773547910084_My_Love_Mine_All_Mine.m4a"
+  },
+  {
+    "title": "Solitude",
+    "sub": "Can't you be here accompany my solitude Baby",
+    "url": "https://img.heliar.top/file/1773547910130_solitude.m4a"
+  },
+  {
+    "title": "恋人",
+    "sub": "回忆里充满着罗曼蒂克的幻想",
+    "url": "https://img.heliar.top/file/1773544800453_%E6%81%8B%E4%BA%BA.m4a"
+  },
+  {
+    "title": "First Snow",
+    "sub": "君だけが好きで ずっ好きで",
+    "url": "https://img.heliar.top/file/1773543103115_first_snow.mp3.m4a"
+  },
+  {
+    "title": "我走以后",
+    "sub": "----",
+    "url": "http://music.163.com/song/media/outer/url?id=3347121761.mp3"
+  },
+  {
+    "title": "偏爱",
+    "sub": "等你的依赖 对你的偏爱",
+    "url": "https://music.163.com/song/media/outer/url?id=5238992.mp3"
+  },
+  {
+    "title": "A Faint Glow Of Life",
+    "sub": "你让我振作起来使我的世界熠熠生辉",
+    "url": "https://music.163.com/song/media/outer/url?id=2065544118.mp3"
+  },
+  {
+    "title": "MoNo",
+    "sub": "----",
+    "url": "https://music.163.com/song/media/outer/url?id=1845553824.mp3"
+  },
+  {
+    "title": "Half Blood Angel",
+    "sub": "我存在的意义难道是 在这糟糕的世界腐烂",
+    "url": "https://music.163.com/song/media/outer/url?id=2635248857.mp3"
+  },
+  {
+    "title": "红颜",
+    "sub": "这一世英名我不要 只求换来红颜一笑",
+    "url": "https://img.heliar.top/file/1772752066038_红颜.mp3"
+  },
+  {
+    "title": "永远永远",
+    "sub": "你爱过我就已足够 就算到了最后爱已搁浅",
+    "url": "https://files.catbox.moe/2lcm70.mp3"
+  },
+  {
+    "title": "虚拟",
+    "sub": "你是我朝夕相伴触手可及的虚拟",
+    "url": "https://files.catbox.moe/6s65mp.mp3"
+  },
+  {
+    "title": "多远都要在一起",
+    "sub": "爱能克服远距离",
+    "url": "https://files.catbox.moe/06k9ra.mp3"
+  },
+  {
+    "title": "永不失联的爱",
+    "sub": "这一辈子都不想失联的爱",
+    "url": "https://files.catbox.moe/uvucav.mp3"
+  },
+  {
+    "title": "稳稳的幸福",
+    "sub": "这是我想要的幸福",
+    "url": "https://files.catbox.moe/inb22a.mp3"
+  },
+  {
+    "title": "有我呢",
+    "sub": "我会让你习惯 多一个人陪伴",
+    "url": "https://files.catbox.moe/hrazjt"
+  },
+  {
+    "title": "一千零一夜",
+    "sub": "梦里能到达的地方啊 有一天脚步也能到达",
+    "url": "https://files.catbox.moe/syfuon.mp3"
+  },
+  {
+    "title": "月亮与六便士",
+    "sub": "我的世界由你建立 因你崩塌",
+    "url": "https://files.catbox.moe/98quqc.mp3"
+  },
+  {
+    "title": "次元恋人",
+    "sub": "约好了隔着次元也吻住泪眼",
+    "url": "https://files.catbox.moe/5u5dy0.mp3"
+  },
+  {
+    "title": "阳光下的星星",
+    "sub": "如果爱上你只是一个梦境",
+    "url": "https://files.catbox.moe/dxgqsk.mp3"
+  },
+  {
+    "title": "周边",
+    "sub": "灵魂里空缺的那段",
+    "url": "https://files.catbox.moe/a7k5wd.mp3"
+  },
+  {
+    "title": "恋爱ing",
+    "sub": "让我重新认识L O V E",
+    "url": "https://files.catbox.moe/94slcd.mp3"
+  },
+  {
+    "title": "一点一滴",
+    "sub": "你让爱一点一滴汇成河",
+    "url": "https://files.catbox.moe/958qzg.mp3"
+  },
+  {
+    "title": "关键词",
+    "sub": "让我见识爱情可以慷慨又自私",
+    "url": "https://files.catbox.moe/9yl5ic.mp3"
+  },
+  {
+    "title": "想见你想见你想见你",
+    "sub": "穿越了千个万个时间线里人海里相依",
+    "url": "https://files.catbox.moe/co58d7.mp3"
+  },
+  {
+    "title": "star crossing night",
+    "sub": "这里没有你",
+    "url": "https://files.catbox.moe/i3f86b.mp3"
+  },
+  {
+    "title": "sea temple",
+    "sub": "If we have each other",
+    "url": "https://files.catbox.moe/c57gxs.mp3"
+  },
+  {
+    "title": "我想要占据你",
+    "sub": "占据你的⼀切且无可厚非",
+    "url": "https://files.catbox.moe/1fp6eg.mp3"
+  },
+  {
+    "title": "特别的人",
+    "sub": "我们是对方特别的人",
+    "url": "https://files.catbox.moe/a0n0l7.mp3"
+  },
+  {
+    "title": "麦恩莉",
+    "sub": "在广阔寂寞漩涡解脱",
+    "url": "https://files.catbox.moe/2inae2.mp3"
+  },
+  {
+    "title": "会呼吸的痛",
+    "sub": "想念是会呼吸的痛",
+    "url": "https://files.catbox.moe/0uhmxr.mp3"
+  },
+  {
+    "title": "一生的爱",
+    "sub": "我只想要给你我一生的爱",
+    "url": "https://files.catbox.moe/f0e93c.mp3"
+  },
+  {
+    "title": "身骑白马",
+    "sub": "追赶要我爱的不保留",
+    "url": "https://files.catbox.moe/iywfe2.mp3"
+  },
+  {
+    "title": "爱情讯息",
+    "sub": "想念变成空气在叹息",
+    "url": "https://files.catbox.moe/4dl0t2.mp3"
+  },
+  {
+    "title": "你在 不在",
+    "sub": "你在我心里面 陪我失眠",
+    "url": "https://files.catbox.moe/povyqa.mp3"
+  },
+  {
+    "title": "你是我的风景",
+    "sub": "爱让悬崖变平地",
+    "url": "https://files.catbox.moe/fnwtf8.mp3"
+  },
+  {
+    "title": "life with u",
+    "sub": "Now I know that you're the one",
+    "url": "https://files.catbox.moe/zqfxvd.mp3"
+  },
+  {
+    "title": "勾指起誓",
+    "sub": "你是理所当然的奇迹",
+    "url": "https://files.catbox.moe/4spgo5.mp3"
+  },
+  {
+    "title": "牵一半",
+    "sub": "你的存在是我唯一依赖",
+    "url": "https://files.catbox.moe/bk21gu.mp3"
+  },
+  {
+    "title": "rove",
+    "sub": "Oh we are in the War of Love on Rove",
+    "url": "https://files.catbox.moe/sfwsuk.mp3"
+  },
+  {
+    "title": "唯一",
+    "sub": "我真的爱你 句句不轻易",
+    "url": "https://files.catbox.moe/69g4fe.mp3"
+  },
+  {
+    "title": "致爱 Your Song",
+    "sub": "我只想每个落日 身边都有你",
+    "url": "https://files.catbox.moe/01bmnf.mp3"
+  },
+  {
+    "title": "一首想不通的古风",
+    "sub": "画地为牢 画命为符 铸成下一世坚守",
+    "url": "https://files.catbox.moe/9b4lh7.mp3"
+  },
+  {
+    "title": "茉莉雨",
+    "sub": "琴声里愁几许关于你",
+    "url": "https://files.catbox.moe/7ml83u.mp3"
+  },
+  {
+    "title": "怎么唱情歌",
+    "sub": "海 变的苦涩 灼伤一片温柔",
+    "url": "https://files.catbox.moe/isqax9.mp3"
+  },
+  {
+    "title": "岸边客",
+    "sub": "你回来我心未改 你不在我还等待",
+    "url": "https://files.catbox.moe/9oud6s.mp3"
+  },
+  {
+    "title": "江南雪",
+    "sub": "相思再无药解 从此万般风月都是我心结",
+    "url": "https://files.catbox.moe/hhjwek.mp3"
+  },
+  {
+    "title": "不死之身",
+    "sub": "我仍爱你爱得不知天高地厚",
+    "url": "https://files.catbox.moe/g960ev.mp3"
+  },
+  {
+    "title": "我们的明天",
+    "sub": "爱从不曾保留 才勇敢了我",
+    "url": "https://files.catbox.moe/a3yjvv.mp3"
+  },
+  {
+    "title": "难解",
+    "sub": "点炷高香敬予神明 被人嘲笑矢志不渝",
+    "url": "https://files.catbox.moe/1u8m3r.mp3"
+  },
+  {
+    "title": "最好的我 & 50 Feet",
+    "sub": "试着伸手 却连你的影子我都无法靠近",
+    "url": "https://files.catbox.moe/clsiyi.mp3"
+  },
+  {
+    "title": "同手同脚",
+    "sub": "也是存在在这个世界 唯一的唯一",
+    "url": "https://files.catbox.moe/b8hss3.mp3"
+  },
+  {
+    "title": "同花顺",
+    "sub": "只要肯爱得深 是不是就有这可能",
+    "url": "https://files.catbox.moe/28mw5d.mp3"
+  },
+  {
+    "title": "轻舞",
+    "sub": "轻舞吧 过往如裙纱",
+    "url": "https://files.catbox.moe/8n9lhi.mp3"
+  },
+  {
+    "title": "绝对占有 相对自由",
+    "sub": "赞美你包容你都是我的使命",
+    "url": "https://files.catbox.moe/zi4gxo.mp3"
+  },
+  {
+    "title": "千万次想象",
+    "sub": "我千万次想象 千万次模仿 思念的形状",
+    "url": "https://files.catbox.moe/4jtex8.mp3"
+  },
+  {
+    "title": "辞家千里",
+    "sub": "穿过无人问津去见山海万顷",
+    "url": "https://files.catbox.moe/2quy44.mp3"
+  },
+  {
+    "title": "Ryukyuvania",
+    "sub": "----",
+    "url": "https://files.catbox.moe/utmbqp.mp3"
+  },
+  {
+    "title": "沦陷",
+    "sub": "圈它在黑暗中逃不出的梦魇",
+    "url": "https://files.catbox.moe/0bhl3i.mp3"
+  },
+  {
+    "title": "晚枫歌",
+    "sub": "你又怎知我从未放手",
+    "url": "https://files.catbox.moe/xhwrwy.mp3"
+  },
+  {
+    "title": "I Need U",
+    "sub": "I need you girl",
+    "url": "https://files.catbox.moe/v1k4h8.mp3"
+  },
+  {
+    "title": "若梦",
+    "sub": "日升月落 此生依旧难舍",
+    "url": "https://files.catbox.moe/6uysqy.mp3"
+  },
+  {
+    "title": "爱人",
+    "sub": "可是恨的人没死成 爱的人没可能",
+    "url": "https://files.catbox.moe/wtbdxe.mp3"
+  },
+  {
+    "title": "星河叹",
+    "sub": "我盼孤身纵马 笛声漫天 四海任我游",
+    "url": "https://files.catbox.moe/de7g2m.mp3"
+  },
+  {
+    "title": "爱殇",
+    "sub": "假欢畅 又何妨 无人共享",
+    "url": "https://files.catbox.moe/or2hm7.mp3"
+  },
+  {
+    "title": "Una mattina",
+    "sub": "----",
+    "url": "https://files.catbox.moe/nf8o90.mp3"
+  },
+  {
+    "title": "顺其自然",
+    "sub": "You light up my heart",
+    "url": "https://files.catbox.moe/na01cn.mp3"
+  },
+  {
+    "title": "初见",
+    "sub": "若如初见 为谁而归",
+    "url": "https://files.catbox.moe/bumolx.mp3"
+  },
+  {
+    "title": "我好像在哪见过你",
+    "sub": "人们把难言的爱都埋入土壤里",
+    "url": "https://files.catbox.moe/vcidpc.mp3"
+  },
+  {
+    "title": "别回头",
+    "sub": "爱是年少时不堪其重 渗透灵魂的一阵剧痛",
+    "url": "https://files.catbox.moe/h1hwo5.mp3"
+  },
+  {
+    "title": "大鱼",
+    "sub": "怕你飞远去 怕你离我而去",
+    "url": "https://files.catbox.moe/jlcvkg.mp3"
+  },
+  {
+    "title": "人鱼的眼泪",
+    "sub": "Baby Don't cry",
+    "url": "https://files.catbox.moe/40fm4j.mp3"
+  },
+  {
+    "title": "九张机",
+    "sub": "我愿化作望断天涯那一方青石",
+    "url": "https://files.catbox.moe/hql6w5.mp3"
+  },
+  {
+    "title": "梦幻诛仙",
+    "sub": "来世若再会还与你双双对对",
+    "url": "https://files.catbox.moe/r6btwp.mp3"
+  },
+  {
+    "title": "寻常歌",
+    "sub": "所幸不过是 寻常人间事",
+    "url": "https://files.catbox.moe/ntcqvr.mp3"
+  },
+  {
+    "title": "公示情书",
+    "sub": "有种微妙确定的幸福 叫对方正在输入",
+    "url": "https://files.catbox.moe/rptwer.mp3"
+  },
+  {
+    "title": "现在那边是几点",
+    "sub": "请问你现在那边是几点 会不会还放有我的照片",
+    "url": "https://files.catbox.moe/icv2aa.mp3"
+  },
+  {
+    "title": "情人",
+    "sub": "气氛开始升温 危险又迷人",
+    "url": "https://files.catbox.moe/iqairg.mp3"
+  },
+  {
+    "title": "怜悯",
+    "sub": "我要带着爱意着恨你",
+    "url": "https://files.catbox.moe/242a1h.mp3"
+  },
+  {
+    "title": "疑心病",
+    "sub": "你终于说出口你对我感情也很重",
+    "url": "https://files.catbox.moe/jc1umm.mp3"
+  },
+  {
+    "title": "诀爱",
+    "sub": "若灵魂相结在天地之间",
+    "url": "https://files.catbox.moe/quqaws.mp3"
+  },
+  {
+    "title": "彼岸",
+    "sub": "她捧起镜花水月 一刹那湮灭",
+    "url": "https://files.catbox.moe/zxepep.mp3"
+  },
+  {
+    "title": "问情",
+    "sub": "当爱恨如潮生多残忍",
+    "url": "https://files.catbox.moe/erds0n.mp3"
+  },
+  {
+    "title": "同进退",
+    "sub": "我会牵着你手同进退 佛前立誓不后悔",
+    "url": "https://files.catbox.moe/vb6chf.mp3"
+  },
+  {
+    "title": "招摇",
+    "sub": "一句此生不换",
+    "url": "https://files.catbox.moe/oc86ih.mp3"
+  },
+  {
+    "title": "你要的全拿走",
+    "sub": "好聚好散听着也楚楚可怜",
+    "url": "https://files.catbox.moe/pegwqb.mp3"
+  },
+  {
+    "title": "云裳羽衣曲",
+    "sub": "故事鲜艳而缘分却太浅",
+    "url": "https://files.catbox.moe/memi6v.aac"
+  },
+  {
+    "title": "大梦归离",
+    "sub": "终于听风儿说 知道你在哪里",
+    "url": "https://files.catbox.moe/5z67vs.mp3"
+  },
+  {
+    "title": "偏向",
+    "sub": "为何会两败俱伤",
+    "url": "https://files.catbox.moe/i37f39.mp3"
+  },
+  {
+    "title": "Love me like you do",
+    "sub": "You're the only thing I wanna touch",
+    "url": "https://files.catbox.moe/arym0i.mp3"
+  },
+  {
+    "title": "Not snow,but U",
+    "sub": "我期待的不是雪而是有你的冬天",
+    "url": "https://files.catbox.moe/6rk4gw.mp3"
+  },
+  {
+    "title": "The Evergreen",
+    "sub": "我恍然明了我所需的一切已尽数摆在眼前",
+    "url": "https://files.catbox.moe/ca3rim.mp3"
+  },
+  {
+    "title": "冥河螺旋",
+    "sub": "我如此希望 我伴你左右",
+    "url": "https://files.catbox.moe/xtj8db.mp3"
+  },
+  {
+    "title": "熄灭",
+    "sub": "你总问我在一起会不会感到厌倦",
+    "url": "https://files.catbox.moe/wnzxou.mp3"
+  },
+  {
+    "title": "爱人错过",
+    "sub": "我肯定在几百年前就说过爱你",
+    "url": "https://files.catbox.moe/q2nx16.mp3"
+  },
+  {
+    "title": "我想念",
+    "sub": "我想念你说过的那种永远",
+    "url": "https://files.catbox.moe/3qxads.mp3"
+  },
+  {
+    "title": "此生不换",
+    "sub": "再有一万年深情也不变",
+    "url": "https://files.catbox.moe/72ik88.mp3"
+  },
+  {
+    "title": "鳥の詩",
+    "sub": "----",
+    "url": "https://files.catbox.moe/966u00.mp3"
+  },
+  {
+    "title": "24/7,365",
+    "sub": "Give you my name if you wanted to",
+    "url": "https://files.catbox.moe/8bncbu.mp3"
+  },
+  {
+    "title": "2017,你",
+    "sub": "谁也不知道那满载的心 正一步一步跟随你的指引",
+    "url": "https://files.catbox.moe/yzo0f8.mp3"
+  },
+  {
+    "title": "Erica",
+    "sub": "우린 절대로 멀어지지말자",
+    "url": "https://files.catbox.moe/soz77u.mp3"
+  },
+  {
+    "title": "Forest Mixtape",
+    "sub": "----",
+    "url": "https://files.catbox.moe/qvu87r.mp3"
+  },
+  {
+    "title": "If You Love Me",
+    "sub": "내 가슴 한켠에 그대를 쓰고",
+    "url": "https://files.catbox.moe/nktyqi.mp3"
+  },
+  {
+    "title": "Perfect Version Of Me",
+    "sub": "But you can't love me without loving yourself",
+    "url": "https://files.catbox.moe/8t4oca.mp3"
+  },
+  {
+    "title": "爱人错过",
+    "sub": "我肯定在几百年前就说过爱你",
+    "url": "https://files.catbox.moe/quoufu.mp3"
+  },
+  {
+    "title": "超感",
+    "sub": "就让我成为你的枪 只为你一个人上膛",
+    "url": "https://files.catbox.moe/1es15e.mp3"
+  },
+  {
+    "title": "春日小径花园",
+    "sub": "----",
+    "url": "https://files.catbox.moe/bujm9x.mp3"
+  },
+  {
+    "title": "当遇见你",
+    "sub": "这一秒 像蜜一般的味道 是你给我的讯号",
+    "url": "https://files.catbox.moe/ultuhw.mp3"
+  },
+  {
+    "title": "读心术",
+    "sub": "束一个马尾 束起所有伤悲",
+    "url": "https://files.catbox.moe/mees4p.mp3"
+  },
+  {
+    "title": "朵朵",
+    "sub": "墙角开了一朵小花 没人管他自己长大",
+    "url": "https://files.catbox.moe/uk1rzh.mp3"
+  },
+  {
+    "title": "给你一瓶魔法药水",
+    "sub": "我们一起去太空旅行",
+    "url": "https://files.catbox.moe/j5grzr.aac"
+  },
+  {
+    "title": "好事要发生",
+    "sub": "阳光撞怀中 有好事要发生 我如一道绚烂的红",
+    "url": "https://files.catbox.moe/63p0x7.mp3"
+  },
+  {
+    "title": "驾鹤西去",
+    "sub": "浮生苦闷有太多 我总爱做极乐的美梦",
+    "url": "https://files.catbox.moe/9l0uva.mp3"
+  },
+  {
+    "title": "浆果",
+    "sub": "A piece of heart he flies out when she's gone",
+    "url": "https://files.catbox.moe/l0gpmk.mp3"
+  },
+  {
+    "title": "君莫离",
+    "sub": "愿君莫离 朝暮两相依",
+    "url": "https://files.catbox.moe/gy3bi9.mp3"
+  },
+  {
+    "title": "路过人间",
+    "sub": "相遇离别 贪嗔爱痴怨",
+    "url": "https://files.catbox.moe/9o5udi.mp3"
+  },
+  {
+    "title": "没关系",
+    "sub": "空气像青苹果公车开满花朵",
+    "url": "https://files.catbox.moe/iv8i2j.mp3"
+  },
+  {
+    "title": "你说爱情啊",
+    "sub": "满载故事盛开的花 我翻越山海送给你啊",
+    "url": "https://files.catbox.moe/b398la.aac"
+  },
+  {
+    "title": "失眠",
+    "sub": "尝试过爱恋 尝试过缠绵",
+    "url": "https://files.catbox.moe/m6j0s1.mp3"
+  },
+  {
+    "title": "十二月的奇迹",
+    "sub": "我望眼欲穿看我看不到的你",
+    "url": "https://files.catbox.moe/fkjyuk.aac"
+  },
+  {
+    "title": "叹云兮",
+    "sub": "别怨我不在身边 记住 我会在你的心里面",
+    "url": "https://files.catbox.moe/24q2xu.aac"
+  },
+  {
+    "title": "天外来物",
+    "sub": "你在世俗里的名字不重要了",
+    "url": "https://files.catbox.moe/brd7c5.mp3"
+  },
+  {
+    "title": "我用什么把你留住",
+    "sub": "恍然抬头 梦却醒了",
+    "url": "https://files.catbox.moe/f86tc1.mp3"
+  },
+  {
+    "title": "喜欢你",
+    "sub": "车窗上的雾气 仿佛是你的爱在呼吸",
+    "url": "https://files.catbox.moe/11vacs.mp3"
+  },
+  {
+    "title": "锈",
+    "sub": "给你的情诗生了锈 我也变成新和旧",
+    "url": "https://files.catbox.moe/qpxik8.mp3"
+  },
+  {
+    "title": "用尽我的一切奔向你",
+    "sub": "如果这世界复杂 虚假 喧哗",
+    "url": "https://files.catbox.moe/1tlog4.mp3"
+  },
+  {
+    "title": "种果无果",
+    "sub": "你是我亲手种下的 栽满了爱意的",
+    "url": "https://files.catbox.moe/2k1nmo.mp3"
+  },
+  {
+    "title": "珠玉",
+    "sub": "每想到一些 天地都容纳不下的说法",
+    "url": "https://files.catbox.moe/kyajap.mp3"
+  },
+  {
+    "title": "迷人的危险",
+    "sub": "为什么爱会让人变残缺",
+    "url": "https://files.catbox.moe/a3iann.aac"
+  },
+  {
+    "title": "母神傩",
+    "sub": "翻滚出七情六欲 和喜怒哀乐",
+    "url": "https://files.catbox.moe/6n36qs.mp3"
+  },
+  {
+    "title": "Soundtrack for Your Backseat",
+    "sub": "My love is heavy with dope",
+    "url": "https://files.catbox.moe/3elexm.mp3"
+  },
+  {
+    "title": "Funny Love",
+    "sub": "You treat me right and make me find",
+    "url": "https://files.catbox.moe/bm63nl.mp3"
+  },
+  {
+    "title": "剩下的盛夏",
+    "sub": "我们说过要永远在对方身边",
+    "url": "https://files.catbox.moe/x6afqu.mp3"
+  },
+  {
+    "title": "BACK SEAT",
+    "sub": "어떤 것도 우릴 멈출 순 없어",
+    "url": "https://files.catbox.moe/qg59ox.mp3"
+  },
+  {
+    "title": "눈, 코, 입",
+    "sub": "널 보낼 수 없는 나의 욕심이",
+    "url": "https://files.catbox.moe/puq3bz.aac"
+  },
+  {
+    "title": "生物钟",
+    "sub": "----",
+    "url": "https://files.catbox.moe/37g4kw.mp3"
+  },
+  {
+    "title": "味道",
+    "sub": "你是我眼里最美的花朵",
+    "url": "https://files.catbox.moe/964spg.mp3"
+  },
+  {
+    "title": "记忆中的你",
+    "sub": "----",
+    "url": "https://files.catbox.moe/rfoi2l.mp3"
+  },
+  {
+    "title": "我们俩",
+    "sub": "你在左边，我紧靠右",
+    "url": "https://files.catbox.moe/u8521d.aac"
+  },
+  {
+    "title": "蓝色雨",
+    "sub": "我爱你真的爱你",
+    "url": "https://files.catbox.moe/4d4hx2.mp3"
+  },
+  {
+    "title": "一笑倾城",
+    "sub": "想和你铺纸笔写余生的篇章",
+    "url": "https://files.catbox.moe/o3jk7p.aac"
+  },
+  {
+    "title": "真夜中のドア",
+    "sub": "まだ忘れず大事にしていた",
+    "url": "https://files.catbox.moe/utz24h.aac"
+  }
+];
 
+    const uploadCoverBtn = document.getElementById('upload-cover-btn');
+    const coverInput = document.getElementById('cover-input');
+    const vinylRecord = document.getElementById('vinyl-record-visual');
+
+    const applyPlayerCover = (base64Data) => {
+        if (base64Data) {
+            vinylRecord.style.backgroundImage = `url(${base64Data})`;
+            vinylRecord.style.backgroundSize = 'cover';
+            vinylRecord.style.backgroundPosition = 'center';
+            vinylRecord.style.backgroundColor = 'transparent';
+            vinylRecord.classList.add('has-cover');
+            vinylRecord.style.borderWidth = '1px';
+        } else {
+            vinylRecord.style.backgroundImage = '';
+            vinylRecord.style.backgroundColor = '';
+            vinylRecord.classList.remove('has-cover');
+            vinylRecord.style.borderWidth = '2px';
+        }
+    };
+
+const savedCover = safeGetItem(APP_PREFIX + 'playerCover');
+
+    localforage.getItem(APP_PREFIX + 'playerCover').then(cover => { if(cover) applyPlayerCover(cover); });
+    if (savedCover) applyPlayerCover(savedCover);
+
+    uploadCoverBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (vinylRecord.classList.contains('has-cover')) {
+            if (confirm('想要重置回默认的【主题色黑胶】样式吗？\n\n• 点击【确定】恢复默认\n• 点击【取消】选择新图片')) {
+                localforage.removeItem(APP_PREFIX + 'playerCover');
+                applyPlayerCover(null);
+                showNotification('已恢复默认黑胶样式', 'success');
+                return;
+            }
+        }
+        coverInput.click();
+    });
+
+    coverInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification('图片太大了，请上传 2MB 以内的图片', 'error');
+            return;
+        }
+        cropImageToSquare(file, 200).then(base64Data => {
+            try {
+                localforage.setItem(APP_PREFIX + 'playerCover', base64Data);
+                applyPlayerCover(base64Data);
+                showNotification('专辑封面设置成功！', 'success');
+            } catch (err) {
+                console.error(err);
+                showNotification('图片存储失败（可能超出了浏览器限制）', 'error');
+            }
+        }).catch(() => {
+            showNotification('图片处理失败，请重试', 'error');
+        });
+        e.target.value = '';
+    });
+
+    let songs = [];
+    try {
+        const savedSongs = await localforage.getItem(APP_PREFIX + 'customSongs');
+        if (savedSongs && Array.isArray(savedSongs) && savedSongs.length > 0) {
+            songs = savedSongs;
+        } else if (savedSongs && typeof savedSongs === 'string') {
+            songs = JSON.parse(savedSongs);
+            await localforage.setItem(APP_PREFIX + 'customSongs', songs);
+        } else {
+            const legacyStr = safeGetItem(APP_PREFIX + 'customSongs');
+            if (legacyStr) {
+                try {
+                    songs = JSON.parse(legacyStr);
+                    await localforage.setItem(APP_PREFIX + 'customSongs', songs);
+                    safeRemoveItem(APP_PREFIX + 'customSongs');
+                } catch(e) {
+                    songs = [...latestSystemSongs];
+                }
+            } else {
+                songs = [...latestSystemSongs];
+            }
+        }
+    } catch(e) {
+        console.error('加载歌单失败，使用默认歌单', e);
+        songs = [...latestSystemSongs];
+    }
+
+    const player = document.getElementById('player');
+    const miniView = document.getElementById('mini-view');
+    const playlist = document.getElementById('playlist');
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('play-btn');
+    const progressArea = document.getElementById('progress-area');
+
+    const addSongModal = document.getElementById('add-song-modal');
+    const newSongTitle = document.getElementById('new-song-title');
+    const newSongSub = document.getElementById('new-song-sub');
+    const newSongUrl = document.getElementById('new-song-url');
+    const confirmAddSongBtn = document.getElementById('confirm-add-song');
+    const cancelAddSongBtn = document.getElementById('cancel-add-song');
+    const modalTitleElem = addSongModal.querySelector('.modal-title span');
+
+    let currentIndex = 0;
+    let isPlaying = false;
+    let playMode = 'sequence';
+    let editModeIndex = -1;
+    let searchTerm = '';
+    let isSearchVisible = false;
+
+    function loadSong(index) {
+        if (songs.length === 0) return;
+        if (index >= songs.length) index = 0;
+        if (index < 0) index = songs.length - 1;
+
+        const song = songs[index];
+        document.getElementById('music-title').innerText = song.title;
+        document.getElementById('music-subtitle').innerText = song.sub;
+        
+        if (song.url) audio.src = song.url;
+        updatePlaylistHighlight();
+    }
+
+    function togglePlay() {
+        if (songs.length === 0) {
+            showNotification('播放列表为空', 'warning');
+            return;
+        }
+        if (isPlaying) {
+            audio.pause();
+            isPlaying = false;
+            document.getElementById('icon-play').style.display = 'block';
+            document.getElementById('icon-pause').style.display = 'none';
+            player.classList.remove('playing');
+        } else {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    isPlaying = true;
+                    document.getElementById('icon-play').style.display = 'none';
+                    document.getElementById('icon-pause').style.display = 'block';
+                    player.classList.add('playing');
+                }).catch(error => {
+                    console.error(error);
+                    showNotification('播放失败，请检查网络或链接是否有效', 'error');
+                });
+            }
+        }
+    }
+
+    function nextSong() {
+        if (songs.length === 0) return;
+        if (playMode === 'single') { loadSong(currentIndex); }
+        else if (playMode === 'shuffle') currentIndex = Math.floor(Math.random() * songs.length);
+        else currentIndex = (currentIndex + 1) % songs.length;
+        if (playMode !== 'single') loadSong(currentIndex);
+        if (isPlaying) audio.play();
+    }
+
+    function prevSong() {
+        if (songs.length === 0) return;
+        currentIndex = (currentIndex - 1 + songs.length) % songs.length;
+        loadSong(currentIndex);
+        if (isPlaying) audio.play();
+    }
+
+    function savePlaylist() {
+        localforage.setItem(APP_PREFIX + 'customSongs', songs).catch(e => {
+            console.error('歌单保存失败', e);
+            showNotification('歌单保存失败，存储空间可能已满', 'error');
+        });
+        renderPlaylist();
+    }
+
+    function openEditModal(index) {
+        const song = songs[index];
+        if (!song) return;
+        editModeIndex = index;
+        newSongTitle.value = song.title;
+        newSongSub.value = song.sub;
+        newSongUrl.value = song.url;
+        modalTitleElem.innerText = "编辑歌曲信息";
+        confirmAddSongBtn.innerText = "保存修改";
+        showModal(addSongModal);
+    }
+
+    function openAddModal() {
+        editModeIndex = -1;
+        newSongTitle.value = '';
+        newSongSub.value = '';
+        newSongUrl.value = '';
+        modalTitleElem.innerText = "添加自定义歌曲";
+        confirmAddSongBtn.innerText = "添加播放";
+        showModal(addSongModal);
+    }
+
+    function renderPlaylist() {
+        playlist.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.className = 'playlist-header';
+        header.innerHTML = `
+    <div class="pl-header-title">˙°ʚᕱ⑅ᕱɞ°˙</div>
+    <div class="pl-header-actions">
+        <button class="pl-icon-btn" id="pl-manage-btn" title="歌单管理"><i class="fas fa-folder-open"></i></button>
+        <button class="pl-icon-btn ${isSearchVisible ? 'active' : ''}" id="pl-search-toggle" title="搜索"><i class="fas fa-search"></i></button>
+        <button class="pl-icon-btn" id="pl-add-btn" title="添加歌曲"><i class="fas fa-plus"></i></button>
+    </div>
+    <input type="file" id="pl-import-input" accept=".json" style="display:none">
+`;
+        playlist.appendChild(header);
+
+        const searchWrapper = document.createElement('div');
+        searchWrapper.className = `playlist-search-wrapper ${isSearchVisible ? 'active' : ''}`;
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'playlist-search-input';
+        searchInput.placeholder = '';
+        searchInput.value = searchTerm;
+        
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.toLowerCase();
+            renderListContent(contentDiv);
+        });
+        
+        searchWrapper.appendChild(searchInput);
+        playlist.appendChild(searchWrapper);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'playlist-content';
+        playlist.appendChild(contentDiv);
+
+        renderListContent(contentDiv);
+
+        header.querySelector('#pl-add-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openAddModal();
+            newSongTitle.focus();
+        });
+        header.querySelector('#pl-manage-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+            overlay.innerHTML = `
+                <div style="background:var(--secondary-bg);border-radius:16px;padding:20px;width:280px;box-shadow:0 10px 40px rgba(0,0,0,0.3);border:1px solid var(--border-color);display:flex;flex-direction:column;gap:12px;">
+                    <div style="text-align:center;font-weight:600;margin-bottom:5px;">歌单管理</div>
+                    
+                    <button id="_pl_opt_import" style="padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;transition:0.2s;">
+                        <div style="width:32px;height:32px;background:rgba(var(--accent-color-rgb),0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent-color);"><i class="fas fa-file-import"></i></div>
+                        导入歌单文件
+                    </button>
+                    
+                    <button id="_pl_opt_export" style="padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:14px;transition:0.2s;">
+                        <div style="width:32px;height:32px;background:rgba(var(--accent-color-rgb),0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent-color);"><i class="fas fa-file-export"></i></div>
+                        导出当前歌单
+                    </button>
+                    
+                    <button id="_pl_opt_cancel" style="padding:10px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;margin-top:5px;">取消</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            const closeOpt = () => overlay.remove();
+            overlay.addEventListener('click', (ev) => { if(ev.target === overlay) closeOpt(); });
+            const plOptCancelBtn = document.getElementById('_pl_opt_cancel');
+            const plOptExportBtn = document.getElementById('_pl_opt_export');
+            const plOptImportBtn = document.getElementById('_pl_opt_import');
+            if (plOptCancelBtn) plOptCancelBtn.onclick = closeOpt;
+
+            if (plOptExportBtn) plOptExportBtn.onclick = () => {
+                closeOpt();
+                if (songs.length === 0) {
+                    showNotification('歌单为空，无法导出', 'warning');
+                    return;
+                }
+                const dataStr = JSON.stringify(songs, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `music-playlist-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showNotification('歌单导出成功', 'success');
+            };
+
+            if (plOptImportBtn) plOptImportBtn.onclick = () => {
+                closeOpt();
+                const input = header.querySelector('#pl-import-input');
+                if (input) input.click();
+            };
+        });
+        header.querySelector('#pl-import-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const importedSongs = JSON.parse(ev.target.result);
+                    if (!Array.isArray(importedSongs)) throw new Error('格式错误');
+                    
+                    if (confirm(`检测到 ${importedSongs.length} 首歌曲。\n点击【确定】覆盖当前歌单\n点击【取消】追加到当前歌单末尾`)) {
+                        songs = importedSongs;
+                        showNotification('歌单已覆盖', 'success');
+                    } else {
+                        songs = [...songs, ...importedSongs];
+                        showNotification(`已追加 ${importedSongs.length} 首歌曲`, 'success');
+                    }
+                    
+                    savePlaylist();
+                    if (songs.length > 0 && currentIndex >= songs.length) {
+                        currentIndex = 0;
+                        loadSong(0);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showNotification('导入失败：文件格式不正确', 'error');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; 
+        });
+        header.querySelector('#pl-search-toggle').addEventListener('click', (e) => {
+            e.stopPropagation();
+            isSearchVisible = !isSearchVisible;
+            searchWrapper.classList.toggle('active', isSearchVisible);
+            e.currentTarget.classList.toggle('active', isSearchVisible);
+            if (isSearchVisible) {
+                setTimeout(() => searchInput.focus(), 100);
+            }
+        });
+    }
+
+    function renderListContent(container) {
+        container.innerHTML = '';
+        
+        const filteredSongs = songs.map((s, i) => ({...s, originalIndex: i}))
+                                   .filter(s => s.title.toLowerCase().includes(searchTerm) || 
+                                                s.sub.toLowerCase().includes(searchTerm));
+
+        if (filteredSongs.length === 0) {
+            container.innerHTML = `<div class="empty-search-result">未找到 "${searchTerm}" 相关歌曲</div>`;
+            return;
+        }
+
+        filteredSongs.forEach((song) => {
+            const realIndex = song.originalIndex;
+
+            const div = document.createElement('div');
+            div.className = 'playlist-item';
+            if (realIndex === currentIndex) div.classList.add('playing');
+
+            const highlightText = (text, term) => {
+                if (!term) return text;
+                const regex = new RegExp(`(${term})`, 'gi');
+                return text.replace(regex, '<span class="highlight">$1</span>');
+            };
+
+            const displayTitle = highlightText(song.title, searchTerm);
+            const displaySub = highlightText(song.sub, searchTerm);
+
+            div.innerHTML = `
+                <div class="song-info">
+                    <div class="song-title-row">${displayTitle}</div>
+                    <div class="song-sub-row">${displaySub}</div>
+                </div>
+                <div class="item-actions">
+                    ${song.isCustom ? '<span class="custom-tag" title="自定义歌曲"></span>' : ''}
+                    <span class="action-icon-btn delete" title="移除">&times;</span>
+                </div>
+            `;
+
+            if (song.isCustom) {
+                div.querySelector('.custom-tag').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openEditModal(realIndex);
+                });
+            }
+
+            div.querySelector('.delete').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm(`确定移除《${song.title}》吗？`)) {
+                    songs.splice(realIndex, 1);
+                    savePlaylist();
+                    
+                    if (realIndex === currentIndex) {
+                        if (songs.length > 0) {
+                            currentIndex = realIndex % songs.length;
+                            loadSong(currentIndex);
+                            if (isPlaying) audio.play();
+                        } else {
+                            audio.pause();
+                            isPlaying = false;
+                            loadSong(0);
+                        }
+                    } else if (realIndex < currentIndex) {
+                        currentIndex--;
+                    }
+                }
+            });
+
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentIndex = realIndex;
+                loadSong(currentIndex);
+                if (!isPlaying) togglePlay();
+                else audio.play();
+            });
+
+            container.appendChild(div);
+        });
+    }
+
+    function updatePlaylistHighlight() {
+        const contentDiv = playlist.querySelector('.playlist-content');
+        if (contentDiv) renderListContent(contentDiv);
+    }
+
+    confirmAddSongBtn.addEventListener('click', () => {
+        const title = newSongTitle.value.trim();
+        const sub = newSongSub.value.trim();
+        const url = newSongUrl.value.trim();
+
+        if (!title || !url) {
+            showNotification('歌名和链接不能为空', 'error');
+            return;
+        }
+
+        const songData = {
+            title,
+            sub: sub || '未知艺术家',
+            url,
+            isCustom: true
+        };
+
+        if (editModeIndex >= 0) {
+            songs[editModeIndex] = songData;
+            showNotification('歌曲信息已修改', 'success');
+        } else {
+            songs.unshift(songData);
+            showNotification('歌曲已添加', 'success');
+            if (songs.length === 1) loadSong(0);
+        }
+
+        searchTerm = '';
+        savePlaylist();
+        newSongTitle.value = '';
+        newSongSub.value = '';
+        newSongUrl.value = '';
+        hideModal(addSongModal);
+    });
+
+    cancelAddSongBtn.addEventListener('click', () => {
+        hideModal(addSongModal);
+    });
+
+    function setupDrag() {
+        let isDragging = false, startX, startY, initialLeft, initialTop, hasMoved = false;
+        const dragStart = (e) => {
+            if (e.target.closest('.btn') || e.target.closest('.progress-wrapper') || e.target.closest('.playlist-popup')) return;
+            const event = e.type === 'touchstart' ? e.touches[0] : e;
+            isDragging = true; hasMoved = false;
+            startX = event.clientX; startY = event.clientY;
+            const rect = player.getBoundingClientRect();
+            initialLeft = rect.left; initialTop = rect.top;
+            player.style.transition = 'none';
+            playlist.style.transition = 'none';
+        };
+        const dragMove = (e) => {
+            if (!isDragging) return;
+            if (e.cancelable) e.preventDefault();
+            const event = e.type === 'touchmove' ? e.touches[0] : e;
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+            const maxLeft = window.innerWidth - player.offsetWidth;
+            const maxTop = window.innerHeight - player.offsetHeight;
+            player.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+            player.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+            const rect = player.getBoundingClientRect();
+            playlist.style.left = rect.left + 'px';
+playlist.style.top = (rect.top + (player.classList.contains('collapsed') ? 65 : 155)) + 'px';
+};
+        const dragEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            player.style.transition = '';
+            playlist.style.transition = '';
+        };
+        player.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', dragMove);
+        document.addEventListener('mouseup', dragEnd);
+        player.addEventListener('touchstart', dragStart, { passive: false });
+        document.addEventListener('touchmove', dragMove, { passive: false });
+        document.addEventListener('touchend', dragEnd);
+
+        miniView.addEventListener('click', () => {
+            if (!hasMoved && player.classList.contains('collapsed')) {
+                player.classList.remove('collapsed');
+                setTimeout(() => {
+                    const rect = player.getBoundingClientRect();
+                    playlist.style.top = (rect.top + 150) + 'px';
+                }, 300);
+            }
+        });
+    }
+
+    playBtn.addEventListener('click', togglePlay);
+    const _next_btnEl = document.getElementById('next-btn');
+    if (_next_btnEl) _next_btnEl.addEventListener('click', nextSong);
+    const _prev_btnEl = document.getElementById('prev-btn');
+    if (_prev_btnEl) _prev_btnEl.addEventListener('click', prevSong);
+    const _minimize_btnEl = document.getElementById('minimize-btn');
+    if (_minimize_btnEl) _minimize_btnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        player.classList.add('collapsed');
+        playlist.classList.remove('active');
+    });
+
+    progressArea.addEventListener('click', (e) => {
+        const width = progressArea.clientWidth;
+        const clickX = e.offsetX;
+        const duration = audio.duration;
+        if (duration) audio.currentTime = (clickX / width) * duration;
+    });
+
+    audio.addEventListener('timeupdate', (e) => {
+        const { duration, currentTime } = e.target;
+        if (duration) document.getElementById('progress-bar').style.width = `${(currentTime / duration) * 100}%`;
+    });
+    audio.addEventListener('ended', nextSong);
+
+    const _mode_btnEl = document.getElementById('mode-btn');
+    if (_mode_btnEl) _mode_btnEl.addEventListener('click', () => {
+        if (playMode === 'sequence') { playMode = 'single'; }
+        else if (playMode === 'single') { playMode = 'shuffle'; }
+        else { playMode = 'sequence'; }
+        document.getElementById('icon-loop').style.display   = playMode === 'sequence' ? 'block' : 'none';
+        document.getElementById('icon-single').style.display = playMode === 'single'   ? 'block' : 'none';
+        document.getElementById('icon-shuffle').style.display= playMode === 'shuffle'  ? 'block' : 'none';
+        const labels = { sequence: '顺序播放', single: '单曲循环', shuffle: '随机播放' };
+        showNotification(labels[playMode], 'info', 1000);
+    });
+
+    const listBtn = document.getElementById('list-btn');
+    listBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rect = player.getBoundingClientRect();
+        playlist.style.left = rect.left + 'px';
+        playlist.style.top = (rect.top + (player.classList.contains('collapsed') ? 62 : 150)) + 'px';
+        playlist.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!playlist.contains(e.target) && !listBtn.contains(e.target) && !player.contains(e.target) && !e.target.closest('#add-song-modal')) {
+            playlist.classList.remove('active');
+        }
+    });
+
+    loadSong(0);
+    renderPlaylist();
+    setupDrag();
+
+    if (settings.musicPlayerEnabled) {
+        player.classList.add('visible');
+    }
+};
 
         function initCoreListeners() {
 
@@ -2203,50 +2952,13 @@ if (sessionId === currentSessionId) {
             });
 
             DOMElements.sendBtn.addEventListener('click', () => isBatchMode ? addToBatch(): sendMessage());
-
-            // 回车键发送功能
-            DOMElements.messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                    if (settings.enterKeySendEnabled) {
-                        e.preventDefault();
-                        if (isBatchMode) {
-                            addToBatch();
-                        } else {
-                            sendMessage();
-                        }
-                    }
+            DOMElements.messageInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault(); isBatchMode ? addToBatch(): sendMessage();
                 }
             });
-            // 输入框高度自适应（微信风格）
-            let inputHeightRAF = null;
             DOMElements.messageInput.addEventListener('input', () => {
-                if (inputHeightRAF) cancelAnimationFrame(inputHeightRAF);
-                inputHeightRAF = requestAnimationFrame(() => {
-                    const input = DOMElements.messageInput;
-                    // 保存当前滚动位置
-                    const scrollTop = input.scrollTop;
-                    // 重置高度以测量实际内容高度
-                    input.style.height = 'auto';
-                    // 计算新高度（不超过最大值120px）
-                    const newHeight = Math.min(input.scrollHeight, 120);
-                    input.style.height = newHeight + 'px';
-                    // 恢复滚动位置
-                    input.scrollTop = scrollTop;
-                    // 超过最大高度时允许滚动，否则隐藏滚动条
-                    if (input.scrollHeight > 120) {
-                        input.style.overflowY = 'auto';
-                    } else {
-                        input.style.overflow = 'hidden';
-                    }
-                    // 自动收纳：输入时自动收起底部栏（记录输入前状态）
-                    const isCollapsed = document.body.classList.contains('bottom-collapse-mode');
-                    if (typeof window._collapseStateBeforeInput === 'undefined') {
-                        window._collapseStateBeforeInput = isCollapsed;
-                    }
-                    if (!isCollapsed && typeof window._toggleBottomCollapse === 'function') {
-                        window._toggleBottomCollapse();
-                    }
-                });
+                DOMElements.messageInput.style.height = 'auto'; DOMElements.messageInput.style.height = `${Math.min(DOMElements.messageInput.scrollHeight, 120)}px`;
             });
 
 
@@ -2533,29 +3245,11 @@ window.toggleCollapsedExtras = function() {
         const primary = document.getElementById(primaryId);
         if (extra && primary && !extra._linked) {
             extra._linked = true;
-            extra.addEventListener('click', (e) => {
-                e.stopPropagation();
-                primary.click();
-                // 点击后自动收起收纳栏
-                panel.style.display = 'none';
-                if (btn) btn.classList.remove('open');
-            });
+            extra.addEventListener('click', (e) => { e.stopPropagation(); primary.click(); });
         }
     }
     wireExtra('combo-btn-extra', 'combo-btn');
     wireExtra('batch-btn-extra', 'batch-btn');
-
-    // 为相册按钮添加点击后自动收起
-    const attachExtra = document.getElementById('attachment-btn-extra');
-    if (attachExtra && !attachExtra._autoCollapse) {
-        attachExtra._autoCollapse = true;
-        attachExtra.addEventListener('click', () => {
-            setTimeout(() => {
-                panel.style.display = 'none';
-                if (btn) btn.classList.remove('open');
-            }, 50);
-        });
-    }
 };
 
 window.exitCollapseMode = function() {
