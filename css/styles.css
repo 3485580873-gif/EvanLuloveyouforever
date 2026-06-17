@@ -1123,6 +1123,7 @@
             border-top: 1px solid var(--border-color);
             align-items: flex-end;
             transition: border-color 0.5s ease;
+            position: relative;
         }
         .message-input {
             flex: 1;
@@ -10856,4 +10857,13 @@
 .sticker-bar-btn:active {
     color: var(--accent-color);
     background: rgba(var(--accent-color-rgb), 0.1);
+}
+
+/* ── 聊天表情包预览区 ── */
+#chat-sticker-preview {
+    animation: stickerPreviewSlideIn 0.2s ease;
+}
+@keyframes stickerPreviewSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
 }
