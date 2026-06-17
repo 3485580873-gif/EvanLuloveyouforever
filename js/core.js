@@ -300,6 +300,7 @@ const loadData = async () => {
             localforage.getItem(getStorageKey('customIntros')),
             localforage.getItem(getStorageKey('anniversaries')),
             localforage.getItem(getStorageKey('stickerLibrary')),
+            localforage.getItem(getStorageKey('kaomojiLibrary')),
             localforage.getItem(`${APP_PREFIX}customThemes`),
             localforage.getItem(getStorageKey('chatBackground')),
             localforage.getItem(getStorageKey('partnerAvatar')),
@@ -324,17 +325,18 @@ const loadData = async () => {
         const savedIntros = getVal(7);
         const savedAnniversaries = getVal(8);
         const savedStickers = getVal(9);
-        const savedCustomThemes = getVal(10);
-        const savedChatBg = getVal(11);
-        const partnerAvatarSrc = getVal(12);
-        const myAvatarSrc = getVal(13);
-        const savedPartnerPersonas = getVal(14);
-        const savedShowNameConfig = getVal(15);
-        const savedThemeSchemes = getVal(16);
-        const savedMyStickers = getVal(17);
-        const savedReplyGroups = getVal(18);
-        const savedPokeGroups = getVal(19);
-        const savedStatusGroups = getVal(20);
+        const savedKaomojiLibrary = getVal(10);
+        const savedCustomThemes = getVal(11);
+        const savedChatBg = getVal(12);
+        const partnerAvatarSrc = getVal(13);
+        const myAvatarSrc = getVal(14);
+        const savedPartnerPersonas = getVal(15);
+        const savedShowNameConfig = getVal(16);
+        const savedThemeSchemes = getVal(17);
+        const savedMyStickers = getVal(18);
+        const savedReplyGroups = getVal(19);
+        const savedPokeGroups = getVal(20);
+        const savedStatusGroups = getVal(21);
 
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
@@ -402,11 +404,13 @@ const loadData = async () => {
         if (savedStatusGroups) window.customStatusGroups = savedStatusGroups;
         if (savedAnniversaries) anniversaries = savedAnniversaries;
         if (savedStickers) stickerLibrary = savedStickers;
+        if (savedKaomojiLibrary) kaomojiLibrary = savedKaomojiLibrary;
         if (savedMyStickers) myStickerLibrary = savedMyStickers;
         if (savedCustomThemes) customThemes = savedCustomThemes;
         if (savedThemeSchemes) themeSchemes = savedThemeSchemes;
         try { const ce = await localforage.getItem(getStorageKey('customEmojis')); if (ce && Array.isArray(ce)) customEmojis = ce; } catch(e) {}
         window._customReplies = customReplies;
+        window._kaomojiLibrary = kaomojiLibrary;
         window._CONSTANTS = CONSTANTS;
 
         if (DOMElements && DOMElements.partner && DOMElements.me) {
@@ -591,6 +595,7 @@ const saveData = async () => {
         { key: 'customPokeGroups',        val: () => localforage.setItem(getStorageKey('customPokeGroups'), window.customPokeGroups || []) },
         { key: 'customStatusGroups',      val: () => localforage.setItem(getStorageKey('customStatusGroups'), window.customStatusGroups || []) },
         { key: 'customEmojis',           val: () => localforage.setItem(getStorageKey('customEmojis'), customEmojis) },
+        { key: 'kaomojiLibrary',         val: () => localforage.setItem(getStorageKey('kaomojiLibrary'), kaomojiLibrary) },
         { key: 'anniversaries',          val: () => localforage.setItem(getStorageKey('anniversaries'), anniversaries) },
         { key: 'customPokes',            val: () => localforage.setItem(getStorageKey('customPokes'), customPokes) },
         { key: 'customStatuses',         val: () => localforage.setItem(getStorageKey('customStatuses'), customStatuses) },

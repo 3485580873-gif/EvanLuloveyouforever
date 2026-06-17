@@ -1369,6 +1369,21 @@ if (stickerBarBtn) {
     });
 }
 
+// 表情包面板 tab 切换（"我"/"对方"/"拍一拍"）
+const stickerPopover = document.getElementById('user-sticker-picker');
+if (stickerPopover) {
+    stickerPopover.querySelectorAll('.combo-tab-btn').forEach(tabBtn => {
+        tabBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetTab = tabBtn.getAttribute('data-tab');
+            if (!targetTab) return;
+            stickerPopover.querySelectorAll('.combo-tab-btn').forEach(t => t.classList.remove('active'));
+            tabBtn.classList.add('active');
+            if (typeof renderComboContent === 'function') renderComboContent(targetTab);
+        });
+    });
+}
+
             const resetBgBtn = document.getElementById('reset-default-bg');
             if (resetBgBtn) {
                 resetBgBtn.addEventListener('click', () => {
