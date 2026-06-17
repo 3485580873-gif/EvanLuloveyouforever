@@ -408,68 +408,6 @@ function renderComboMenu() {
     });
 }
 
-// ── 表情包选择面板渲染（供 sticker-bar-btn 和 combo-btn 使用）──
-function renderComboContent(activeTab) {
-    const area = document.getElementById('combo-content-area');
-    if (!area) return;
-    area.innerHTML = '';
-    area.style.display = 'flex';
-    area.style.flexDirection = 'column';
-    area.style.gap = '8px';
-
-    // 切换 tab 激活状态
-    const popover = document.getElementById('user-sticker-picker');
-    if (popover) {
-        popover.querySelectorAll('.combo-tab-btn').forEach(t => t.classList.remove('active'));
-        const activeTabBtn = popover.querySelector('[data-tab="' + activeTab + '"]');
-        if (activeTabBtn) activeTabBtn.classList.add('active');
-    }
-
-    if (activeTab === 'my-sticker' || activeTab === 'partner-sticker') {
-        // 表情库标签页：先显示 emoji，再显示 sticker 图片
-        customEmojis.forEach(emoji => {
-            const item = document.createElement('div');
-            item.className = 'picker-item';
-            item.innerHTML = '<span style="font-size:24px;">' + emoji + '</span>';
-            item.onclick = () => {
-                const input = document.getElementById('message-input');
-                input.value += emoji;
-                if (popover) popover.classList.remove('active');
-                input.focus();
-            };
-            area.appendChild(item);
-        });
-
-        const pool = activeTab === 'my-sticker' ? stickerLibrary : myStickerLibrary || [];
-        pool.forEach(src => {
-            const item = document.createElement('div');
-            item.className = 'picker-item';
-            item.innerHTML = '<img src="' + src + '" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">';
-            item.onclick = () => {
-                if (isBatchMode) {
-                    batchMessages.push({ id: Date.now() + batchMessages.length, text: '', image: src });
-                    updateBatchPreview();
-                    showNotification('已添加到批量发送', 'success', 1200);
-                    if (popover) popover.classList.remove('active');
-                } else {
-                    // 将表情包放入预览区，与文字配套发送
-                    window.setChatStickerPreview(src);
-                    if (popover) popover.classList.remove('active');
-                    var input = document.getElementById('message-input');
-                    if (input) input.focus();
-                }
-            };
-            area.appendChild(item);
-        });
-
-        if (pool.length === 0 && customEmojis.length === 0) {
-            area.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:13px;">暂无表情，点击右上角"添加"上传</div>';
-        }
-    } else if (activeTab === 'poke') {
-        showPokeTab();
-    }
-}
-
 function showEmojiTab() {
     const area = document.getElementById('combo-content-area');
     area.innerHTML = '';

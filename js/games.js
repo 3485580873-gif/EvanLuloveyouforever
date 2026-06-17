@@ -1267,6 +1267,9 @@ function initComboMenu() {
         }
     }
 
+    // 暴露 switchTab 供外部调用（如 sticker-bar-btn）
+    window.renderComboContent = switchTab;
+
     function makeStickerItem(src, onClick) {
         const item = document.createElement('div');
         item.className = 'sticker-grid-item';
@@ -1301,11 +1304,11 @@ function initComboMenu() {
         grid.className = 'sticker-grid-view';
         myStickerLibrary.forEach((src, idx) => {
             const item = makeDeletableStickerItem(src, () => {
-                addMessage({ id: Date.now(), sender: 'user', text: '', timestamp: new Date(), image: src, status: 'sent', type: 'normal' });
-                playSound('send');
+                // 将表情包放入输入框预览区，与文字配套发送
+                window.setChatStickerPreview(src);
                 picker.classList.remove('active');
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                setTimeout(simulateReply, settings.replyDelayMin + Math.random() * delayRange);
+                const input = document.getElementById('message-input');
+                if (input) input.focus();
             }, () => {
                 myStickerLibrary.splice(idx, 1);
                 localforage.setItem(getStorageKey('myStickerLibrary'), myStickerLibrary);
@@ -1333,11 +1336,11 @@ function initComboMenu() {
         grid.className = 'sticker-grid-view';
         stickerLibrary.forEach(src => {
             const item = makeStickerItem(src, () => {
-                addMessage({ id: Date.now(), sender: 'user', text: '', timestamp: new Date(), image: src, status: 'sent', type: 'normal' });
-                playSound('send');
+                // 将表情包放入输入框预览区，与文字配套发送
+                window.setChatStickerPreview(src);
                 picker.classList.remove('active');
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                setTimeout(simulateReply, settings.replyDelayMin + Math.random() * delayRange);
+                const input = document.getElementById('message-input');
+                if (input) input.focus();
             });
             grid.appendChild(item);
         });
