@@ -343,28 +343,10 @@
     </button>
 
     <textarea class="message-input" id="message-input" placeholder="" rows="1"></textarea>
-
-    <!-- 表情包预览区（与文字框配套，在输入框上方显示） -->
-    <div id="chat-sticker-preview" style="display:none;position:absolute;left:12px;right:60px;bottom:56px;z-index:10;">
-        <div style="display:inline-flex;align-items:center;gap:6px;background:var(--secondary-bg);border:1px solid var(--border-color);border-radius:12px;padding:4px 8px;box-shadow:0 -2px 8px rgba(0,0,0,0.05);">
-            <img id="chat-sticker-preview-img" src="" alt="表情包" style="width:48px;height:48px;object-fit:cover;border-radius:8px;">
-            <button onclick="window.clearChatStickerPreview()" style="width:20px;height:20px;border:none;border-radius:50%;background:var(--text-secondary);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;padding:0;flex-shrink:0;"><i class="fas fa-times"></i></button>
-        </div>
-    </div>
     
     <div class="input-buttons">
     <button class="continue-btn input-btn" id="continue-btn" title="让对方继续说"><i class="fas fa-ellipsis-h"></i></button>
         <button class="batch-btn input-btn collapse-hideable" id="batch-btn" title="批量发送模式"><i class="fas fa-layer-group"></i></button>
-
-    <!-- 表情包快捷栏按钮 -->
-    <button class="sticker-bar-btn input-btn" id="sticker-bar-btn" title="表情包" style="position:relative;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/>
-            <polyline points="21 15 16 10 5 21"/>
-        </svg>
-    </button>
-
         <button class="send-btn input-btn" id="send-btn" title="发送消息"><i class="fas fa-paper-plane"></i></button>
         
         <div class="sticker-picker-popover" id="user-sticker-picker">
@@ -1184,32 +1166,6 @@
                             <span class="setting-pill-icon"><i class="fas fa-smile"></i></span>
                             <span class="setting-pill-label">表情混入消息 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后表情与文字同条发送</span></span>
                             <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                        <div class="setting-pill-row" id="kaomoji-mix-toggle">
-                            <span class="setting-pill-icon"><i class="fas fa-kiss-wink-heart"></i></span>
-                            <span class="setting-pill-label">颜文字混入消息 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后颜文字与文字同条发送</span></span>
-                            <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                    </div>
-
-                    <p class="cs-group-label" style="margin-top:4px;">拼字卡</p>
-                    <div class="cs-card">
-                        <div class="setting-pill-row" id="pinyin-card-toggle">
-                            <span class="setting-pill-icon"><i class="fas fa-puzzle-piece"></i></span>
-                            <span class="setting-pill-label">拼字卡 <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">开启后，系统会随机将字卡拼接合并发送</span></span>
-                            <div class="setting-pill-switch"><div class="setting-pill-knob"></div></div>
-                        </div>
-                        <div id="pinyin-card-settings" style="display:none;border-top:1px solid var(--border-color);margin-top:8px;">
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最少句数</span>
-                                <input type="range" min="2" max="5" step="1" value="2" class="font-size-slider" id="pinyin-card-min-slider">
-                                <span class="cs-slider-val" id="pinyin-card-min-value">2句</span>
-                            </div>
-                            <div class="cs-slider-row">
-                                <span class="cs-slider-label">最多句数</span>
-                                <input type="range" min="2" max="5" step="1" value="3" class="font-size-slider" id="pinyin-card-max-slider">
-                                <span class="cs-slider-val" id="pinyin-card-max-value">3句</span>
-                            </div>
                         </div>
                     </div>
 

@@ -79,8 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         updateLoader('连接成功，欢迎回来。', '100%');
-        // 初始化完成后立即进入，不再硬编码等待
-        setTimeout(hideWelcomeScreen, 600);
+        setTimeout(hideWelcomeScreen, 3500);
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {

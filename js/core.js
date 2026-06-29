@@ -186,12 +186,7 @@ autoSendInterval: 5,
         partnerPokeCustomSoundUrl: '',
         soundVolume: 0.15,
         bottomCollapseMode: false,
-        emojiMixEnabled: true,
-        kaomojiMixEnabled: true,
-        enterKeySendEnabled: false,
-        pinyinCardEnabled: false,
-        pinyinCardMin: 2,
-        pinyinCardMax: 3
+        emojiMixEnabled: true
             };
         }
 
@@ -299,17 +294,15 @@ const loadData = async () => {
             localforage.getItem(getStorageKey('customMottos')),
             localforage.getItem(getStorageKey('customIntros')),
             localforage.getItem(getStorageKey('anniversaries')),
-            // 大体积数据（表情包库/颜文字/主题）改为懒加载，不再阻塞首屏
-            // localforage.getItem(getStorageKey('stickerLibrary')),
-            // localforage.getItem(getStorageKey('kaomojiLibrary')),
-            // localforage.getItem(`${APP_PREFIX}customThemes`),
+            localforage.getItem(getStorageKey('stickerLibrary')),
+            localforage.getItem(`${APP_PREFIX}customThemes`),
             localforage.getItem(getStorageKey('chatBackground')),
             localforage.getItem(getStorageKey('partnerAvatar')),
             localforage.getItem(getStorageKey('myAvatar')),
             localforage.getItem(getStorageKey('partnerPersonas')), 
             localforage.getItem(getStorageKey('showPartnerNameInChat')),
-            // localforage.getItem(`${APP_PREFIX}themeSchemes`),
-            // localforage.getItem(getStorageKey('myStickerLibrary')),
+            localforage.getItem(`${APP_PREFIX}themeSchemes`),
+            localforage.getItem(getStorageKey('myStickerLibrary')),
             localforage.getItem(getStorageKey('customReplyGroups')),
             localforage.getItem(getStorageKey('customPokeGroups')),
             localforage.getItem(getStorageKey('customStatusGroups'))
@@ -325,14 +318,18 @@ const loadData = async () => {
         const savedMottos = getVal(6);
         const savedIntros = getVal(7);
         const savedAnniversaries = getVal(8);
-        const savedChatBg = getVal(9);
-        const partnerAvatarSrc = getVal(10);
-        const myAvatarSrc = getVal(11);
-        const savedPartnerPersonas = getVal(12);
-        const savedShowNameConfig = getVal(13);
-        const savedReplyGroups = getVal(14);
-        const savedPokeGroups = getVal(15);
-        const savedStatusGroups = getVal(16);
+        const savedStickers = getVal(9);
+        const savedCustomThemes = getVal(10);
+        const savedChatBg = getVal(11);
+        const partnerAvatarSrc = getVal(12);
+        const myAvatarSrc = getVal(13);
+        const savedPartnerPersonas = getVal(14);
+        const savedShowNameConfig = getVal(15);
+        const savedThemeSchemes = getVal(16);
+        const savedMyStickers = getVal(17);
+        const savedReplyGroups = getVal(18);
+        const savedPokeGroups = getVal(19);
+        const savedStatusGroups = getVal(20);
 
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
@@ -399,26 +396,12 @@ const loadData = async () => {
         if (savedPokeGroups) window.customPokeGroups = savedPokeGroups;
         if (savedStatusGroups) window.customStatusGroups = savedStatusGroups;
         if (savedAnniversaries) anniversaries = savedAnniversaries;
-        // 大体积数据懒加载：不阻塞首屏，在 loadData 完成后异步加载
-        setTimeout(async () => {
-            try {
-                const [_savedStickers, _savedKaomoji, _savedThemes, _savedSchemes, _savedMyStickers] = await Promise.allSettled([
-                    localforage.getItem(getStorageKey('stickerLibrary')),
-                    localforage.getItem(getStorageKey('kaomojiLibrary')),
-                    localforage.getItem(`${APP_PREFIX}customThemes`),
-                    localforage.getItem(`${APP_PREFIX}themeSchemes`),
-                    localforage.getItem(getStorageKey('myStickerLibrary'))
-                ]).then(r => r.map(x => x.status === 'fulfilled' ? x.value : null));
-                if (_savedStickers) { stickerLibrary = _savedStickers; window._stickerLibrary = _savedStickers; }
-                if (_savedKaomoji) { kaomojiLibrary = _savedKaomoji; window._kaomojiLibrary = _savedKaomoji; }
-                if (_savedMyStickers) myStickerLibrary = _savedMyStickers;
-                if (_savedThemes) customThemes = _savedThemes;
-                if (_savedSchemes) themeSchemes = _savedSchemes;
-            } catch(e) { console.warn('[lazyLoad] 大体积数据懒加载失败:', e); }
-        }, 800);
+        if (savedStickers) stickerLibrary = savedStickers;
+        if (savedMyStickers) myStickerLibrary = savedMyStickers;
+        if (savedCustomThemes) customThemes = savedCustomThemes;
+        if (savedThemeSchemes) themeSchemes = savedThemeSchemes;
         try { const ce = await localforage.getItem(getStorageKey('customEmojis')); if (ce && Array.isArray(ce)) customEmojis = ce; } catch(e) {}
         window._customReplies = customReplies;
-        window._kaomojiLibrary = kaomojiLibrary;
         window._CONSTANTS = CONSTANTS;
 
         if (DOMElements && DOMElements.partner && DOMElements.me) {
@@ -427,15 +410,13 @@ const loadData = async () => {
         }
 
         if (savedChatBg) {
-            try { applyBackground(savedChatBg); } catch(e) { console.warn('应用聊天背景失败:', e); }
+            applyBackground(savedChatBg);
         } else {
-            try {
-                const lsBg = safeGetItem(getStorageKey('chatBackground'));
-                if (lsBg) {
-                    applyBackground(lsBg);
-                    localforage.setItem(getStorageKey('chatBackground'), lsBg);
-                }
-            } catch(e) { console.warn('应用 localStorage 背景失败:', e); }
+            const lsBg = safeGetItem(getStorageKey('chatBackground'));
+            if (lsBg) {
+                applyBackground(lsBg);
+                localforage.setItem(getStorageKey('chatBackground'), lsBg);
+            }
         }
 
         try { await initMoodData(); } catch(e) { console.warn("心情数据加载失败", e); }
@@ -444,10 +425,10 @@ const loadData = async () => {
         displayedMessageCount = HISTORY_BATCH_SIZE;
         
         setTimeout(() => {
-            try { applyAllAvatarFrames(); } catch(e) {}
-            try { manageAutoSendTimer(); } catch(e) {}
-            try { checkEnvelopeStatus(); } catch(e) {}
-            try { updateUI(); } catch(e) { console.error('updateUI 失败:', e); }
+            applyAllAvatarFrames();
+            manageAutoSendTimer(); 
+            checkEnvelopeStatus(); 
+            updateUI();
             if (settings.customBubbleCss) {
                 try { applyCustomBubbleCss(settings.customBubbleCss); } catch(e) {}
             }
@@ -455,27 +436,8 @@ const loadData = async () => {
 
     } catch (e) {
         console.error("LoadData 内部致命错误:", e);
-        // 不直接清空消息！先尝试从紧急备份恢复
-        try {
-            const backup = _tryRecoverFromBackup();
-            if (backup && Array.isArray(backup.messages) && backup.messages.length > 0) {
-                console.warn('[loadData] 加载失败，尝试从紧急备份恢复');
-                messages = backup.messages.map(m => ({
-                    ...m, timestamp: new Date(m.timestamp)
-                }));
-                settings = getDefaultSettings();
-                if (backup.settings) Object.assign(settings, backup.settings);
-                showNotification('⚠ 数据加载异常，已从本地备份恢复', 'warning', 5000);
-            } else {
-                messages = [];
-                settings = getDefaultSettings();
-                showNotification('⚠ 数据加载失败，存档可能已丢失', 'error', 5000);
-            }
-        } catch (e2) {
-            messages = [];
-            settings = getDefaultSettings();
-            console.error('[loadData] 紧急备份恢复也失败了:', e2);
-        }
+        settings = getDefaultSettings();
+        messages = [];
         updateUI();
     }
 };
@@ -513,22 +475,6 @@ window.openMyStickerSettings = function() {
     if (typeof renderReplyLibrary === 'function') renderReplyLibrary();
     var modal = document.getElementById('custom-replies-modal');
     if (modal && typeof showModal === 'function') showModal(modal);
-};
-
-// ── 聊天表情包预览（与文字框配套发送）──
-window.setChatStickerPreview = function(src) {
-    window._pendingChatSticker = src;
-    const preview = document.getElementById('chat-sticker-preview');
-    const img = document.getElementById('chat-sticker-preview-img');
-    if (preview && img) {
-        img.src = src;
-        preview.style.display = 'block';
-    }
-};
-window.clearChatStickerPreview = function() {
-    window._pendingChatSticker = null;
-    const preview = document.getElementById('chat-sticker-preview');
-    if (preview) preview.style.display = 'none';
 };
 
 window.switchAnnType = function(type) {
@@ -624,7 +570,6 @@ const saveData = async () => {
         { key: 'customPokeGroups',        val: () => localforage.setItem(getStorageKey('customPokeGroups'), window.customPokeGroups || []) },
         { key: 'customStatusGroups',      val: () => localforage.setItem(getStorageKey('customStatusGroups'), window.customStatusGroups || []) },
         { key: 'customEmojis',           val: () => localforage.setItem(getStorageKey('customEmojis'), customEmojis) },
-        { key: 'kaomojiLibrary',         val: () => localforage.setItem(getStorageKey('kaomojiLibrary'), kaomojiLibrary) },
         { key: 'anniversaries',          val: () => localforage.setItem(getStorageKey('anniversaries'), anniversaries) },
         { key: 'customPokes',            val: () => localforage.setItem(getStorageKey('customPokes'), customPokes) },
         { key: 'customStatuses',         val: () => localforage.setItem(getStorageKey('customStatuses'), customStatuses) },
@@ -921,14 +866,12 @@ function manageAutoSendTimer() {
                 '#typing-indicator-toggle': 'typingIndicatorEnabled',
                 '#read-no-reply-toggle': 'allowReadNoReply',
                 '#emoji-mix-toggle': 'emojiMixEnabled',
-                '#kaomoji-mix-toggle': 'kaomojiMixEnabled',
-                '#auto-send-toggle': 'autoSendEnabled',
-                '#pinyin-card-toggle': 'pinyinCardEnabled'
+                '#auto-send-toggle': 'autoSendEnabled'
             };
             for (const [sel, prop] of Object.entries(_pillSyncMap)) {
                 const el = document.querySelector(sel);
                 if (el) {
-                    const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
+                    const val = prop === 'emojiMixEnabled' ? (settings[prop] !== false) : !!settings[prop];
                     el.classList.toggle('active', val);
                 }
             }
@@ -1113,15 +1056,9 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         messageHTML += `<div class="reply-indicator" data-reply-id="${msg.replyTo.id || ''}" style="cursor:pointer;" onclick="scrollToQuotedMessage(this)"><span class="reply-indicator-sender">${repliedSender}</span><span class="reply-indicator-text">${repliedText}</span></div>`;
     }
 
-    const isStickerOnly = !msg.text && !msg.image && !!msg.sticker;
-    const isImageOnly = (!msg.text && !!msg.image) || isStickerOnly;
+    const isImageOnly = !msg.text && !!msg.image;
     let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
     if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
-    // 渲染表情包（sticker）
-    if (msg.sticker) {
-        const stickerSize = msg.sender === 'user' ? 100 : 120;
-        content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:${stickerSize}px;max-height:${stickerSize}px;border-radius:8px;${msg.text || msg.image ? ' margin-top:6px;' : ''} cursor:pointer;" onclick="viewImage('${msg.sticker}')">`;
-    }
     messageHTML += content;
 
     const messageDiv = document.createElement('div');
@@ -1442,9 +1379,7 @@ const addMessage = (message) => {
         function sendMessage(textOverride = null, type = 'normal') {
             const text = textOverride || DOMElements.messageInput.value.trim();
             const imageFile = DOMElements.imageInput.files[0];
-            // 检查是否有待发送的表情包
-            const pendingSticker = window._pendingChatSticker || null;
-            if (!text && !imageFile && !pendingSticker && type === 'normal') return;
+            if (!text && !imageFile && type === 'normal') return;
 
             // ── 斜杠指令拦截 ──
             if (text && text.startsWith('/') && type === 'normal') {
@@ -1484,12 +1419,6 @@ const addMessage = (message) => {
                     replyTo: currentReplyTo,
                     type: type
                 };
-                // 如果有待发送的表情包，作为 sticker 字段附加
-                if (pendingSticker) {
-                    messageData.sticker = pendingSticker;
-                    window._pendingChatSticker = null;
-                    window.clearChatStickerPreview && window.clearChatStickerPreview();
-                }
                 if (type === 'system') messageData.sender = null;
 
                 addMessage(messageData);
@@ -1660,12 +1589,6 @@ if (!isBatchMode && type === 'normal') {
         })();
 
         window.simulateReply = function() {
-            // 互斥锁：防止重复调用导致回复丢失
-            if (window._simulateReplyRunning) {
-                console.log('[simulateReply] 已有回复进行中，跳过重复调用');
-                return;
-            }
-            window._simulateReplyRunning = true;
             function showTypingIndicator() {
                 if (!settings.typingIndicatorEnabled) return;
                 const tiWrapper = document.getElementById('typing-indicator-wrapper');
@@ -1713,72 +1636,12 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             if (Math.random() < 0.03) {
                 // ── 对方拍一拍：调用提取的通用函数（同时供 /测试拍一拍 指令使用）──
                 if (typeof window._triggerPartnerPoke === 'function') window._triggerPartnerPoke();
-                window._simulateReplyRunning = false;
                 return;
-            }
-
-            // 拼字卡模式：随机抽取2-3条字卡合并发送
-            if (settings.pinyinCardEnabled && Math.random() < 0.3) {
-                const allCards = [];
-                // 收集字卡库中的字卡
-                if (window._customReplies && window._customReplies.length > 0) {
-                    allCards.push(...window._customReplies.map(r => String(r || '').trim()).filter(Boolean));
-                }
-                // 收集颜文字
-                if (window._kaomojiLibrary && window._kaomojiLibrary.length > 0) {
-                    allCards.push(...window._kaomojiLibrary.map(k => String(k || '').trim()).filter(Boolean));
-                }
-                // 收集emoji
-                if (window._customEmojis && window._customEmojis.length > 0) {
-                    allCards.push(...window._customEmojis.map(e => String(e || '').trim()).filter(Boolean));
-                }
-                if (allCards.length >= 2) {
-                    showTypingIndicator();
-                    const minCount = Math.max(2, settings.pinyinCardMin || 2);
-                    const maxCount = Math.max(minCount, settings.pinyinCardMax || 3);
-                    const cardCount = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
-                    const shuffled = allCards.sort(() => Math.random() - 0.5);
-                    const picked = shuffled.slice(0, Math.min(cardCount, shuffled.length));
-                    const mergedText = picked.join('，');
-                    const _delayRange = Math.max(0, settings.replyDelayMax - settings.replyDelayMin);
-                    const _delay = settings.replyDelayMin + Math.random() * _delayRange;
-                    setTimeout(() => {
-                        addMessage({
-                            id: Date.now(),
-                            sender: settings.partnerName || '对方',
-                            text: mergedText,
-                            timestamp: new Date(),
-                            status: 'received',
-                            favorited: false,
-                            note: null,
-                            type: 'normal'
-                        });
-                        playSound('message');
-                        if (typeof window._sendPartnerNotification === 'function') {
-                            window._sendPartnerNotification(settings.partnerName || '对方', mergedText);
-                        }
-                        // 隐藏"正在输入中"（拼字卡路径也需要隐藏）
-                        (function(){
-                            try { if (window._typingIndicatorAutoHideTimer) { clearTimeout(window._typingIndicatorAutoHideTimer); window._typingIndicatorAutoHideTimer = null; } } catch(e) {}
-                            var _tiW = document.getElementById('typing-indicator-wrapper');
-                            if (_tiW) {
-                                var _tiInner = _tiW.querySelector('.typing-indicator');
-                                if (_tiInner) {
-                                    _tiInner.classList.add('hiding');
-                                    setTimeout(function() { _tiW.style.display = 'none'; if (_tiInner) _tiInner.classList.remove('hiding'); }, 240);
-                                } else { _tiW.style.display = 'none'; }
-                            }
-                            window._simulateReplyRunning = false;
-                        })();
-                    }, _delay);
-                    return;
-                }
             }
 
             const replyCount = Math.random() < 0.75 ? 1: (Math.random() < 0.95 ? 2: 3);
             if (!customReplies || customReplies.length === 0) {
                 showNotification('回复库为空，请先到「自定义回复」中添加内容', 'info', 3500);
-                window._simulateReplyRunning = false;
                 return;
             }
             const disabledItemsOnce = (() => {
@@ -1797,24 +1660,11 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                 .filter(Boolean);
             if (!replyPoolOnce.length) {
                 showNotification('回复库可用内容为空（可能被分组禁用或屏蔽），请到「自定义回复」中调整', 'info', 4000);
-                window._simulateReplyRunning = false;
                 return;
             }
 
-            // 确认有可用回复后再展示"正在输入中"，避免空转
+            // 确认有可用回复后再展示“正在输入中”，避免空转
             showTypingIndicator();
-            // 兜底：30秒后强制隐藏"正在输入中"，防止因异常导致卡住
-            clearTimeout(window._simulateReplySafetyTimer);
-            window._simulateReplySafetyTimer = setTimeout(() => {
-                try {
-                    var _tiW3 = document.getElementById('typing-indicator-wrapper');
-                    if (_tiW3 && _tiW3.style.display !== 'none') {
-                        _tiW3.style.display = 'none';
-                        console.warn('[simulateReply] 兜底隐藏"正在输入中"（超时）');
-                    }
-                    window._simulateReplyRunning = false;
-                } catch(e) {}
-            }, 30000);
             let delay = 0;
             const recentUserMsgs = settings.replyEnabled
                 ? messages.filter(m => m.sender === 'user' && m.text).slice(-10)
@@ -1834,11 +1684,8 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                             break;
                         }
                     }
-                    // 没有可用回复则跳过本条，最后一条时确保隐藏"正在输入中"
-                    if (!replyText) {
-                        if (i === replyCount - 1) {
-                            (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}if(window._simulateReplySafetyTimer){clearTimeout(window._simulateReplySafetyTimer);window._simulateReplySafetyTimer=null;}window._simulateReplyRunning=false;}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
-                        }
+                    if (!replyText && i === replyCount - 1) {
+                        (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
                         return;
                     }
 
@@ -1852,7 +1699,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
 
                     let finalText = replyText;
                     let separateEmoji = null;
-                    let separateKaomoji = null;
                     if (customEmojis && customEmojis.length > 0 && Math.random() < 0.2) {
                         const emoji = customEmojis[Math.floor(Math.random() * customEmojis.length)];
                         if (settings.emojiMixEnabled !== false) {
@@ -1861,18 +1707,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 : replyText + ' ' + emoji;
                         } else {
                             separateEmoji = emoji;
-                        }
-                    }
-
-                    // 颜文字混入逻辑
-                    if (kaomojiLibrary && kaomojiLibrary.length > 0 && Math.random() < 0.25) {
-                        const kaomoji = kaomojiLibrary[Math.floor(Math.random() * kaomojiLibrary.length)];
-                        if (settings.kaomojiMixEnabled !== false) {
-                            finalText = Math.random() < 0.5
-                                ? kaomoji + ' ' + finalText
-                                : finalText + ' ' + kaomoji;
-                        } else {
-                            separateKaomoji = kaomoji;
                         }
                     }
 
@@ -1931,22 +1765,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         }, 300 + Math.random() * 400);
                     }
 
-                    if (separateKaomoji) {
-                        setTimeout(() => {
-                            addMessage({
-                                id: Date.now() + i + 1200,
-                                sender: settings.partnerName || '对方',
-                                text: separateKaomoji,
-                                timestamp: new Date(),
-                                status: 'received',
-                                favorited: false,
-                                note: null,
-                                type: 'normal'
-                            });
-                            playSound('message');
-                        }, 350 + Math.random() * 400);
-                    }
-
                     if (i === replyCount - 1) {
                         (function() {
                             try {
@@ -1954,11 +1772,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                     clearTimeout(window._typingIndicatorAutoHideTimer);
                                     window._typingIndicatorAutoHideTimer = null;
                                 }
-                                if (window._simulateReplySafetyTimer) {
-                                    clearTimeout(window._simulateReplySafetyTimer);
-                                    window._simulateReplySafetyTimer = null;
-                                }
-                                window._simulateReplyRunning = false;
                             } catch (e) {}
                             var _tiW = document.getElementById('typing-indicator-wrapper');
                             if (_tiW) {
@@ -1977,7 +1790,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     }
                     } catch (e) {
                         console.error('[simulateReply] 渲染/回填出错:', e);
-                        // 机制性兜底：出错时至少让"正在输入中"消失，避免假死
+                        // 机制性兜底：出错时至少让“正在输入中”消失，避免假死
                         try {
                             (function(){
                                 try { if (window._typingIndicatorAutoHideTimer) { clearTimeout(window._typingIndicatorAutoHideTimer); window._typingIndicatorAutoHideTimer = null; } } catch (e2) {}
@@ -1985,7 +1798,6 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 if (_tiW2) _tiW2.style.display = 'none';
                             })();
                         } catch (e2) {}
-                        window._simulateReplyRunning = false;
                     }
                 }, delay);
             }

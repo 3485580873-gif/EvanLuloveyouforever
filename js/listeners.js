@@ -434,13 +434,11 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
         '#read-receipts-toggle': { prop: 'readReceiptsEnabled', name: '已读回执' },
         '#typing-indicator-toggle': { prop: 'typingIndicatorEnabled', name: '正在输入' },
         '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
-        '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' },
-        '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字消息' },
-        '#pinyin-card-toggle': { prop: 'pinyinCardEnabled', name: '拼字卡' }
+        '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情消息' }
     };
     for (const [selector, { prop }] of Object.entries(toggleSyncMap)) {
         const el = document.querySelector(selector);
-        const val = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
+        const val = prop === 'emojiMixEnabled' ? (settings[prop] !== false) : !!settings[prop];
         if (el) el.classList.toggle('active', val);
     }
     const svSlider = document.getElementById('sound-volume-slider');
@@ -1062,10 +1060,7 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 '#typing-indicator-toggle': {
                     prop: 'typingIndicatorEnabled', name: '正在输入'},
                     '#read-no-reply-toggle': { prop: 'allowReadNoReply', name: '已读不回' },
-                    '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情混入消息' },
-                    '#kaomoji-mix-toggle': { prop: 'kaomojiMixEnabled', name: '颜文字混入消息' },
-                    '#enter-key-send-toggle': { prop: 'enterKeySendEnabled', name: '回车键发送' },
-                    '#pinyin-card-toggle': { prop: 'pinyinCardEnabled', name: '拼字卡' }
+                    '#emoji-mix-toggle': { prop: 'emojiMixEnabled', name: '表情混入消息' }
 };
 
             for (const [selector, {
@@ -1074,19 +1069,17 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 const element = document.querySelector(selector);
                 if (!element) continue;
 
-                const _initVal = (prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') ? (settings[prop] !== false) : !!settings[prop];
+                const _initVal = prop === 'emojiMixEnabled' ? (settings[prop] !== false) : !!settings[prop];
                 element.classList.toggle('active', _initVal);
 
                 element.addEventListener('click', () => {
-                    if ((prop === 'emojiMixEnabled' || prop === 'kaomojiMixEnabled') && settings[prop] === undefined) settings[prop] = true;
+                    if (prop === 'emojiMixEnabled' && settings[prop] === undefined) settings[prop] = true;
                     settings[prop] = !settings[prop];
                     throttledSaveData();
                     updateUI();
                     element.classList.toggle('active', !!settings[prop]);
                     if (prop !== 'soundEnabled') renderMessages(true);
                     showNotification(`${name}已${settings[prop] ? '开启': '关闭'}`, 'success');
-                    // 拼字卡开关时展开/收起设置面板
-                    if (prop === 'pinyinCardEnabled') updatePinyinCardUI();
                 });
             }
 
@@ -1297,77 +1290,6 @@ autoSendSlider.addEventListener('change', () => {
     manageAutoSendTimer(); 
     throttledSaveData();
 });
-
-// 拼字卡设置
-const pinyinCardSettings = document.getElementById('pinyin-card-settings');
-const pinyinCardMinSlider = document.getElementById('pinyin-card-min-slider');
-const pinyinCardMinValue = document.getElementById('pinyin-card-min-value');
-const pinyinCardMaxSlider = document.getElementById('pinyin-card-max-slider');
-const pinyinCardMaxValue = document.getElementById('pinyin-card-max-value');
-
-const updatePinyinCardUI = () => {
-    if (pinyinCardSettings) pinyinCardSettings.style.display = settings.pinyinCardEnabled ? 'block' : 'none';
-    if (pinyinCardMinSlider) {
-        const minVal = settings.pinyinCardMin || 2;
-        pinyinCardMinSlider.value = minVal;
-        if (pinyinCardMinValue) pinyinCardMinValue.textContent = minVal + '句';
-    }
-    if (pinyinCardMaxSlider) {
-        const maxVal = settings.pinyinCardMax || 3;
-        pinyinCardMaxSlider.value = maxVal;
-        if (pinyinCardMaxValue) pinyinCardMaxValue.textContent = maxVal + '句';
-    }
-};
-updatePinyinCardUI();
-
-if (pinyinCardMinSlider) {
-    pinyinCardMinSlider.addEventListener('input', (e) => {
-        let val = parseInt(e.target.value);
-        if (val > (settings.pinyinCardMax || 5)) {
-            val = settings.pinyinCardMax || 5;
-            pinyinCardMinSlider.value = val;
-        }
-        settings.pinyinCardMin = val;
-        if (pinyinCardMinValue) pinyinCardMinValue.textContent = val + '句';
-    });
-    pinyinCardMinSlider.addEventListener('change', () => { throttledSaveData(); });
-}
-
-if (pinyinCardMaxSlider) {
-    pinyinCardMaxSlider.addEventListener('input', (e) => {
-        let val = parseInt(e.target.value);
-        if (val < (settings.pinyinCardMin || 2)) {
-            val = settings.pinyinCardMin || 2;
-            pinyinCardMaxSlider.value = val;
-        }
-        settings.pinyinCardMax = val;
-        if (pinyinCardMaxValue) pinyinCardMaxValue.textContent = val + '句';
-    });
-    pinyinCardMaxSlider.addEventListener('change', () => { throttledSaveData(); });
-}
-
-// 表情包快捷栏按钮（复用 user-sticker-picker 面板）
-const stickerBarBtn = document.getElementById('sticker-bar-btn');
-if (stickerBarBtn) {
-    stickerBarBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const popover = document.getElementById('user-sticker-picker');
-        if (!popover) return;
-        const isActive = popover.classList.contains('active');
-        if (isActive) {
-            popover.classList.remove('active');
-        } else {
-            // 默认显示"我"的标签
-            if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
-            // 激活"我"的标签按钮
-            const tabs = popover.querySelectorAll('.combo-tab-btn');
-            tabs.forEach(t => t.classList.remove('active'));
-            const myTab = popover.querySelector('[data-tab="my-sticker"]');
-            if (myTab) myTab.classList.add('active');
-            popover.classList.add('active');
-        }
-    });
-}
 
             const resetBgBtn = document.getElementById('reset-default-bg');
             if (resetBgBtn) {
