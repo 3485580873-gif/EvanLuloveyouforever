@@ -422,8 +422,8 @@
             </div>
             <input type="text" class="modal-input" id="poke-input" placeholder="例如：拍了拍对方的肩膀"><div class="modal-buttons">
                 <div style="width:100%;display:flex;align-items:center;gap:8px;margin:6px 0 0;">
-                    <input type="checkbox" id="poke-save-to-library" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent-color);">
-                    <label for="poke-save-to-library" style="font-size:12px;color:var(--text-secondary);cursor:pointer;">保存到拍一拍库</label>
+                    <input type="checkbox" id="poke-save-to-library" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent-color);">
+                    <label for="poke-save-to-library" style="font-size:12px;color:var(--text-secondary);cursor:pointer;">保存到快捷拍一拍</label>
                 </div>
                 <button class="modal-btn modal-btn-secondary" id="cancel-poke">取消</button><button class="modal-btn modal-btn-primary" id="send-poke">发送</button>
             </div>
@@ -835,6 +835,11 @@
                 <div style="flex:1;">
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary);">显示聊天头像</div>
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;" id="avatar-toggle-status-2">已开启 — 消息旁显示头像</div>
+                </div>
+                <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border-color);">
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px;">头像拍一拍内容</div>
+                    <input type="text" id="avatar-poke-text-input" placeholder="例如：拍了拍对方的头像" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border-color);border-radius:10px;background:var(--primary-bg);color:var(--text-primary);font-size:12px;outline:none;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:5px;line-height:1.5;">点击对方头像会发送这条拍一拍；表情包里的拍一拍栏目会继续保留。</div>
                 </div>
                 <div id="avatar-toggle-pill-2" style="width:44px;height:24px;border-radius:24px;background:var(--accent-color);position:relative;transition:background 0.3s;flex-shrink:0;">
                     <div id="avatar-toggle-knob-2" style="position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;right:3px;transition:right 0.25s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>

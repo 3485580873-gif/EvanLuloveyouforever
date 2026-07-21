@@ -297,7 +297,7 @@ if (target.classList.contains('delete-btn')) {
                     pokeText = window._sanitizePokeTextForDisplay(pokeText);
                 }
                 const pokeSaveChecked = document.getElementById('poke-save-to-library');
-                const shouldSaveToLibrary = pokeSaveChecked ? !!pokeSaveChecked.checked : false;
+                const shouldSaveToLibrary = pokeSaveChecked ? !!pokeSaveChecked.checked : true;
                 addMessage({
                     id: Date.now(), text: _formatPokeText(pokeText), timestamp: new Date(), type: 'system'
                 });
@@ -499,7 +499,17 @@ fileInput.addEventListener('change', function(e) {
 
             DOMElements.partner.name.addEventListener('click', () => openNameModal(true));
             DOMElements.me.name.addEventListener('click', () => openNameModal(false));
-            DOMElements.partner.avatar.addEventListener('click', () => openAvatarModal(true));
+            DOMElements.partner.avatar.addEventListener('click', () => {
+                const raw = (localStorage.getItem('avatarPokeText') || '拍了拍对方的头像').trim();
+                const clean = (typeof window._sanitizePokeTextForDisplay === 'function')
+                    ? window._sanitizePokeTextForDisplay(raw)
+                    : raw;
+                addMessage({ id: Date.now(), text: _formatPokeText(`${settings.myName} ${clean}`), timestamp: new Date(), type: 'system' });
+                if (typeof playSound === 'function') playSound('poke');
+                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+                const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+                setTimeout(simulateReply, randomDelay);
+            });
             DOMElements.me.avatar.addEventListener('click', () => openAvatarModal(false));
 
             DOMElements.me.statusContainer.addEventListener('click', () => {
@@ -3476,3 +3486,13 @@ window.exitCollapseMode = function() {
         setTimeout(tryApply, 400);
     }
 })();
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const avatarPokeInput = document.getElementById('avatar-poke-text-input');
+    if (!avatarPokeInput) return;
+    avatarPokeInput.value = localStorage.getItem('avatarPokeText') || '拍了拍对方的头像';
+    avatarPokeInput.addEventListener('input', function() {
+        localStorage.setItem('avatarPokeText', avatarPokeInput.value.trim() || '拍了拍对方的头像');
+    });
+});
