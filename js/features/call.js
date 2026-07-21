@@ -7,6 +7,7 @@
     const KEY_PILL_POS = 'callPillPos';
     const BG_LF_KEY    = 'callBgImageData';
     const KEY_LIVE_SESSION = 'callLiveSession'; // 闪退/刷新恢复用：通话进行中定期写入的快照
+    const PARTNER_ACTIVE_HANGUP_CHANCE = 0.01; // 通话接通后，对方主动中途挂断的概率
 
     const S = {
         enabled:         localStorage.getItem(KEY_ENABLED) !== 'false',
@@ -29,6 +30,7 @@
         randomCallTimer: null,
         isPartnerCall:   false,
         heartbeatTimer:  null,
+        partnerHangupTimer: null,
     };
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -578,6 +580,48 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         sendCallEvent('fa-video', '视频通话已结束', fmt(dur));
     }
 
+    function stopPartnerHangupTimer() {
+        if (S.partnerHangupTimer) {
+            clearTimeout(S.partnerHangupTimer);
+            S.partnerHangupTimer = null;
+        }
+    }
+
+    function schedulePartnerActiveHangup() {
+        stopPartnerHangupTimer();
+        if (!S.active || !S.startTime) return;
+        if (Math.random() >= PARTNER_ACTIVE_HANGUP_CHANCE) return;
+        const hangupDelay = 15000 + Math.random() * 105000;
+        S.partnerHangupTimer = setTimeout(() => {
+            if (!S.active || !S.startTime) return;
+            endCallByPartner();
+        }, hangupDelay);
+    }
+
+    function endCallByPartner() {
+        if (!S.active) return;
+        const dur = S.elapsed || (S.startTime ? Date.now() - S.startTime : 0);
+        S.active = false; S.startTime = null;
+        cancelAnimationFrame(S.timerRAF);
+        clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
+        stopHeartbeat();
+        stopPartnerHangupTimer();
+        clearCallSession();
+
+        ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) { e.classList.remove('visible'); if (id === 'call-window') e.classList.remove('immersive'); }
+        });
+        const body = document.getElementById('call-window-body');
+        const conn = document.getElementById('call-connecting-state');
+        if (body) body.style.display = '';
+        if (conn) conn.classList.remove('visible');
+        S.immersive = false;
+
+        if (dur >= 2000) sendCallEvent('fa-phone-slash', '对方有事忙，主动结束了通话', fmt(dur));
+        if (typeof showNotification === 'function') showNotification('对方主动结束了通话', 'info', 3000);
+    }
+
     // ──────────────────────────────────────────────────────────────
     // 通话崩溃恢复：通话进行中定期把状态写到 localStorage；
     // 如果页面闪退/被刷新，重新打开时能检测到这份"未正常挂断"的
@@ -657,6 +701,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 if (body) body.style.display = '';
                 tick();
                 startHeartbeat();
+                schedulePartnerActiveHangup();
             }, 1400 + Math.random() * 1400);
         }
     }
@@ -668,6 +713,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         cancelAnimationFrame(S.timerRAF);
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
         stopHeartbeat();
+        stopPartnerHangupTimer();
         clearCallSession();
 
         ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
@@ -957,6 +1003,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         cancelAnimationFrame(S.timerRAF);
         tick();
         startHeartbeat();
+        schedulePartnerActiveHangup();
 
         if (typeof showNotification === 'function') showNotification('通话已恢复', 'success', 2000);
     }
