@@ -252,9 +252,12 @@
 
     function syncToggles() {
         var n = document.getElementById('notif-permission-toggle');
-        if (n) n.checked = localStorage.getItem('notifEnabled') === '1'
-                        && 'Notification' in window
-                        && Notification.permission === 'granted';
+        if (n) {
+            var savedNotif = localStorage.getItem('notifEnabled');
+            var grantedNotif = 'Notification' in window && Notification.permission === 'granted';
+            n.checked = (savedNotif === '1' || (savedNotif === null && grantedNotif)) && grantedNotif;
+            if (n.checked) localStorage.setItem('notifEnabled', '1');
+        }
     }
 
     function openDrawer(drawerId) {
@@ -771,8 +774,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var toggle   = document.getElementById('notif-permission-toggle');
     var statusEl = document.getElementById('notif-status-text');
     if (!toggle) return;
-    var enabled = localStorage.getItem('notifEnabled') === '1';
+    var saved = localStorage.getItem('notifEnabled');
     var granted = ('Notification' in window) && Notification.permission === 'granted';
+    var enabled = saved === '1' || (saved === null && granted);
+    if (enabled && granted) localStorage.setItem('notifEnabled', '1');
     toggle.checked = enabled && granted;
     if (!statusEl) return;
     if (toggle.checked) {
