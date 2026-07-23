@@ -9,11 +9,15 @@ crons = ["*/1 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "evan-push-db"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+[[d1_databases]]
+binding = "DB"
+database_name = "evan-push-db"
+database_id = "61f857ad-0404-4d51-929d-273d8e988099"
 
 # 明文变量（非敏感）
 [vars]
-VAPID_PUBLIC_KEY = "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY"
+VAPID_PUBLIC_KEY = "BNRyQY4XHXUjhZnhVXN_sMq0qVc_gZZeK0te3SalhY_ZwisfcVkufdN0qVqfiERNZgSGm_xTyZZsA_tKbpYG4QA"
+VAPID_PRIVATE_KEY_JWK = '{"key_ops":["sign"],"ext":true,"kty":"EC","x":"1HJBjhcddSOFmeFVc3-wyrSpVz-Bll4rS17dJqWFj9k","y":"wisfcVkufdN0qVqfiERNZgSGm_xTyZZsA_tKbpYG4QA","crv":"P-256","d":"z3nJM9VvmgfSbE8m8_3PIqINbskE_wmZ1OdfMjT-v7c"}'
 
 # 以下用 `wrangler secret put <NAME>` 单独设置，不要写在这个文件里：
 #   VAPID_PRIVATE_KEY_JWK
