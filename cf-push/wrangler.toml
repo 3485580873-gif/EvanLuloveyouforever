@@ -1,0 +1,21 @@
+name = "evan-push-backend"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# 每分钟检查一次有没有到点该推送的通知
+[triggers]
+crons = ["*/1 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "evan-push-db"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# 明文变量（非敏感）
+[vars]
+VAPID_PUBLIC_KEY = "REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY"
+
+# 以下用 `wrangler secret put <NAME>` 单独设置，不要写在这个文件里：
+#   VAPID_PRIVATE_KEY_JWK
+#   VAPID_SUBJECT       例如 mailto:you@example.com
+#   APP_SECRET          自己随便定的一串字符串，前端调接口时要带上，防止被外人乱用
