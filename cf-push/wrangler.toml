@@ -9,9 +9,6 @@ crons = ["*/1 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "evan-push-db"
-[[d1_databases]]
-binding = "DB"
-database_name = "evan-push-db"
 database_id = "61f857ad-0404-4d51-929d-273d8e988099"
 
 # 明文变量（非敏感）
