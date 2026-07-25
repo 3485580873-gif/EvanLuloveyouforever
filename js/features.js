@@ -689,6 +689,13 @@ function showPokeTab() {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-drag: none;
+            touch-action: manipulation;
         `;
         btn.addEventListener('mouseover', () => {
             btn.style.background = 'linear-gradient(135deg, rgba(var(--accent-color-rgb),0.12), rgba(var(--accent-color-rgb),0.06))';
@@ -714,47 +721,134 @@ function showPokeTab() {
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
             setTimeout(simulateReply, randomDelay);
         };
-        // 长按触发编辑/删除菜单
+        // 长按触发编辑/删除菜单（Pointer Events 兼容鼠标/触摸/触控笔）
         let longPressTimer = null;
         let longPressTriggered = false;
-        const startLongPress = (e) => {
-            longPressTriggered = false;
-            longPressTimer = setTimeout(() => {
-                longPressTriggered = true;
-                window._pokeLongPressActive = true;
-                // 震动反馈
-                if (navigator.vibrate) navigator.vibrate(15);
-                // 显示操作菜单
-                showPokeActionMenu(itemWrap, index, pokeText, e);
-            }, 500);
+        let longPressActive = false;
+        let startX = 0, startY = 0;
+        let pointerId = null;
+        const LONG_PRESS_DELAY = 500;
+        const MOVE_THRESHOLD = 15; // 移动超过15px才取消
+
+        const triggerLongPress = function(e) {
+            longPressTriggered = true;
+            longPressActive = true;
+            window._pokeLongPressActive = true;
+            if (navigator.vibrate) navigator.vibrate(20);
+            // 给按钮一个长按反馈
+            btn.style.transform = 'scale(0.97)';
+            btn.style.background = 'rgba(var(--accent-color-rgb), 0.15)';
+            setTimeout(() => {
+                btn.style.transform = '';
+                btn.style.background = '';
+            }, 150);
+            showPokeActionMenu(itemWrap, index, pokeText, e);
         };
-        const cancelLongPress = () => {
-            if (longPressTimer) {
+
+        const handlePointerDown = function(e) {
+            // 只响应主按键/主触摸
+            if (e.button !== undefined && e.button !== 0) return;
+            longPressTriggered = false;
+            longPressActive = false;
+            pointerId = e.pointerId;
+            startX = e.clientX;
+            startY = e.clientY;
+            longPressTimer = setTimeout(() => {
+                triggerLongPress(e);
+            }, LONG_PRESS_DELAY);
+        };
+
+        const handlePointerMove = function(e) {
+            if (!longPressTimer || e.pointerId !== pointerId) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
             }
         };
-        btn.addEventListener('touchstart', startLongPress, { passive: true });
-        btn.addEventListener('touchend', cancelLongPress);
-        btn.addEventListener('touchmove', cancelLongPress);
-        btn.addEventListener('touchcancel', cancelLongPress);
-        // 桌面端右键也能触发
-        btn.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            longPressTriggered = true;
-            window._pokeLongPressActive = true;
-            showPokeActionMenu(itemWrap, index, pokeText, e);
-        });
-        // 鼠标长按（桌面端）
-        btn.addEventListener('mousedown', startLongPress);
-        btn.addEventListener('mouseup', cancelLongPress);
-        btn.addEventListener('mouseleave', cancelLongPress);
-        // 点击时如果是长按触发的，阻止默认发送
-        btn.addEventListener('click', (e) => {
+
+        const handlePointerEnd = function(e) {
+            if (e.pointerId !== pointerId) return;
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            pointerId = null;
+            // 长按时阻止click
             if (longPressTriggered) {
+                longPressTriggered = false;
+            }
+        };
+
+        // Pointer Events（现代浏览器统一方案）
+        if (window.PointerEvent) {
+            btn.addEventListener('pointerdown', handlePointerDown);
+            btn.addEventListener('pointermove', handlePointerMove);
+            btn.addEventListener('pointerup', handlePointerEnd);
+            // pointercancel 不取消计时器（iOS 长按时系统可能会发 cancel 打断我们）
+            btn.addEventListener('pointercancel', function(e) {
+                // 不清除计时器，让它继续跑
+            });
+            btn.addEventListener('pointerleave', handlePointerEnd);
+        } else {
+            // 降级：触摸事件
+            btn.addEventListener('touchstart', function(e) {
+                if (e.touches.length !== 1) return;
+                handlePointerDown({
+                    pointerId: e.touches[0].identifier,
+                    clientX: e.touches[0].clientX,
+                    clientY: e.touches[0].clientY,
+                    button: 0
+                });
+            }, { passive: true });
+            btn.addEventListener('touchmove', function(e) {
+                if (!e.touches[0]) return;
+                handlePointerMove({
+                    pointerId: e.touches[0].identifier,
+                    clientX: e.touches[0].clientX,
+                    clientY: e.touches[0].clientY
+                });
+            }, { passive: true });
+            btn.addEventListener('touchend', function(e) {
+                handlePointerEnd({ pointerId: pointerId });
+            });
+            btn.addEventListener('touchcancel', function(e) {
+                handlePointerEnd({ pointerId: pointerId });
+            });
+            // 降级：鼠标事件
+            btn.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                handlePointerDown({ pointerId: 'mouse', clientX: e.clientX, clientY: e.clientY, button: 0 });
+            });
+            btn.addEventListener('mousemove', function(e) {
+                handlePointerMove({ pointerId: 'mouse', clientX: e.clientX, clientY: e.clientY });
+            });
+            btn.addEventListener('mouseup', function(e) {
+                handlePointerEnd({ pointerId: 'mouse' });
+            });
+            btn.addEventListener('mouseleave', function(e) {
+                handlePointerEnd({ pointerId: 'mouse' });
+            });
+        }
+        
+        // 阻止系统右键菜单和iOS长按选择菜单
+        btn.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        // 桌面端右键也能触发
+        btn.addEventListener('contextmenu', function(e) {
+            triggerLongPress(e);
+        });
+        
+        // 长按时阻止click发送消息（捕获阶段优先）
+        btn.addEventListener('click', function(e) {
+            if (longPressActive) {
                 e.stopPropagation();
                 e.preventDefault();
-                longPressTriggered = false;
+                longPressActive = false;
+                return false;
             }
         }, true);
         itemWrap.appendChild(btn);
@@ -770,18 +864,20 @@ function showPokeTab() {
         const menu = document.createElement('div');
         menu.id = 'poke-action-menu';
         menu.style.cssText = `
-            position: absolute;
-            z-index: 10000;
+            position: fixed;
+            z-index: 99999;
             background: var(--bg-primary, #fff);
-            border: 1px solid rgba(var(--accent-color-rgb, 150,100,200), 0.2);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border: 1px solid rgba(var(--accent-color-rgb, 150,100,200), 0.25);
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
             padding: 6px;
-            min-width: 120px;
+            min-width: 130px;
             display: flex;
             flex-direction: column;
             gap: 2px;
-            animation: pokeMenuFadeIn 0.18s ease-out;
+            animation: pokeMenuFadeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         `;
         // 加动画样式
         if (!document.getElementById('poke-menu-style')) {
@@ -859,26 +955,42 @@ function showPokeTab() {
 
         menu.appendChild(editBtn);
         menu.appendChild(delBtn);
-        document.body.appendChild(menu);
-
-        // 定位菜单到条目附近
+        // 定位菜单到条目附近（fixed 定位，直接用视口坐标）
         const rect = anchorEl.getBoundingClientRect();
+        // 先放到屏幕外获取尺寸
+        menu.style.top = '-9999px';
+        menu.style.left = '-9999px';
+        document.body.appendChild(menu);
+        
         const menuRect = menu.getBoundingClientRect();
-        let top = rect.top + window.scrollY + rect.height / 2 - menuRect.height / 2;
-        let left = rect.right + window.scrollX + 8;
+        const menuW = menuRect.width;
+        const menuH = menuRect.height;
+        
+        let top = rect.top + rect.height / 2 - menuH / 2;
+        let left = rect.right + 10;
 
         // 如果右边空间不够，放左边
-        if (left + menuRect.width > window.innerWidth - 10) {
-            left = rect.left + window.scrollX - menuRect.width - 8;
+        if (left + menuW > window.innerWidth - 12) {
+            left = rect.left - menuW - 10;
         }
-        // 如果上下超出
-        if (top < window.scrollY + 10) top = window.scrollY + 10;
-        if (top + menuRect.height > window.scrollY + window.innerHeight - 10) {
-            top = window.scrollY + window.innerHeight - menuRect.height - 10;
+        // 如果左边也不够，放下面
+        if (left < 12) {
+            left = rect.left + rect.width / 2 - menuW / 2;
+            top = rect.bottom + 8;
+        }
+        // 上下边界检查
+        if (top < 12) top = 12;
+        if (top + menuH > window.innerHeight - 12) {
+            top = window.innerHeight - menuH - 12;
+        }
+        // 左右再检查一次
+        if (left < 12) left = 12;
+        if (left + menuW > window.innerWidth - 12) {
+            left = window.innerWidth - menuW - 12;
         }
 
-        menu.style.top = top + 'px';
-        menu.style.left = left + 'px';
+        menu.style.top = Math.round(top) + 'px';
+        menu.style.left = Math.round(left) + 'px';
 
         // 点击其他地方关闭
         const closeMenu = (e) => {
