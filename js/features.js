@@ -659,7 +659,49 @@ function showPokeTab() {
     area.style.gap = '8px';
     
     const quickPokes = customPokes.slice(0, 6);
-    
+    const isEditMode = window._pokeEditMode === true;
+
+    // 顶部标题栏 + 管理按钮
+    const header = document.createElement('div');
+    header.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 4px;
+        margin-bottom: 4px;
+    `;
+    const title = document.createElement('span');
+    title.textContent = '快捷拍一拍';
+    title.style.cssText = `
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    `;
+    const manageBtn = document.createElement('button');
+    manageBtn.innerHTML = isEditMode
+        ? '<i class="fas fa-check"></i> 完成'
+        : '<i class="fas fa-sliders-h"></i> 管理';
+    manageBtn.style.cssText = `
+        padding: 5px 10px;
+        background: transparent;
+        border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--accent-color);
+        font-weight: 500;
+        transition: all 0.15s;
+        font-family: var(--font-family);
+    `;
+    manageBtn.onclick = function() {
+        window._pokeEditMode = !isEditMode;
+        showPokeTab();
+    };
+    header.appendChild(title);
+    header.appendChild(manageBtn);
+    area.appendChild(header);
+
     quickPokes.forEach((pokeText, index) => {
         const cleanPokeText = (typeof window._sanitizePokeTextForDisplay === 'function')
             ? window._sanitizePokeTextForDisplay(pokeText)
@@ -670,6 +712,9 @@ function showPokeTab() {
             align-items: center;
             gap: 6px;
             width: 100%;
+            animation: pokeItemIn 0.2s ease-out;
+            animation-delay: ${index * 0.03}s;
+            animation-fill-mode: both;
         `;
         const btn = document.createElement('button');
         btn.textContent = cleanPokeText;
@@ -689,13 +734,6 @@ function showPokeTab() {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-user-drag: none;
-            touch-action: manipulation;
         `;
         btn.addEventListener('mouseover', () => {
             btn.style.background = 'linear-gradient(135deg, rgba(var(--accent-color-rgb),0.12), rgba(var(--accent-color-rgb),0.06))';
@@ -708,8 +746,7 @@ function showPokeTab() {
             btn.style.transform = '';
         });
         btn.onclick = () => {
-            // 如果正在长按编辑模式，点击不发送
-            if (window._pokeLongPressActive) return;
+            if (isEditMode) return;
             addMessage({
                 id: Date.now(), 
                 text: _formatPokeText(`${settings.myName} ${cleanPokeText}`), 
@@ -721,257 +758,75 @@ function showPokeTab() {
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
             setTimeout(simulateReply, randomDelay);
         };
-        // 长按触发编辑/删除菜单（纯 touch + mouse 事件，兼容性最好）
-        var _lpTimer = null;
-        var _lpDone = false;
-        var _lpStartX = 0;
-        var _lpStartY = 0;
-        var _LP_DELAY = 550;
-        var _LP_MOVE = 20;
-
-        function _lpTrigger(e) {
-            if (_lpDone) return;
-            _lpDone = true;
-            window._pokeLongPressActive = true;
-            if (navigator.vibrate) navigator.vibrate(30);
-            // 视觉反馈
-            btn.style.transform = 'scale(0.96)';
-            btn.style.background = 'rgba(var(--accent-color-rgb), 0.18)';
-            setTimeout(function() {
-                btn.style.transform = '';
-                btn.style.background = '';
-            }, 200);
-            showPokeActionMenu(itemWrap, index, pokeText, e);
-        }
-
-        function _lpStart(e) {
-            _lpDone = false;
-            window._pokeLongPressActive = false;
-            var t = e.touches ? e.touches[0] : e;
-            _lpStartX = t.clientX;
-            _lpStartY = t.clientY;
-            _lpTimer = setTimeout(function() {
-                _lpTrigger(e);
-            }, _LP_DELAY);
-        }
-
-        function _lpMove(e) {
-            if (!_lpTimer || _lpDone) return;
-            var t = e.touches ? e.touches[0] : e;
-            if (Math.abs(t.clientX - _lpStartX) > _LP_MOVE ||
-                Math.abs(t.clientY - _lpStartY) > _LP_MOVE) {
-                clearTimeout(_lpTimer);
-                _lpTimer = null;
-            }
-        }
-
-        function _lpEnd(e) {
-            if (_lpTimer) {
-                clearTimeout(_lpTimer);
-                _lpTimer = null;
-            }
-            if (_lpDone) {
-                // 是长按触发的，阻止click
-                _lpDone = false;
-                if (e && e.preventDefault) e.preventDefault();
-                if (e && e.stopPropagation) e.stopPropagation();
-                return false;
-            }
-        }
-
-        // 触摸事件（移动端）
-        btn.addEventListener('touchstart', _lpStart, { passive: true });
-        btn.addEventListener('touchmove', _lpMove, { passive: true });
-        btn.addEventListener('touchend', _lpEnd);
-        btn.addEventListener('touchcancel', function() {
-            if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-        });
-        
-        // 鼠标事件（桌面端）
-        btn.addEventListener('mousedown', function(e) {
-            if (e.button !== 0) return;
-            _lpStart(e);
-        });
-        btn.addEventListener('mousemove', _lpMove);
-        btn.addEventListener('mouseup', _lpEnd);
-        btn.addEventListener('mouseleave', function() {
-            if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-        });
-        
-        // 右键也能触发（桌面端）
-        btn.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            _lpTrigger(e);
-            return false;
-        });
-        
-        // 捕获阶段阻止长按后的click
-        btn.addEventListener('click', function(e) {
-            if (window._pokeLongPressActive) {
-                e.stopPropagation();
-                e.preventDefault();
-                window._pokeLongPressActive = false;
-                return false;
-            }
-        }, true);
         itemWrap.appendChild(btn);
+
+        // 编辑模式下显示编辑和删除按钮
+        if (isEditMode) {
+            const editBtn = document.createElement('button');
+            editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+            editBtn.title = '编辑';
+            editBtn.style.cssText = `
+                width: 36px;
+                height: 36px;
+                flex-shrink: 0;
+                background: rgba(var(--accent-color-rgb), 0.1);
+                border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+                border-radius: 10px;
+                cursor: pointer;
+                color: var(--accent-color);
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s;
+            `;
+            editBtn.onclick = function(e) {
+                e.stopPropagation();
+                var inputEl = DOMElements.pokeModal.input;
+                if (inputEl) inputEl.value = pokeText;
+                var quickRadio = document.getElementById('poke-save-quick');
+                var libRadio = document.getElementById('poke-save-library');
+                if (quickRadio) quickRadio.checked = true;
+                if (libRadio) libRadio.checked = false;
+                window._editingPokeIndex = index;
+                document.getElementById('user-sticker-picker').classList.remove('active');
+                showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
+            };
+            const delBtn = document.createElement('button');
+            delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            delBtn.title = '删除';
+            delBtn.style.cssText = `
+                width: 36px;
+                height: 36px;
+                flex-shrink: 0;
+                background: rgba(255, 80, 80, 0.08);
+                border: 1px solid rgba(255, 80, 80, 0.2);
+                border-radius: 10px;
+                cursor: pointer;
+                color: #ff5050;
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s;
+            `;
+            delBtn.onclick = function(e) {
+                e.stopPropagation();
+                if (!confirm('确定删除这个快捷拍一拍吗？')) return;
+                customPokes.splice(index, 1);
+                if (typeof throttledSaveData === 'function') throttledSaveData();
+                if (typeof window.saveCustomPokesToDB === 'function') window.saveCustomPokesToDB();
+                showPokeTab();
+            };
+            itemWrap.appendChild(editBtn);
+            itemWrap.appendChild(delBtn);
+        }
+
         area.appendChild(itemWrap);
     });
     
-    // 拍一拍操作菜单函数
-    function showPokeActionMenu(anchorEl, index, pokeText, event) {
-        // 移除已有的菜单
-        const oldMenu = document.getElementById('poke-action-menu');
-        if (oldMenu) oldMenu.remove();
-
-        const menu = document.createElement('div');
-        menu.id = 'poke-action-menu';
-        menu.style.cssText = `
-            position: fixed;
-            z-index: 99999;
-            background: var(--bg-primary, #fff);
-            border: 1px solid rgba(var(--accent-color-rgb, 150,100,200), 0.25);
-            border-radius: 14px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
-            padding: 6px;
-            min-width: 130px;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            animation: pokeMenuFadeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        `;
-        // 加动画样式
-        if (!document.getElementById('poke-menu-style')) {
-            const style = document.createElement('style');
-            style.id = 'poke-menu-style';
-            style.textContent = `
-                @keyframes pokeMenuFadeIn {
-                    from { opacity: 0; transform: translateY(-4px) scale(0.96); }
-                    to { opacity: 1; transform: translateY(0) scale(1); }
-                }
-                .poke-action-btn {
-                    padding: 10px 14px;
-                    border: none;
-                    background: transparent;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    text-align: left;
-                    font-size: 13px;
-                    color: var(--text-primary, #333);
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    transition: background 0.15s;
-                    font-family: var(--font-family);
-                }
-                .poke-action-btn:hover {
-                    background: rgba(var(--accent-color-rgb, 150,100,200), 0.08);
-                }
-                .poke-action-btn.danger:hover {
-                    background: rgba(255, 80, 80, 0.1);
-                    color: #ff5050;
-                }
-                .poke-action-btn i {
-                    width: 16px;
-                    text-align: center;
-                    font-size: 12px;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // 编辑按钮
-        const editBtn = document.createElement('button');
-        editBtn.className = 'poke-action-btn';
-        editBtn.innerHTML = '<i class="fas fa-pen"></i> 编辑';
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            menu.remove();
-            window._pokeLongPressActive = false;
-            var inputEl = DOMElements.pokeModal.input;
-            if (inputEl) inputEl.value = pokeText;
-            var quickRadio = document.getElementById('poke-save-quick');
-            var libRadio = document.getElementById('poke-save-library');
-            if (quickRadio) quickRadio.checked = true;
-            if (libRadio) libRadio.checked = false;
-            window._editingPokeIndex = index;
-            document.getElementById('user-sticker-picker').classList.remove('active');
-            showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
-        };
-
-        // 删除按钮
-        const delBtn = document.createElement('button');
-        delBtn.className = 'poke-action-btn danger';
-        delBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            menu.remove();
-            window._pokeLongPressActive = false;
-            if (!confirm('确定删除这个快捷拍一拍吗？')) return;
-            customPokes.splice(index, 1);
-            if (typeof throttledSaveData === 'function') throttledSaveData();
-            if (typeof window.saveCustomPokesToDB === 'function') window.saveCustomPokesToDB();
-            showPokeTab();
-        };
-
-        menu.appendChild(editBtn);
-        menu.appendChild(delBtn);
-        // 定位菜单到条目附近（fixed 定位，直接用视口坐标）
-        const rect = anchorEl.getBoundingClientRect();
-        // 先放到屏幕外获取尺寸
-        menu.style.top = '-9999px';
-        menu.style.left = '-9999px';
-        document.body.appendChild(menu);
-        
-        const menuRect = menu.getBoundingClientRect();
-        const menuW = menuRect.width;
-        const menuH = menuRect.height;
-        
-        let top = rect.top + rect.height / 2 - menuH / 2;
-        let left = rect.right + 10;
-
-        // 如果右边空间不够，放左边
-        if (left + menuW > window.innerWidth - 12) {
-            left = rect.left - menuW - 10;
-        }
-        // 如果左边也不够，放下面
-        if (left < 12) {
-            left = rect.left + rect.width / 2 - menuW / 2;
-            top = rect.bottom + 8;
-        }
-        // 上下边界检查
-        if (top < 12) top = 12;
-        if (top + menuH > window.innerHeight - 12) {
-            top = window.innerHeight - menuH - 12;
-        }
-        // 左右再检查一次
-        if (left < 12) left = 12;
-        if (left + menuW > window.innerWidth - 12) {
-            left = window.innerWidth - menuW - 12;
-        }
-
-        menu.style.top = Math.round(top) + 'px';
-        menu.style.left = Math.round(left) + 'px';
-
-        // 点击其他地方关闭
-        const closeMenu = (e) => {
-            if (!menu.contains(e.target)) {
-                menu.remove();
-                window._pokeLongPressActive = false;
-                document.removeEventListener('click', closeMenu, true);
-                document.removeEventListener('touchstart', closeMenu, true);
-            }
-        };
-        setTimeout(() => {
-            document.addEventListener('click', closeMenu, true);
-            document.addEventListener('touchstart', closeMenu, true);
-        }, 10);
-    }
-    
     const customBtn = document.createElement('button');
-    customBtn.innerHTML = '<i class="fas fa-edit"></i> 自定义拍一拍';
+    customBtn.innerHTML = '<i class="fas fa-plus"></i> 自定义拍一拍';
     customBtn.style.cssText = `
         padding: 11px 14px;
         background: linear-gradient(135deg, var(--accent-color), rgba(var(--accent-color-rgb),0.8));
@@ -984,14 +839,30 @@ function showPokeTab() {
         width: 100%;
         letter-spacing: 0.3px;
         margin-top: 4px;
-        box-shadow: 0 4px 14px rgba(var(--accent-color-rgb), 0.25);
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.25);
+        font-family: var(--font-family);
     `;
     customBtn.onclick = () => {
+        window._editingPokeIndex = -1;
         document.getElementById('user-sticker-picker').classList.remove('active');
         showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
     };
     area.appendChild(customBtn);
+
+    if (!document.getElementById('poke-tab-style')) {
+        var s = document.createElement('style');
+        s.id = 'poke-tab-style';
+        s.textContent = `
+            @keyframes pokeItemIn {
+                from { opacity: 0; transform: translateY(6px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(s);
+    }
 }
+
         function initCoreListeners() {
 
 
