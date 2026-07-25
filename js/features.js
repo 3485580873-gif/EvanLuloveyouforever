@@ -721,133 +721,96 @@ function showPokeTab() {
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
             setTimeout(simulateReply, randomDelay);
         };
-        // 长按触发编辑/删除菜单（Pointer Events 兼容鼠标/触摸/触控笔）
-        let longPressTimer = null;
-        let longPressTriggered = false;
-        let longPressActive = false;
-        let startX = 0, startY = 0;
-        let pointerId = null;
-        const LONG_PRESS_DELAY = 500;
-        const MOVE_THRESHOLD = 15; // 移动超过15px才取消
+        // 长按触发编辑/删除菜单（纯 touch + mouse 事件，兼容性最好）
+        var _lpTimer = null;
+        var _lpDone = false;
+        var _lpStartX = 0;
+        var _lpStartY = 0;
+        var _LP_DELAY = 550;
+        var _LP_MOVE = 20;
 
-        const triggerLongPress = function(e) {
-            longPressTriggered = true;
-            longPressActive = true;
+        function _lpTrigger(e) {
+            if (_lpDone) return;
+            _lpDone = true;
             window._pokeLongPressActive = true;
-            if (navigator.vibrate) navigator.vibrate(20);
-            // 给按钮一个长按反馈
-            btn.style.transform = 'scale(0.97)';
-            btn.style.background = 'rgba(var(--accent-color-rgb), 0.15)';
-            setTimeout(() => {
+            if (navigator.vibrate) navigator.vibrate(30);
+            // 视觉反馈
+            btn.style.transform = 'scale(0.96)';
+            btn.style.background = 'rgba(var(--accent-color-rgb), 0.18)';
+            setTimeout(function() {
                 btn.style.transform = '';
                 btn.style.background = '';
-            }, 150);
+            }, 200);
             showPokeActionMenu(itemWrap, index, pokeText, e);
-        };
-
-        const handlePointerDown = function(e) {
-            // 只响应主按键/主触摸
-            if (e.button !== undefined && e.button !== 0) return;
-            longPressTriggered = false;
-            longPressActive = false;
-            pointerId = e.pointerId;
-            startX = e.clientX;
-            startY = e.clientY;
-            longPressTimer = setTimeout(() => {
-                triggerLongPress(e);
-            }, LONG_PRESS_DELAY);
-        };
-
-        const handlePointerMove = function(e) {
-            if (!longPressTimer || e.pointerId !== pointerId) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-        };
-
-        const handlePointerEnd = function(e) {
-            if (e.pointerId !== pointerId) return;
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            pointerId = null;
-            // 长按时阻止click
-            if (longPressTriggered) {
-                longPressTriggered = false;
-            }
-        };
-
-        // Pointer Events（现代浏览器统一方案）
-        if (window.PointerEvent) {
-            btn.addEventListener('pointerdown', handlePointerDown);
-            btn.addEventListener('pointermove', handlePointerMove);
-            btn.addEventListener('pointerup', handlePointerEnd);
-            // pointercancel 不取消计时器（iOS 长按时系统可能会发 cancel 打断我们）
-            btn.addEventListener('pointercancel', function(e) {
-                // 不清除计时器，让它继续跑
-            });
-            btn.addEventListener('pointerleave', handlePointerEnd);
-        } else {
-            // 降级：触摸事件
-            btn.addEventListener('touchstart', function(e) {
-                if (e.touches.length !== 1) return;
-                handlePointerDown({
-                    pointerId: e.touches[0].identifier,
-                    clientX: e.touches[0].clientX,
-                    clientY: e.touches[0].clientY,
-                    button: 0
-                });
-            }, { passive: true });
-            btn.addEventListener('touchmove', function(e) {
-                if (!e.touches[0]) return;
-                handlePointerMove({
-                    pointerId: e.touches[0].identifier,
-                    clientX: e.touches[0].clientX,
-                    clientY: e.touches[0].clientY
-                });
-            }, { passive: true });
-            btn.addEventListener('touchend', function(e) {
-                handlePointerEnd({ pointerId: pointerId });
-            });
-            btn.addEventListener('touchcancel', function(e) {
-                handlePointerEnd({ pointerId: pointerId });
-            });
-            // 降级：鼠标事件
-            btn.addEventListener('mousedown', function(e) {
-                if (e.button !== 0) return;
-                handlePointerDown({ pointerId: 'mouse', clientX: e.clientX, clientY: e.clientY, button: 0 });
-            });
-            btn.addEventListener('mousemove', function(e) {
-                handlePointerMove({ pointerId: 'mouse', clientX: e.clientX, clientY: e.clientY });
-            });
-            btn.addEventListener('mouseup', function(e) {
-                handlePointerEnd({ pointerId: 'mouse' });
-            });
-            btn.addEventListener('mouseleave', function(e) {
-                handlePointerEnd({ pointerId: 'mouse' });
-            });
         }
+
+        function _lpStart(e) {
+            _lpDone = false;
+            window._pokeLongPressActive = false;
+            var t = e.touches ? e.touches[0] : e;
+            _lpStartX = t.clientX;
+            _lpStartY = t.clientY;
+            _lpTimer = setTimeout(function() {
+                _lpTrigger(e);
+            }, _LP_DELAY);
+        }
+
+        function _lpMove(e) {
+            if (!_lpTimer || _lpDone) return;
+            var t = e.touches ? e.touches[0] : e;
+            if (Math.abs(t.clientX - _lpStartX) > _LP_MOVE ||
+                Math.abs(t.clientY - _lpStartY) > _LP_MOVE) {
+                clearTimeout(_lpTimer);
+                _lpTimer = null;
+            }
+        }
+
+        function _lpEnd(e) {
+            if (_lpTimer) {
+                clearTimeout(_lpTimer);
+                _lpTimer = null;
+            }
+            if (_lpDone) {
+                // 是长按触发的，阻止click
+                _lpDone = false;
+                if (e && e.preventDefault) e.preventDefault();
+                if (e && e.stopPropagation) e.stopPropagation();
+                return false;
+            }
+        }
+
+        // 触摸事件（移动端）
+        btn.addEventListener('touchstart', _lpStart, { passive: true });
+        btn.addEventListener('touchmove', _lpMove, { passive: true });
+        btn.addEventListener('touchend', _lpEnd);
+        btn.addEventListener('touchcancel', function() {
+            if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+        });
         
-        // 阻止系统右键菜单和iOS长按选择菜单
+        // 鼠标事件（桌面端）
+        btn.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return;
+            _lpStart(e);
+        });
+        btn.addEventListener('mousemove', _lpMove);
+        btn.addEventListener('mouseup', _lpEnd);
+        btn.addEventListener('mouseleave', function() {
+            if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+        });
+        
+        // 右键也能触发（桌面端）
         btn.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            _lpTrigger(e);
             return false;
         });
-        // 桌面端右键也能触发
-        btn.addEventListener('contextmenu', function(e) {
-            triggerLongPress(e);
-        });
         
-        // 长按时阻止click发送消息（捕获阶段优先）
+        // 捕获阶段阻止长按后的click
         btn.addEventListener('click', function(e) {
-            if (longPressActive) {
+            if (window._pokeLongPressActive) {
                 e.stopPropagation();
                 e.preventDefault();
-                longPressActive = false;
+                window._pokeLongPressActive = false;
                 return false;
             }
         }, true);
