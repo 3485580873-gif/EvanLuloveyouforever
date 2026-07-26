@@ -188,7 +188,7 @@
  * 解决：切到抖音等音频App后，保活被抢导致消息不及时
  * 原理：
  *   1. 混合音频模式 (audioSession mixWithOthers) —— 不跟抖音抢焦点，各播各的
- *   2. <audio> 标签 + MediaSession —— 让系统知道"这是个媒体App"，提高后台优先级
+ *   2.  标签 + MediaSession —— 让系统知道"这是个媒体App"，提高后台优先级
  *   3. Web Audio API 无声振荡器 —— 第二道保险，实时音频上下文更抗挂起
  *   4. 多事件监听 + 快速巡检 —— 被暂停后秒级恢复
  */
@@ -200,10 +200,8 @@
     var _oscNode = null;
     var _gainNode = null;
     var _unlockBound = false;
-
     function _get() { return localStorage.getItem(KEY) === 'true'; }
-
-    // ── 引擎1：<audio>标签（占MediaSession，让系统识别为媒体App）──
+    // ── 引擎1：标签（占MediaSession，让系统识别为媒体App）──
     function _createAudio() {
         if (_audio) return _audio;
         _audio = new Audio(SRC);
@@ -215,7 +213,6 @@
         _audio.setAttribute('webkit-playsinline', '');
         _audio.addEventListener('play',  function(){ _updateMediaSession('playing'); });
         _audio.addEventListener('pause', function(){ _updateMediaSession('paused'); });
-
         // 被其他App抢走音频焦点后，立刻尝试恢复（混合模式下应该能直接续上）
         _audio.addEventListener('interruptionbegin', function(){
             // 被中断了，等下一次巡检恢复
@@ -227,7 +224,6 @@
         });
         return _audio;
     }
-
     // ── 引擎2：Web Audio 无声振荡器（更抗挂起的第二道保险）──
     function _createWebAudio() {
         try {
@@ -242,7 +238,6 @@
             _oscNode.connect(_gainNode);
             _gainNode.connect(_audioCtx.destination);
             _oscNode.start();
-
             // 监听音频上下文被挂起
             _audioCtx.onstatechange = function() {
                 if (_audioCtx.state === 'suspended' && _get()) {
@@ -254,7 +249,6 @@
             return null;
         }
     }
-
     function _startWebAudio() {
         try {
             var ctx = _createWebAudio();
@@ -263,7 +257,6 @@
             }
         } catch (e) {}
     }
-
     function _stopWebAudio() {
         try {
             if (_audioCtx && _audioCtx.state === 'running') {
@@ -271,11 +264,9 @@
             }
         } catch (e) {}
     }
-
     function _isWebAudioRunning() {
         return _audioCtx && _audioCtx.state === 'running';
     }
-
     // ── 混合音频模式：用 ambient 环境音类型，不干扰其他App ──
     // 关键：type='ambient'（环境音）比 'playback'（播放）更低调，
     // 系统和其他App都不当成"正在播放媒体"，抖音不会检测到就暂停。
@@ -283,7 +274,7 @@
     function _setupAudioSession() {
         try {
             if ('audioSession' in navigator) {
-                // ambient = 环境背景音，被静音键控制、不打断其他App
+                // ambient = 环境音，被静音键控制、不打断其他App
                 navigator.audioSession.type = 'ambient';
                 if ('mixWithOthers' in navigator.audioSession) {
                     navigator.audioSession.mixWithOthers = true;
@@ -294,7 +285,6 @@
             }
         } catch (e) {}
     }
-
     // ── Media Session：告诉系统"这是一个正在播放媒体的App"──
     function _updateMediaSession(state) {
         try {
@@ -319,19 +309,16 @@
             navigator.mediaSession.playbackState = state;
         } catch (e) {}
     }
-
     function _isPlaying() {
         var audioOk = _audio && !_audio.paused && !_audio.ended;
         var webAudioOk = _isWebAudioRunning();
         return audioOk || webAudioOk;
     }
-
     function _setUI(playing) {
         var dot  = document.getElementById('keepalive-dot');
         var desc = document.getElementById('keepalive-audio-desc');
         var sw   = document.getElementById('keepalive-audio-switch');
         var row  = document.getElementById('keepalive-bar-row');
-
         if (sw)   sw.classList.toggle('active', _get());
         if (dot) {
             dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
@@ -345,12 +332,10 @@
         var bars = document.querySelectorAll('.keepalive-wave-bar');
         bars.forEach(function(b){ b.style.animationPlayState = playing ? 'running' : 'paused'; });
     }
-
     function _startAll() {
         // 设置混合音频模式
         _setupAudioSession();
-
-        // 引擎1：<audio> 标签
+        // 引擎1： 标签
         var a = _createAudio();
         var p = a.play();
         if (p && p.then) {
@@ -370,19 +355,15 @@
                 }
             });
         }
-
         // 引擎2：Web Audio 振荡器
         _startWebAudio();
-
         _setUI(true);
     }
-
     function _stopAll() {
         if (_audio) { _audio.pause(); _audio.currentTime = 0; }
         _stopWebAudio();
         _setUI(false);
     }
-
     window._toggleKeepaliveAudio = function() {
         var next = !_get();
         localStorage.setItem(KEY, String(next));
@@ -398,28 +379,23 @@
             }
         }
     };
-
     // ── 快速巡检：被暂停了就立刻恢复（2秒一次，后台也尽量跑）──
     setInterval(function(){
         if (!_get()) return;
-
         // 引擎1 巡检
         if (_audio && _audio.paused) {
             _setupAudioSession();
             _audio.play().catch(function(){});
         }
-
         // 引擎2 巡检
         if (_audioCtx && _audioCtx.state === 'suspended') {
             _audioCtx.resume().catch(function(){});
         }
-
         // UI 同步
         var playing = _isPlaying();
         var dot = document.getElementById('keepalive-dot');
         if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
     }, 2000);
-
     // 页面可见性变化时恢复
     document.addEventListener('visibilitychange', function(){
         if (_get() && document.visibilityState === 'visible') {
@@ -428,7 +404,6 @@
             _startWebAudio();
         }
     });
-
     // 页面获得焦点时恢复
     window.addEventListener('focus', function(){
         if (_get()) {
@@ -437,7 +412,6 @@
             _startWebAudio();
         }
     });
-
     // 触摸/点击时也补一下（iOS 有时候需要用户手势才能重新播放）
     document.addEventListener('touchstart', function(){
         if (_get()) {
@@ -448,7 +422,6 @@
             _startWebAudio();
         }
     }, { passive: true });
-
     document.addEventListener('DOMContentLoaded', function(){
         _setUI(false);
         if (_get()) {
@@ -456,7 +429,6 @@
             setTimeout(_startAll, 800);
         }
     });
-
     setTimeout(function(){
         if (_get()) _startAll();
     }, 2000);
