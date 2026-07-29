@@ -1638,6 +1638,46 @@ if (!isBatchMode && type === 'system') {
             window._pendingReplyTimer = null;
             simulateReply();
         }, randomDelay);
+        // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + randomDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    } else {
+        // 已读不回：先标记已读，过 3~10 分钟再回
+        const lateReplyDelay = 3 * 60 * 1000 + Math.random() * 7 * 60 * 1000;
+        const typingDelay = 3000 + Math.random() * 5000;
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            if (settings.typingIndicatorEnabled) {
+                const tiWrapper = document.getElementById('typing-indicator-wrapper');
+                const tiLabel = document.getElementById('typing-indicator-label');
+                const tiAvatar = document.getElementById('typing-indicator-avatar');
+                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+                if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+                if (tiAvatar) {
+                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+                }
+                if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            }
+            setTimeout(() => { simulateReply(); }, typingDelay);
+        }, lateReplyDelay);
+        // 后台推送：已读不回的延迟回复也登记一下
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + lateReplyDelay + typingDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
     }
 }
 
@@ -1683,6 +1723,46 @@ if (!isBatchMode && type === 'normal') {
             window._pendingReplyTimer = null;
             simulateReply();
         }, randomDelay);
+        // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + randomDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    } else {
+        // 已读不回：先标记已读，过 3~10 分钟再回
+        const lateReplyDelay = 3 * 60 * 1000 + Math.random() * 7 * 60 * 1000;
+        const typingDelay = 3000 + Math.random() * 5000;
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            if (settings.typingIndicatorEnabled) {
+                const tiWrapper = document.getElementById('typing-indicator-wrapper');
+                const tiLabel = document.getElementById('typing-indicator-label');
+                const tiAvatar = document.getElementById('typing-indicator-avatar');
+                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+                if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+                if (tiAvatar) {
+                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+                }
+                if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            }
+            setTimeout(() => { simulateReply(); }, typingDelay);
+        }, lateReplyDelay);
+        // 后台推送：已读不回的延迟回复也登记一下
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + lateReplyDelay + typingDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
     }
 }
 };
@@ -1772,7 +1852,18 @@ if (!isBatchMode && type === 'normal') {
             });
             const delayRange = settings.replyDelayMax - settings.replyDelayMin;
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-            setTimeout(simulateReply, batchMessages.length * 300 + randomDelay);
+            const batchReplyDelay = batchMessages.length * 300 + randomDelay;
+            // 后台推送：批量发送后的回复也登记一下
+            if (window.pushNotify) {
+                window._pendingPushTag = 'chat_reply_' + Date.now();
+                window.pushNotify.schedule(
+                    window._pendingPushTag,
+                    Date.now() + batchReplyDelay,
+                    (settings.partnerName || '对方'),
+                    '给你发来一条消息～'
+                );
+            }
+            setTimeout(simulateReply, batchReplyDelay);
             isBatchMode = false; batchMessages = [];
             DOMElements.batchBtn.classList.remove('active'); DOMElements.batchPreview.style.display = 'none';
             const placeholder = "";
@@ -1804,6 +1895,12 @@ if (!isBatchMode && type === 'normal') {
         })();
 
         window.simulateReply = function() {
+            // 消息已经实际生成了，取消后台推送（避免重复通知）
+            if (window.pushNotify && window._pendingPushTag) {
+                window.pushNotify.cancel(window._pendingPushTag);
+                window._pendingPushTag = null;
+            }
+
             function showTypingIndicator() {
                 if (!settings.typingIndicatorEnabled) return;
                 const tiWrapper = document.getElementById('typing-indicator-wrapper');

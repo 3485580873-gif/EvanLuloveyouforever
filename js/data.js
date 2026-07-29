@@ -712,11 +712,42 @@ document.addEventListener('DOMContentLoaded', function() {
 // 这时候 document.hidden 其实已经变成 false 了（因为你已经在看着屏幕），
 // 如果严格按"只有在后台才通知"来判断，这种"刚补上的消息"就永远不会有通知提醒你，
 // 但实际上这条消息发生的时间点，用户体感上就是"我不在的时候他发的"。
-// 所以这里额外记录一个短暂的宽限期：切回前台之后的几秒内产生的消息，也照样弹通知。
+// 所以这里额外记录一个宽限期：切回前台之后一段时间内产生的消息，也照样弹通知。
 window._lastBecameVisibleAt = 0;
+window._lastBecameHiddenAt = 0;
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') {
+        const wasHiddenFor = window._lastBecameHiddenAt ? (Date.now() - window._lastBecameHiddenAt) : 0;
         window._lastBecameVisibleAt = Date.now();
+        // 切回前台时，补查一下有没有"后台期间对方发了但没弹通知"的消息
+        // （iOS 后台杀进程/定时器暂停，消息是切回来才补跑出来的）
+        if (wasHiddenFor > 10 * 1000 && typeof messages !== 'undefined' && messages.length > 0) {
+            try {
+                const cutoff = Date.now() - Math.min(wasHiddenFor + 30000, 5 * 60 * 1000);
+                const hiddenMsgs = messages.filter(function(m) {
+                    return m.sender !== 'user' && m.sender !== null && m.type !== 'system'
+                        && new Date(m.timestamp).getTime() > cutoff;
+                });
+                if (hiddenMsgs.length > 0 && localStorage.getItem('notifEnabled') === '1'
+                    && 'Notification' in window && Notification.permission === 'granted') {
+                    const last = hiddenMsgs[hiddenMsgs.length - 1];
+                    const preview = last.text ? (last.text.length > 50 ? last.text.substring(0, 50) + '…' : last.text) : '[新消息]';
+                    const title = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
+                    const body = hiddenMsgs.length > 1
+                        ? hiddenMsgs.length + ' 条新消息 · ' + preview
+                        : preview;
+                    var n = new Notification(title, {
+                        body: body,
+                        icon: (document.querySelector('#partner-avatar img') || {}).src,
+                        tag: 'partner-msg',
+                        renotify: true
+                    });
+                    n.onclick = function() { try { window.focus(); } catch(e) {} n.close(); };
+                }
+            } catch(e) {}
+        }
+    } else if (document.visibilityState === 'hidden') {
+        window._lastBecameHiddenAt = Date.now();
     }
 });
 
@@ -725,7 +756,8 @@ window._sendPartnerNotification = function(title, body) {
         if (localStorage.getItem('notifEnabled') !== '1') return;
         if (!('Notification' in window)) return;
         if (Notification.permission !== 'granted') return;
-        const justResumed = window._lastBecameVisibleAt && (Date.now() - window._lastBecameVisibleAt < 4000);
+        // 宽限期从 4 秒延长到 20 秒：iOS 切回前台后定时器恢复 + 消息生成需要时间
+        const justResumed = window._lastBecameVisibleAt && (Date.now() - window._lastBecameVisibleAt < 20000);
         if (!document.hidden && !justResumed) return;
         const n = new Notification(title || '传讯', {
             body: body || '对方发来了消息',
