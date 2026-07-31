@@ -564,6 +564,10 @@ fileInput.addEventListener('change', function(e) {
                         if (currentAvatarData) {
                             updateAvatar(isPartner ? DOMElements.partner.avatar: DOMElements.me.avatar, currentAvatarData);
                             throttledSaveData();
+                            // 重新渲染消息列表，更新所有消息中的头像
+                            if (typeof renderMessages === 'function') {
+                                renderMessages();
+                            }
                             showNotification('头像已更新', 'success');
                             hideModal(modal.modal);
                         }
