@@ -1640,7 +1640,7 @@ if (!isBatchMode && type === 'system') {
         }, randomDelay);
         // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
         if (window.pushNotify) {
-            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window._pendingPushTag = 'chat_reply_next';
             window.pushNotify.schedule(
                 window._pendingPushTag,
                 Date.now() + randomDelay,
@@ -1670,7 +1670,7 @@ if (!isBatchMode && type === 'system') {
         }, lateReplyDelay);
         // 后台推送：已读不回的延迟回复也登记一下
         if (window.pushNotify) {
-            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window._pendingPushTag = 'chat_reply_next';
             window.pushNotify.schedule(
                 window._pendingPushTag,
                 Date.now() + lateReplyDelay + typingDelay,
@@ -1725,7 +1725,7 @@ if (!isBatchMode && type === 'normal') {
         }, randomDelay);
         // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
         if (window.pushNotify) {
-            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window._pendingPushTag = 'chat_reply_next';
             window.pushNotify.schedule(
                 window._pendingPushTag,
                 Date.now() + randomDelay,
@@ -1755,7 +1755,7 @@ if (!isBatchMode && type === 'normal') {
         }, lateReplyDelay);
         // 后台推送：已读不回的延迟回复也登记一下
         if (window.pushNotify) {
-            window._pendingPushTag = 'chat_reply_' + Date.now();
+            window._pendingPushTag = 'chat_reply_next';
             window.pushNotify.schedule(
                 window._pendingPushTag,
                 Date.now() + lateReplyDelay + typingDelay,
@@ -1855,7 +1855,7 @@ if (!isBatchMode && type === 'normal') {
             const batchReplyDelay = batchMessages.length * 300 + randomDelay;
             // 后台推送：批量发送后的回复也登记一下
             if (window.pushNotify) {
-                window._pendingPushTag = 'chat_reply_' + Date.now();
+                window._pendingPushTag = 'chat_reply_next';
                 window.pushNotify.schedule(
                     window._pendingPushTag,
                     Date.now() + batchReplyDelay,
