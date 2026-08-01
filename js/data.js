@@ -200,11 +200,7 @@
         var bar = g('dm-storage-bar');
         if (bar) {
             bar.style.width = pct.toFixed(1) + '%';
-            bar.style.background = pct > 80
-                ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
-                : pct > 50
-                ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
-                : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
+            bar.style.background = 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
         }
         if (g('dm-storage-total')) g('dm-storage-total').textContent = fmt(total) + ' / ~5 MB';
         if (g('dm-stat-msgs'))     g('dm-stat-msgs').textContent     = fmt(msgs);

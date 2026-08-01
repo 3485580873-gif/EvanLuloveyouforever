@@ -584,19 +584,70 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         pill.style.right  = 'auto'; pill.style.bottom = 'auto';
     }
 
+    const CALL_EVENT_QUEUE_KEY = 'callEventQueue';
+
+    function flushCallEventQueue() {
+        let queue = [];
+        try {
+            const raw = localStorage.getItem(CALL_EVENT_QUEUE_KEY);
+            if (raw) queue = JSON.parse(raw);
+        } catch (e) { queue = []; }
+        if (!queue || !queue.length) return;
+        if (typeof window._addCallEvent !== 'function') return;
+
+        const remaining = [];
+        for (const ev of queue) {
+            try {
+                window._addCallEvent(ev.icon, ev.label, ev.detail);
+            } catch (e) {
+                remaining.push(ev);
+            }
+        }
+        try {
+            if (remaining.length) {
+                localStorage.setItem(CALL_EVENT_QUEUE_KEY, JSON.stringify(remaining));
+            } else {
+                localStorage.removeItem(CALL_EVENT_QUEUE_KEY);
+            }
+        } catch (e) {}
+    }
+
+    function enqueueCallEvent(icon, label, detail) {
+        let queue = [];
+        try {
+            const raw = localStorage.getItem(CALL_EVENT_QUEUE_KEY);
+            if (raw) queue = JSON.parse(raw);
+        } catch (e) { queue = []; }
+        if (!Array.isArray(queue)) queue = [];
+        queue.push({ icon, label, detail, ts: Date.now() });
+        try {
+            localStorage.setItem(CALL_EVENT_QUEUE_KEY, JSON.stringify(queue));
+        } catch (e) {}
+    }
+
     function sendCallEvent(icon, label, detail) {
         if (typeof window._addCallEvent === 'function') {
-            window._addCallEvent(icon, label, detail);
-        } else {
-            let tries = 0;
-            const t = setInterval(() => {
-                if (typeof window._addCallEvent === 'function') {
-                    clearInterval(t);
-                    window._addCallEvent(icon, label, detail);
-                }
-                if (++tries > 25) clearInterval(t);
-            }, 200);
+            try {
+                window._addCallEvent(icon, label, detail);
+                return;
+            } catch (e) {
+                // 调用失败也走队列
+            }
         }
+        // 先入持久化队列，确保不会丢
+        enqueueCallEvent(icon, label, detail);
+        // 然后尝试等 _addCallEvent 出现后立即发送
+        let tries = 0;
+        const t = setInterval(() => {
+            if (typeof window._addCallEvent === 'function') {
+                clearInterval(t);
+                flushCallEventQueue();
+                return;
+            }
+            // 最多等 30 秒，等不到也没关系，队列已经持久化了
+            // 页面下次加载 / core.js 就绪时会自动补发
+            if (++tries > 60) clearInterval(t);
+        }, 500);
     }
 
     function sendCallMsg(dur) {
@@ -1177,6 +1228,23 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         bindEvents();
         loadBg();
         checkAndResumeCall();
+
+        // 页面加载后持续检测 _addCallEvent 是否就绪，
+        // 一旦就绪就把 localStorage 队列里所有没发出去的通话记录补发出去。
+        // （iOS 后台杀进程后页面重载时特别重要，确保通话记录不会凭空消失）
+        const tryFlushQueue = () => {
+            if (typeof window._addCallEvent === 'function') {
+                flushCallEventQueue();
+                return true;
+            }
+            return false;
+        };
+        if (!tryFlushQueue()) {
+            let qTries = 0;
+            const qTimer = setInterval(() => {
+                if (tryFlushQueue() || ++qTries > 120) clearInterval(qTimer);
+            }, 500);
+        }
 
         const late = () => {
             injectToolbarBtn();
