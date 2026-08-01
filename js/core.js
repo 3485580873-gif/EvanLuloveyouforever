@@ -888,6 +888,7 @@ function manageAutoSendTimer() {
                 '#typing-indicator-toggle': 'typingIndicatorEnabled',
                 '#read-no-reply-toggle': 'allowReadNoReply',
                 '#emoji-mix-toggle': 'emojiMixEnabled',
+                '#pinyin-card-toggle': 'pinyinCardEnabled',
                 '#auto-send-toggle': 'autoSendEnabled'
             };
             for (const [sel, prop] of Object.entries(_pillSyncMap)) {
