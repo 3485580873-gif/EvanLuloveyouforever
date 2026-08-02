@@ -56,7 +56,7 @@ function renderDQList() {
                 ? '<span class="dq-card-badge answered">✓ 已回复</span>'
                 : (dq.sent ? '<span class="dq-card-badge pending">⏳ 等待回复</span>' : '');
             const questionCount = dq.questions ? dq.questions.length : 0;
-            const replyTimeLabel = dq.replyTime === 'immediate' ? '立即回复' : '随机时间';
+            const replyTimeLabel = dq.replyDelayMinutes ? `${dq.replyDelayMinutes} 分钟后回复` : '等待回复';
             const answerPreview = dq.answer ? '点击查看回复 →' : (dq.sent ? '等待中...' : '点击发送 →');
             
             return `
@@ -453,15 +453,10 @@ function sendDQ() {
     dq.sent = true;
     dq.sentAt = Date.now();
     
-    // 如果是随机时间，记录期望的回复时间范围
-    if (dq.replyTime === 'random') {
-        const delayMinutes = Math.floor(Math.random() * 300); // 0-300 分钟
-        dq.expectedReplyAt = Date.now() + delayMinutes * 60 * 1000;
-        dq.replyDelayMinutes = delayMinutes;
-    } else {
-        dq.expectedReplyAt = Date.now() + 3000; // 立即回复，约3秒
-        dq.replyDelayMinutes = 0;
-    }
+    // 记录期望的回复时间：3-10 分钟随机延迟
+    const delayMinutes = 3 + Math.floor(Math.random() * 8); // 3-10 分钟
+    dq.expectedReplyAt = Date.now() + delayMinutes * 60 * 1000;
+    dq.replyDelayMinutes = delayMinutes;
     
     saveDQData();
     
@@ -473,11 +468,7 @@ function sendDQ() {
     
     backToDQMain();
     
-    if (dq.replyTime === 'immediate') {
-        showNotification('问卷已发送！梦角正在填写... ✉️', 'success');
-    } else {
-        showNotification(`问卷已发送！梦角将在 ${dq.replyDelayMinutes} 分钟内回复 ✉️`, 'success');
-    }
+    showNotification(`问卷已发送！梦角将在 ${dq.replyDelayMinutes} 分钟内回复 ✉️`, 'success');
 }
 
 // ===== 向聊天界面插入问卷消息 =====
