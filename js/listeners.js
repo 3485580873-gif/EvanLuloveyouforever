@@ -1609,6 +1609,13 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 if (fontSizeSliderEl) {
                     fontSizeSliderEl.value = settings.fontSize;
                     if (fontSizeValueEl) fontSizeValueEl.textContent = `${settings.fontSize}px`;
+                    // 确保从外观设置入口进入时也能响应滑块拖动
+                    fontSizeSliderEl.oninput = (e) => {
+                        settings.fontSize = parseInt(e.target.value);
+                        document.documentElement.style.setProperty('--font-size', `${settings.fontSize}px`);
+                        if (fontSizeValueEl) fontSizeValueEl.textContent = `${settings.fontSize}px`;
+                    };
+                    fontSizeSliderEl.onchange = () => { if (typeof throttledSaveData === 'function') throttledSaveData(); };
                 }
                 const fontUrlInputEl = document.getElementById('custom-font-url');
                 if (fontUrlInputEl) fontUrlInputEl.value = settings.customFontUrl || '';
