@@ -230,6 +230,8 @@ window.saveGroupMember = function() {
     }
     saveGroupChatSettings();
     renderGroupMembersList();
+    // 刷新聊天记录中的头像显示
+    if (typeof renderMessages === 'function') renderMessages();
     window.closeGroupMemberEdit();
 };
 
