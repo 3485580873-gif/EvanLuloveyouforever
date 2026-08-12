@@ -1256,6 +1256,13 @@ function renderMessages(preserveScroll = false) {
             container.scrollTop = container.scrollHeight;
         });
     }
+
+    // iOS Safari animation fallback: ensure message-wrappers never stay at opacity:0
+    setTimeout(() => {
+        container.querySelectorAll('.message-wrapper').forEach(w => {
+            if (w.style.opacity !== '1') w.style.opacity = '1';
+        });
+    }, 500);
 }
 
 const addMessage = (message) => {
