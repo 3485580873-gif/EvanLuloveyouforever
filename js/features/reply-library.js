@@ -145,7 +145,9 @@ function _renderListContentOnly() {
             itemsToRender = CONSTANTS.REPLY_EMOJIS;
             renderType = 'emoji';
         } else if (currentSubTab === 'stickers') {
-            itemsToRender = stickerLibrary;
+            itemsToRender = (typeof _rlStickerGroupFilter !== 'undefined' && _rlStickerGroupFilter && _rlStickerGroupFilter !== '全部')
+                ? stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _rlStickerGroupFilter; })
+                : stickerLibrary;
             renderType = 'image';
         }
     } else if (currentMajorTab === 'atmosphere') {
@@ -156,7 +158,13 @@ function _renderListContentOnly() {
     }
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
-    if (renderType === 'image') { _renderStickerTab(list, itemsToRender); return; }
+    if (renderType === 'image') {
+        if (currentSubTab === 'stickers') {
+            var _gTabs = _renderReplyStickerGroupTabs();
+            if (_gTabs) list.appendChild(_gTabs);
+        }
+        _renderStickerTab(list, itemsToRender); return;
+    }
 
     const q = _searchQuery.toLowerCase().trim();
     const filtered = q ? itemsToRender.filter(item => item.toLowerCase().includes(q)) : itemsToRender;
@@ -233,7 +241,9 @@ function renderReplyLibrary() {
             itemsToRender = CONSTANTS.REPLY_EMOJIS;
             renderType = 'emoji';
         } else if (currentSubTab === 'stickers') {
-            itemsToRender = stickerLibrary;
+            itemsToRender = (typeof _rlStickerGroupFilter !== 'undefined' && _rlStickerGroupFilter && _rlStickerGroupFilter !== '全部')
+                ? stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _rlStickerGroupFilter; })
+                : stickerLibrary;
             renderType = 'image';
         }
     } else if (currentMajorTab === 'atmosphere') {
@@ -244,7 +254,13 @@ function renderReplyLibrary() {
     }
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
-    if (renderType === 'image') { _renderStickerTab(list, itemsToRender); return; }
+    if (renderType === 'image') {
+        if (currentSubTab === 'stickers') {
+            var _gTabs = _renderReplyStickerGroupTabs();
+            if (_gTabs) list.appendChild(_gTabs);
+        }
+        _renderStickerTab(list, itemsToRender); return;
+    }
 
     const q = _searchQuery.toLowerCase().trim();
     let filtered = q ? itemsToRender.filter(item => item.toLowerCase().includes(q)) : itemsToRender;
@@ -522,7 +538,7 @@ function _renderModernToolbar() {
                 indices.forEach(i => stickerLibrary.splice(i, 1));
                 // 同步清理已删除条目的“屏蔽集合”
                 const dis = _getDisabledStickerItemsSet();
-                deleted.forEach(d => dis.delete(d));
+                deleted.forEach(d => dis.delete(_getStickerUrl(d)));
                 _saveDisabledStickerItemsSet(dis);
                 _batchSelectedIndices.clear();
                 throttledSaveData();
@@ -859,15 +875,19 @@ function _renderEmojiTab(list, itemsToRender) {
 function _renderStickerTab(list, itemsToRender) {
     const disabledSet = _getDisabledStickerItemsSet();
     itemsToRender.forEach((item, index) => {
+        var url = _getStickerUrl(item);
         const div = document.createElement('div');
-        const isDisabled = disabledSet.has(item);
+        const isDisabled = disabledSet.has(url);
         const isSelected = _batchModeActive && _batchSelectedIndices.has(index);
         div.className = `sticker-item${isDisabled ? ' sticker-disabled' : ''}${isSelected ? ' sticker-batch-selected' : ''}`;
+        var groupLabel = _getStickerGroup(item);
         div.innerHTML = `
-            <img src="${item}" loading="lazy">
+            <img src="${url}" loading="lazy">
             <div class="sticker-batch-check">✓</div>
             <div class="sticker-delete-btn"><i class="fas fa-times"></i></div>
+            <div style="position:absolute;bottom:2px;left:2px;right:2px;font-size:9px;color:var(--text-secondary);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.7;">${groupLabel}</div>
         `;
+        div.style.position = 'relative';
         div.addEventListener('click', () => {
             if (!_batchModeActive) return;
             if (currentMajorTab !== 'reply' || currentSubTab !== 'stickers') return;
@@ -878,9 +898,8 @@ function _renderStickerTab(list, itemsToRender) {
         div.querySelector('.sticker-delete-btn').addEventListener('click', e => {
             e.stopPropagation();
             if (confirm('删除此表情？')) {
-                // 如果该贴纸处于“已屏蔽”，删除后同步移出屏蔽集合
                 if (isDisabled) {
-                    disabledSet.delete(item);
+                    disabledSet.delete(url);
                     _saveDisabledStickerItemsSet(disabledSet);
                 }
                 stickerLibrary.splice(index, 1);
@@ -889,9 +908,44 @@ function _renderStickerTab(list, itemsToRender) {
                 renderReplyLibrary();
             }
         });
+        // Long press to change group
+        var _lpTimer = null;
+        div.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupPicker(index); }, 500); };
+        div.ontouchend = function() { clearTimeout(_lpTimer); };
+        div.ontouchmove = function() { clearTimeout(_lpTimer); };
         list.appendChild(div);
     });
 }
+
+
+function _showStickerGroupPicker(stickerIndex) {
+    if (!stickerLibrary[stickerIndex]) return;
+    var currentGroup = _getStickerGroup(stickerLibrary[stickerIndex]);
+    var groups = _stickerGroupOrder.slice();
+    var msg = '当前分组：' + currentGroup + '\n\n';
+    groups.forEach(function(g, i) { msg += (i+1) + '. ' + g + '\n'; });
+    msg += (groups.length + 1) + '. 新建分组';
+    var choice = prompt(msg + '\n\n输入编号切换分组：', '');
+    if (!choice) return;
+    var num = parseInt(choice.trim());
+    if (isNaN(num) || num < 1 || num > groups.length + 1) return;
+    if (num === groups.length + 1) {
+        var newName = prompt('输入新分组名称：');
+        if (!newName || !newName.trim()) return;
+        newName = newName.trim();
+        _ensureGroupExists(STICKER_GROUP_KEY, newName);
+        _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        if (typeof stickerLibrary[stickerIndex] === 'string') stickerLibrary[stickerIndex] = { url: stickerLibrary[stickerIndex], group: newName };
+        else stickerLibrary[stickerIndex].group = newName;
+    } else {
+        if (typeof stickerLibrary[stickerIndex] === 'string') stickerLibrary[stickerIndex] = { url: stickerLibrary[stickerIndex], group: groups[num - 1] };
+        else stickerLibrary[stickerIndex].group = groups[num - 1];
+    }
+    throttledSaveData();
+    renderReplyLibrary();
+    showNotification('已移至「' + _getStickerGroup(stickerLibrary[stickerIndex]) + '」', 'success');
+}
+
 function _getDisabledItemsSet() {
     try {
         const raw = localStorage.getItem('disabledReplyItems');
@@ -925,12 +979,12 @@ function _toggleItemDisable(itemText) {
 function _batchToggleDisable() {
     const set = _getDisabledItemsSet();
     const selectedItems = [..._batchSelectedIndices].map(i => customReplies[i]);
-    const allDisabled = selectedItems.every(item => set.has(item));
+    const allDisabled = selectedItems.every(item => set.has(_getStickerUrl(item)));
     if (allDisabled) {
-        selectedItems.forEach(item => set.delete(item));
+        selectedItems.forEach(item => set.delete(_getStickerUrl(item)));
         showNotification(`已启用 ${selectedItems.length} 条`, 'success');
     } else {
-        selectedItems.forEach(item => set.add(item));
+        selectedItems.forEach(item => set.add(_getStickerUrl(item)));
         showNotification(`已屏蔽 ${selectedItems.length} 条`, 'info');
     }
     _saveDisabledItemsSet(set);
@@ -942,12 +996,12 @@ function _batchToggleDisableStickers() {
     const set = _getDisabledStickerItemsSet();
     const selectedItems = [..._batchSelectedIndices].map(i => stickerLibrary[i]).filter(Boolean);
     if (selectedItems.length === 0) return;
-    const allDisabled = selectedItems.every(item => set.has(item));
+    const allDisabled = selectedItems.every(item => set.has(_getStickerUrl(item)));
     if (allDisabled) {
-        selectedItems.forEach(item => set.delete(item));
+        selectedItems.forEach(item => set.delete(_getStickerUrl(item)));
         showNotification(`已启用 ${selectedItems.length} 个贴纸`, 'success');
     } else {
-        selectedItems.forEach(item => set.add(item));
+        selectedItems.forEach(item => set.add(_getStickerUrl(item)));
         showNotification(`已屏蔽 ${selectedItems.length} 个贴纸`, 'info');
     }
     _saveDisabledStickerItemsSet(set);
@@ -2287,6 +2341,7 @@ function initReplyLibraryListeners() {
     if (addBtn) {
         addBtn.addEventListener('click', () => {
             if (currentSubTab === 'stickers') {
+                if (window._selectUploadGroup && !window._selectUploadGroup('partner')) return;
                 document.getElementById('sticker-file-input')?.click(); return;
             }
             if (currentSubTab === 'emojis') {
@@ -2496,5 +2551,80 @@ function applyAllAvatarFrames() {
     }
     if (settings.avatarCornerRadius) {
         document.documentElement.style.setProperty('--avatar-corner-radius', settings.avatarCornerRadius + 'px');
+    }
+}
+
+
+// ======== Sticker Group Tabs for Reply Library ========
+var _rlStickerGroupFilter = '全部';
+
+function _renderReplyStickerGroupTabs() {
+    var groups = _stickerGroupOrder.slice();
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;gap:6px;padding:4px 0 8px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;';
+    wrapper.style.scrollbarWidth = 'none';
+    var allBtn = document.createElement('button');
+    allBtn.textContent = '全部 (' + stickerLibrary.length + ')';
+    var isAll = _rlStickerGroupFilter === '全部';
+    allBtn.style.cssText = 'flex-shrink:0;padding:4px 12px;border-radius:14px;border:1px solid ' + (isAll ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (isAll ? 'var(--accent-color)' : 'transparent') + ';color:' + (isAll ? '#fff' : 'var(--text-secondary)') + ';font-size:12px;cursor:pointer;white-space:nowrap;font-weight:' + (isAll ? '600' : '400') + ';';
+    allBtn.onclick = function() { _rlStickerGroupFilter = '全部'; renderReplyLibrary(); };
+    wrapper.appendChild(allBtn);
+    groups.forEach(function(gName) {
+        var cnt = stickerLibrary.filter(function(s) { return _getStickerGroup(s) === gName; }).length;
+        if (cnt === 0) return;
+        var btn = document.createElement('button');
+        btn.textContent = gName + ' (' + cnt + ')';
+        var isActive = _rlStickerGroupFilter === gName;
+        btn.style.cssText = 'flex-shrink:0;padding:4px 12px;border-radius:14px;border:1px solid ' + (isActive ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (isActive ? 'var(--accent-color)' : 'transparent') + ';color:' + (isActive ? '#fff' : 'var(--text-secondary)') + ';font-size:12px;cursor:pointer;white-space:nowrap;font-weight:' + (isActive ? '600' : '400') + ';';
+        btn.onclick = function() { _rlStickerGroupFilter = gName; renderReplyLibrary(); };
+        btn.oncontextmenu = function(e) { e.preventDefault(); _showReplyStickerGroupMenu(gName); };
+        var _lp = null;
+        btn.ontouchstart = function() { _lp = setTimeout(function() { _showReplyStickerGroupMenu(gName); }, 500); };
+        btn.ontouchend = function() { clearTimeout(_lp); };
+        btn.ontouchmove = function() { clearTimeout(_lp); };
+        wrapper.appendChild(btn);
+    });
+    var addBtn = document.createElement('button');
+    addBtn.innerHTML = '<i class="fas fa-plus" style="font-size:10px;"></i>';
+    addBtn.style.cssText = 'flex-shrink:0;padding:4px 10px;border-radius:14px;border:1px dashed rgba(128,128,128,0.4);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;';
+    addBtn.onclick = function() {
+        var name = prompt('输入新分组名称：');
+        if (!name || !name.trim()) return;
+        _ensureGroupExists(STICKER_GROUP_KEY, name.trim());
+        _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        renderReplyLibrary();
+        showNotification('已创建分组「' + name.trim() + '」', 'success');
+    };
+    wrapper.appendChild(addBtn);
+    return wrapper;
+}
+
+function _showReplyStickerGroupMenu(groupName) {
+    var choice = prompt('分组「' + groupName + '」\n\n输入 1 重命名\n输入 2 删除分组（表情移入默认分组）', '');
+    if (!choice) return;
+    if (choice.trim() === '1') {
+        var newName = prompt('输入新名称：', groupName);
+        if (!newName || !newName.trim() || newName.trim() === groupName) return;
+        newName = newName.trim();
+        var order = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        var idx = order.indexOf(groupName);
+        if (idx !== -1) { order[idx] = newName; _saveStickerGroupOrder(STICKER_GROUP_KEY, order); }
+        stickerLibrary.forEach(function(s) { if (typeof s === 'object' && s.group === groupName) s.group = newName; });
+        if (_rlStickerGroupFilter === groupName) _rlStickerGroupFilter = newName;
+        _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        throttledSaveData();
+        renderReplyLibrary();
+        showNotification('已重命名为「' + newName + '」', 'success');
+    } else if (choice.trim() === '2') {
+        if (!confirm('确定删除分组「' + groupName + '」？表情包将移入默认分组。')) return;
+        stickerLibrary.forEach(function(s) { if (typeof s === 'object' && s.group === groupName) s.group = '默认分组'; });
+        var order2 = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        var idx2 = order2.indexOf(groupName);
+        if (idx2 !== -1) { order2.splice(idx2, 1); _saveStickerGroupOrder(STICKER_GROUP_KEY, order2); }
+        if (_rlStickerGroupFilter === groupName) _rlStickerGroupFilter = '全部';
+        _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        throttledSaveData();
+        renderReplyLibrary();
+        showNotification('已删除分组', 'success');
     }
 }

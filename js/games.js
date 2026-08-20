@@ -1405,14 +1405,30 @@ function initComboMenu() {
             `;
             return;
         }
+        // Group tabs
+        var groupTabsHtml = _renderGroupTabs(_myStickerGroupOrder, myStickerLibrary, _chatStickerGroupFilter, function(g) {
+            _chatStickerGroupFilter = g;
+            renderMyStickerLibrary();
+        });
+        if (groupTabsHtml) contentArea.appendChild(groupTabsHtml);
+        var filtered = _chatStickerGroupFilter === '全部' ? myStickerLibrary : myStickerLibrary.filter(function(s) { return _getStickerGroup(s) === _chatStickerGroupFilter; });
+        if (filtered.length === 0 && _chatStickerGroupFilter !== '全部') {
+            var emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:12px;padding:16px;';
+            emptyMsg.textContent = '该分组还没有表情包';
+            contentArea.appendChild(emptyMsg);
+            return;
+        }
         const grid = document.createElement('div');
         grid.className = 'sticker-grid-view';
-        myStickerLibrary.forEach((src, idx) => {
-            const item = makeDeletableStickerItem(src, () => {
-                window._pendingChatSticker = src;
+        filtered.forEach(function(stickerObj) {
+            var url = _getStickerUrl(stickerObj);
+            var idx = myStickerLibrary.indexOf(stickerObj);
+            const item = makeDeletableStickerItem(url, () => {
+                window._pendingChatSticker = url;
                 const _prev = document.getElementById('chat-sticker-preview');
                 const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = src; _prev.style.display = 'block'; }
+                if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
                 picker.classList.remove('active');
                 const input = document.getElementById('message-input');
                 if (input) input.focus();
@@ -1427,6 +1443,86 @@ function initComboMenu() {
         contentArea.appendChild(grid);
     }
 
+
+    function _renderGroupTabs(groupOrder, library, currentFilter, onFilterChange) {
+        // Collect groups that actually have stickers
+        var usedGroups = [];
+        groupOrder.forEach(function(g) {
+            if (library.some(function(s) { return _getStickerGroup(s) === g; })) {
+                usedGroups.push(g);
+            }
+        });
+        if (usedGroups.length <= 1) return null; // Only show tabs if more than 1 group has content
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;gap:6px;padding:4px 0 8px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;';
+        wrapper.style.scrollbarWidth = 'none';
+        // "All" tab
+        var allBtn = document.createElement('button');
+        allBtn.textContent = '全部';
+        allBtn.style.cssText = 'flex-shrink:0;padding:3px 10px;border-radius:12px;border:1px solid ' + (currentFilter === '全部' ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (currentFilter === '全部' ? 'var(--accent-color)' : 'transparent') + ';color:' + (currentFilter === '全部' ? '#fff' : 'var(--text-secondary)') + ';font-size:11px;cursor:pointer;white-space:nowrap;';
+        allBtn.onclick = function(e) { e.stopPropagation(); onFilterChange('全部'); };
+        wrapper.appendChild(allBtn);
+        usedGroups.forEach(function(gName) {
+            var btn = document.createElement('button');
+            btn.textContent = gName;
+            btn.style.cssText = 'flex-shrink:0;padding:3px 10px;border-radius:12px;border:1px solid ' + (currentFilter === gName ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (currentFilter === gName ? 'var(--accent-color)' : 'transparent') + ';color:' + (currentFilter === gName ? '#fff' : 'var(--text-secondary)') + ';font-size:11px;cursor:pointer;white-space:nowrap;';
+            btn.onclick = function(e) { e.stopPropagation(); onFilterChange(gName); };
+            btn.oncontextmenu = function(e) { e.preventDefault(); e.stopPropagation(); _showStickerGroupMenu(gName, library); };
+            // Long press for iOS
+            var _lpTimer = null;
+            btn.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupMenu(gName, library); }, 500); };
+            btn.ontouchend = function() { clearTimeout(_lpTimer); };
+            btn.ontouchmove = function() { clearTimeout(_lpTimer); };
+            wrapper.appendChild(btn);
+        });
+        // Add group button
+        var addBtn = document.createElement('button');
+        addBtn.innerHTML = '<i class="fas fa-plus" style="font-size:9px;"></i>';
+        addBtn.style.cssText = 'flex-shrink:0;padding:3px 8px;border-radius:12px;border:1px dashed rgba(128,128,128,0.4);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;';
+        addBtn.onclick = function(e) {
+            e.stopPropagation();
+            var name = prompt('输入新分组名称：');
+            if (!name || !name.trim()) return;
+            name = name.trim();
+            _ensureGroupExists(library === myStickerLibrary ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, name);
+            if (library === myStickerLibrary) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
+            else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
+        };
+        wrapper.appendChild(addBtn);
+        return wrapper;
+    }
+
+    function _showStickerGroupMenu(groupName, library) {
+        var isMy = library === myStickerLibrary;
+        var choice = prompt('分组「' + groupName + '」\n\n输入 1 重命名\n输入 2 删除分组（表情移入默认分组）\n输入其他取消', '');
+        if (!choice) return;
+        if (choice.trim() === '1') {
+            var newName = prompt('输入新名称：', groupName);
+            if (!newName || !newName.trim() || newName.trim() === groupName) return;
+            newName = newName.trim();
+            var order = _getStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY);
+            var idx = order.indexOf(groupName);
+            if (idx !== -1) { order[idx] = newName; _saveStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, order); }
+            library.forEach(function(s) { if (_getStickerGroup(s) === groupName) s.group = newName; });
+            if (_chatStickerGroupFilter === groupName) _chatStickerGroupFilter = newName;
+            throttledSaveData();
+            if (isMy) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
+            else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
+            showNotification('已重命名为「' + newName + '」', 'success');
+        } else if (choice.trim() === '2') {
+            if (!confirm('确定删除分组「' + groupName + '」？其中表情包将移入默认分组。')) return;
+            library.forEach(function(s) { if (_getStickerGroup(s) === groupName) s.group = '默认分组'; });
+            var order2 = _getStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY);
+            var idx2 = order2.indexOf(groupName);
+            if (idx2 !== -1) { order2.splice(idx2, 1); _saveStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, order2); }
+            if (_chatStickerGroupFilter === groupName) _chatStickerGroupFilter = '全部';
+            throttledSaveData();
+            if (isMy) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
+            else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
+            showNotification('已删除分组', 'success');
+        }
+    }
+
     function renderPartnerStickerLibrary() {
         contentArea.innerHTML = '';
         if (!stickerLibrary || stickerLibrary.length === 0) {
@@ -1439,14 +1535,29 @@ function initComboMenu() {
             `;
             return;
         }
+        // Group tabs
+        var groupTabsHtml = _renderGroupTabs(_stickerGroupOrder, stickerLibrary, _chatStickerGroupFilter, function(g) {
+            _chatStickerGroupFilter = g;
+            renderPartnerStickerLibrary();
+        });
+        if (groupTabsHtml) contentArea.appendChild(groupTabsHtml);
+        var filtered = _chatStickerGroupFilter === '全部' ? stickerLibrary : stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _chatStickerGroupFilter; });
+        if (filtered.length === 0 && _chatStickerGroupFilter !== '全部') {
+            var emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:12px;padding:16px;';
+            emptyMsg.textContent = '该分组还没有表情包';
+            contentArea.appendChild(emptyMsg);
+            return;
+        }
         const grid = document.createElement('div');
         grid.className = 'sticker-grid-view';
-        stickerLibrary.forEach(src => {
-            const item = makeStickerItem(src, () => {
-                window._pendingChatSticker = src;
+        filtered.forEach(function(stickerObj) {
+            var url = _getStickerUrl(stickerObj);
+            const item = makeStickerItem(url, () => {
+                window._pendingChatSticker = url;
                 const _prev = document.getElementById('chat-sticker-preview');
                 const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = src; _prev.style.display = 'block'; }
+                if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
                 picker.classList.remove('active');
                 const input = document.getElementById('message-input');
                 if (input) input.focus();

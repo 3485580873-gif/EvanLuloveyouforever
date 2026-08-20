@@ -433,10 +433,10 @@
             function getAllStickers() {
                 var all = [];
                 if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) {
-                    stickerLibrary.forEach(function (s, i) { all.push({ src: s, type: 'stickerLibrary', index: i }); });
+                    stickerLibrary.forEach(function (s, i) { all.push({ src: _getStickerUrl(s), type: 'stickerLibrary', index: i }); });
                 }
                 if (typeof myStickerLibrary !== 'undefined' && Array.isArray(myStickerLibrary)) {
-                    myStickerLibrary.forEach(function (s, i) { all.push({ src: s, type: 'myStickerLibrary', index: i }); });
+                    myStickerLibrary.forEach(function (s, i) { all.push({ src: _getStickerUrl(s), type: 'myStickerLibrary', index: i }); });
                 }
                 // 注意：customEmojis 存的是纯 Unicode emoji 文字（"请输入要添加的 Emoji"
                 // 那个入口加的），不是图片 base64，之前混进来一起统计会导致"多少张表情/
@@ -520,9 +520,9 @@
 
                         // 替换回原数组
                         if (item.type === 'stickerLibrary' && typeof stickerLibrary !== 'undefined') {
-                            stickerLibrary[item.index] = compressed;
+                            if (stickerLibrary[item.index] && typeof stickerLibrary[item.index] === 'object') { stickerLibrary[item.index].url = compressed; } else { stickerLibrary[item.index] = compressed; }
                         } else if (item.type === 'myStickerLibrary' && typeof myStickerLibrary !== 'undefined') {
-                            myStickerLibrary[item.index] = compressed;
+                            if (myStickerLibrary[item.index] && typeof myStickerLibrary[item.index] === 'object') { myStickerLibrary[item.index].url = compressed; } else { myStickerLibrary[item.index] = compressed; }
                         }
 
                         successCount++;

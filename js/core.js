@@ -1,6 +1,51 @@
 /*核心应用逻辑：数据加载保存、消息渲染、会话管理等*/
 
-        function clearAllAppData() {
+        
+// ======== Sticker Group Support (Auto-injected) ========
+function _normalizeStickerItem(item) {
+    if (typeof item === 'string') return { url: item, group: '默认分组' };
+    if (item && typeof item === 'object') return { url: item.url || '', group: item.group || '默认分组' };
+    return { url: '', group: '默认分组' };
+}
+function _getStickerUrl(item) {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object') return item.url || '';
+    return '';
+}
+function _getStickerGroup(item) {
+    if (typeof item === 'string') return '默认分组';
+    if (item && typeof item === 'object') return item.group || '默认分组';
+    return '默认分组';
+}
+function _migrateStickerArray(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return arr || [];
+    if (typeof arr[0] === 'string') {
+        return arr.map(function(url) { return { url: url, group: '默认分组' }; });
+    }
+    return arr;
+}
+function _getStickerGroupOrder(storageKey) {
+    try {
+        var raw = localStorage.getItem(storageKey);
+        if (raw) { var parsed = JSON.parse(raw); if (Array.isArray(parsed) && parsed.length > 0) return parsed; }
+    } catch(e) {}
+    return ['默认分组'];
+}
+function _saveStickerGroupOrder(storageKey, order) {
+    localStorage.setItem(storageKey, JSON.stringify(order));
+}
+function _ensureGroupExists(storageKey, groupName) {
+    var order = _getStickerGroupOrder(storageKey);
+    if (order.indexOf(groupName) === -1) { order.push(groupName); _saveStickerGroupOrder(storageKey, order); }
+}
+var STICKER_GROUP_KEY = '__stickerGroupOrder';
+var MY_STICKER_GROUP_KEY = '__myStickerGroupOrder';
+var _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+var _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY);
+var _chatStickerGroupFilter = '全部';
+// ======== End Sticker Group Support ========
+
+function clearAllAppData() {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
     overlay.innerHTML = `
@@ -415,8 +460,8 @@ const loadData = async () => {
         if (savedPokeGroups) window.customPokeGroups = savedPokeGroups;
         if (savedStatusGroups) window.customStatusGroups = savedStatusGroups;
         if (savedAnniversaries) anniversaries = savedAnniversaries;
-        if (savedStickers) stickerLibrary = savedStickers;
-        if (savedMyStickers) myStickerLibrary = savedMyStickers;
+        if (savedStickers) stickerLibrary = _migrateStickerArray(savedStickers);
+        if (savedMyStickers) myStickerLibrary = _migrateStickerArray(savedMyStickers);
         if (savedCustomThemes) customThemes = savedCustomThemes;
         if (savedThemeSchemes) themeSchemes = savedThemeSchemes;
         try { const ce = await localforage.getItem(getStorageKey('customEmojis')); if (ce && Array.isArray(ce)) customEmojis = ce; } catch(e) {}
@@ -2068,7 +2113,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                         const raw = localStorage.getItem('disabledStickerItems');
                         if (raw) disabledStickerItems = new Set(JSON.parse(raw));
                     } catch (e) {}
-                    const enabledStickerPool = (stickerLibrary || []).filter(s => !disabledStickerItems.has(s));
+                    const enabledStickerPool = (stickerLibrary || []).filter(s => !disabledStickerItems.has(_getStickerUrl(s)));
                     const shouldSendSticker = enabledStickerPool.length > 0 && Math.random() < 0.2;
 
                     let finalText = replyText;
@@ -2103,7 +2148,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     playSound('message');
 
                     if (shouldSendSticker) {
-                        const randomSticker = enabledStickerPool[Math.floor(Math.random() * enabledStickerPool.length)];
+                        const randomSticker = _getStickerUrl(enabledStickerPool[Math.floor(Math.random() * enabledStickerPool.length)]);
                         setTimeout(() => {
                             addMessage({
                                 id: Date.now() + i + 2000,
@@ -2551,7 +2596,7 @@ function showModal(modalElement, focusElement = null) {
                         if (doReplies  && importedData.customEmojis && Array.isArray(importedData.customEmojis)) customEmojis = importedData.customEmojis;
                         if (doAnn      && importedData.anniversaries)   anniversaries  = importedData.anniversaries;
                         if (doThemes   && importedData.customThemes)    customThemes   = importedData.customThemes;
-                        if (doThemes   && importedData.stickerLibrary)  stickerLibrary = importedData.stickerLibrary;
+                        if (doThemes   && importedData.stickerLibrary)  stickerLibrary = _migrateStickerArray(importedData.stickerLibrary);
 
                         saveData();
                         if (doMsgs && typeof renderMessages === 'function') renderMessages();

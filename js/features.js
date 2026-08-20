@@ -572,7 +572,8 @@ function showEmojiTab() {
         area.appendChild(item);
     });
 
-    stickerLibrary.forEach(src => {
+    stickerLibrary.forEach(function(stickerObj) {
+        var src = _getStickerUrl(stickerObj);
         const item = document.createElement('div');
         item.className = 'picker-item';
         item.innerHTML = `<img src="${src}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
