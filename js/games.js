@@ -1405,91 +1405,147 @@ function initComboMenu() {
             `;
             return;
         }
-        // Group tabs
-        var groupTabsHtml = _renderGroupTabs(_myStickerGroupOrder, myStickerLibrary, _chatStickerGroupFilter, function(g) {
-            _chatStickerGroupFilter = g;
+        _renderStickerGroupSections(contentArea, myStickerLibrary, _myStickerGroupOrder, _myStickerGroupCollapsed, 'my', function(url) {
+            window._pendingChatSticker = url;
+            const _prev = document.getElementById('chat-sticker-preview');
+            const _img  = document.getElementById('chat-sticker-preview-img');
+            if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
+            picker.classList.remove('active');
+            const input = document.getElementById('message-input');
+            if (input) input.focus();
+        }, function(idx) {
+            myStickerLibrary.splice(idx, 1);
+            localforage.setItem(getStorageKey('myStickerLibrary'), myStickerLibrary);
+            showNotification('✓ 已删除', 'success');
             renderMyStickerLibrary();
         });
-        if (groupTabsHtml) contentArea.appendChild(groupTabsHtml);
-        var filtered = _chatStickerGroupFilter === '全部' ? myStickerLibrary : myStickerLibrary.filter(function(s) { return _getStickerGroup(s) === _chatStickerGroupFilter; });
-        if (filtered.length === 0 && _chatStickerGroupFilter !== '全部') {
-            var emptyMsg = document.createElement('div');
-            emptyMsg.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:12px;padding:16px;';
-            emptyMsg.textContent = '该分组还没有表情包';
-            contentArea.appendChild(emptyMsg);
-            return;
-        }
-        const grid = document.createElement('div');
-        grid.className = 'sticker-grid-view';
-        filtered.forEach(function(stickerObj) {
-            var url = _getStickerUrl(stickerObj);
-            var idx = myStickerLibrary.indexOf(stickerObj);
-            const item = makeDeletableStickerItem(url, () => {
-                window._pendingChatSticker = url;
-                const _prev = document.getElementById('chat-sticker-preview');
-                const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
-                picker.classList.remove('active');
-                const input = document.getElementById('message-input');
-                if (input) input.focus();
-            }, () => {
-                myStickerLibrary.splice(idx, 1);
-                localforage.setItem(getStorageKey('myStickerLibrary'), myStickerLibrary);
-                showNotification('✓ 已删除', 'success');
-                renderMyStickerLibrary();
-            });
-            grid.appendChild(item);
-        });
-        contentArea.appendChild(grid);
     }
 
 
-    function _renderGroupTabs(groupOrder, library, currentFilter, onFilterChange) {
-        // Collect groups that actually have stickers
-        var usedGroups = [];
-        groupOrder.forEach(function(g) {
-            if (library.some(function(s) { return _getStickerGroup(s) === g; })) {
-                usedGroups.push(g);
-            }
-        });
-        if (usedGroups.length <= 1) return null; // Only show tabs if more than 1 group has content
-        var wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex;gap:6px;padding:4px 0 8px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;';
-        wrapper.style.scrollbarWidth = 'none';
-        // "All" tab
-        var allBtn = document.createElement('button');
-        allBtn.textContent = '全部';
-        allBtn.style.cssText = 'flex-shrink:0;padding:3px 10px;border-radius:12px;border:1px solid ' + (currentFilter === '全部' ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (currentFilter === '全部' ? 'var(--accent-color)' : 'transparent') + ';color:' + (currentFilter === '全部' ? '#fff' : 'var(--text-secondary)') + ';font-size:11px;cursor:pointer;white-space:nowrap;';
-        allBtn.onclick = function(e) { e.stopPropagation(); onFilterChange('全部'); };
-        wrapper.appendChild(allBtn);
-        usedGroups.forEach(function(gName) {
-            var btn = document.createElement('button');
-            btn.textContent = gName;
-            btn.style.cssText = 'flex-shrink:0;padding:3px 10px;border-radius:12px;border:1px solid ' + (currentFilter === gName ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (currentFilter === gName ? 'var(--accent-color)' : 'transparent') + ';color:' + (currentFilter === gName ? '#fff' : 'var(--text-secondary)') + ';font-size:11px;cursor:pointer;white-space:nowrap;';
-            btn.onclick = function(e) { e.stopPropagation(); onFilterChange(gName); };
-            btn.oncontextmenu = function(e) { e.preventDefault(); e.stopPropagation(); _showStickerGroupMenu(gName, library); };
-            // Long press for iOS
+    function _renderStickerGroupSections(container, library, groupOrder, collapsedMap, libraryType, onSelect, onDelete) {
+        // Inject styles if not already done
+        if (!document.getElementById('sticker-group-styles')) {
+            var s = document.createElement('style');
+            s.id = 'sticker-group-styles';
+            s.textContent = `
+                .sg-block { margin-bottom:10px; }
+                .sg-header {
+                    display:flex;align-items:center;gap:8px;padding:8px 12px;
+                    border-radius:10px 10px 0 0;
+                    background:var(--secondary-bg);cursor:pointer;user-select:none;
+                    transition:background 0.2s;
+                }
+                .sg-header.collapsed { border-radius:10px; }
+                .sg-header:hover { background:rgba(var(--accent-color-rgb,180,140,100),0.06); }
+                .sg-header.active { border-left:3px solid var(--accent-color); }
+                .sg-header.active.collapsed { border-radius:3px 10px 10px 3px; }
+                .sg-body { border:1px solid var(--border-color);border-top:none;border-radius:0 0 10px 10px;padding:6px 8px 8px;background:var(--primary-bg); }
+                .sg-chevron { transition:transform 0.2s; color:var(--text-secondary); flex-shrink:0; }
+                .sg-add-btn {
+                    display:flex;align-items:center;justify-content:center;gap:6px;
+                    padding:10px;margin-top:8px;border-radius:10px;
+                    border:1px dashed rgba(128,128,128,0.4);background:transparent;
+                    color:var(--accent-color);font-size:12px;cursor:pointer;width:100%;
+                }
+            `;
+            (document.head || document.documentElement).appendChild(s);
+        }
+        
+        var groups = groupOrder.slice();
+        
+        groups.forEach(function(gName) {
+            var items = [];
+            library.forEach(function(s, idx) {
+                if (_getStickerGroup(s) === gName) items.push({obj: s, idx: idx});
+            });
+            
+            var isCollapsed = collapsedMap[gName] === true;
+            var isActive = (libraryType === 'my' ? _myChatStickerFilter : _partnerChatStickerFilter) === gName;
+            
+            var block = document.createElement('div');
+            block.className = 'sg-block';
+            
+            var header = document.createElement('div');
+            header.className = 'sg-header' + (isCollapsed ? ' collapsed' : '') + (isActive ? ' active' : '');
+            header.innerHTML = `
+                <span style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1;">${gName}</span>
+                <span style="font-size:11px;color:var(--text-secondary);">${items.length} 个</span>
+                ${isActive && !isCollapsed ? '<span style="font-size:9px;color:var(--accent-color);margin-left:4px;">\u2190 \u4e0a\u4f20\u5230\u8fd9</span>' : ''}
+                <span class="sg-chevron" style="transform:rotate(${isCollapsed ? '-90' : '0'}deg);">\u25BC</span>
+            `;
+            
+            header.onclick = function(e) {
+                e.stopPropagation();
+                // Toggle collapse
+                collapsedMap[gName] = !collapsedMap[gName];
+                // Set as active upload group
+                if (libraryType === 'my') _myChatStickerFilter = gName;
+                else _partnerChatStickerFilter = gName;
+                // Re-render
+                if (libraryType === 'my') renderMyStickerLibrary();
+                else renderPartnerStickerLibrary();
+            };
+            
+            // Long press for group menu
             var _lpTimer = null;
-            btn.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupMenu(gName, library); }, 500); };
-            btn.ontouchend = function() { clearTimeout(_lpTimer); };
-            btn.ontouchmove = function() { clearTimeout(_lpTimer); };
-            wrapper.appendChild(btn);
+            header.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupMenu(gName, library); }, 500); };
+            header.ontouchend = function() { clearTimeout(_lpTimer); };
+            header.ontouchmove = function() { clearTimeout(_lpTimer); };
+            header.oncontextmenu = function(e) { e.preventDefault(); e.stopPropagation(); _showStickerGroupMenu(gName, library); };
+            
+            block.appendChild(header);
+            
+            if (!isCollapsed) {
+                var body = document.createElement('div');
+                body.className = 'sg-body';
+                if (items.length === 0) {
+                    body.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:var(--text-secondary);opacity:0.6;">\u6682\u65e0\u8868\u60c5\u5305</div>';
+                } else {
+                    var grid = document.createElement('div');
+                    grid.className = 'sticker-grid-view';
+                    items.forEach(function(item) {
+                        var url = _getStickerUrl(item.obj);
+                        if (onDelete) {
+                            var el = makeDeletableStickerItem(url, function() { onSelect(url); }, function() { onDelete(item.idx); });
+                            grid.appendChild(el);
+                        } else {
+                            var el = makeStickerItem(url, function() { onSelect(url); });
+                            grid.appendChild(el);
+                        }
+                    });
+                    body.appendChild(grid);
+                }
+                block.appendChild(body);
+            }
+            
+            container.appendChild(block);
         });
+        
         // Add group button
-        var addBtn = document.createElement('button');
-        addBtn.innerHTML = '<i class="fas fa-plus" style="font-size:9px;"></i>';
-        addBtn.style.cssText = 'flex-shrink:0;padding:3px 8px;border-radius:12px;border:1px dashed rgba(128,128,128,0.4);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;';
-        addBtn.onclick = function(e) {
+        var addGroupBtn = document.createElement('button');
+        addGroupBtn.className = 'sg-add-btn';
+        addGroupBtn.innerHTML = '<i class="fas fa-plus" style="font-size:10px;"></i> \u65b0\u5efa\u5206\u7ec4';
+        addGroupBtn.onclick = function(e) {
             e.stopPropagation();
-            var name = prompt('输入新分组名称：');
+            var name = prompt('\u8f93\u5165\u65b0\u5206\u7ec4\u540d\u79f0\uff1a');
             if (!name || !name.trim()) return;
             name = name.trim();
-            _ensureGroupExists(library === myStickerLibrary ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, name);
-            if (library === myStickerLibrary) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
-            else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
+            var key = libraryType === 'my' ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY;
+            _ensureGroupExists(key, name);
+            if (libraryType === 'my') {
+                _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY);
+                _myChatStickerFilter = name;
+                _myStickerGroupCollapsed[name] = false;
+                renderMyStickerLibrary();
+            } else {
+                _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+                _partnerChatStickerFilter = name;
+                _stickerGroupCollapsed[name] = false;
+                renderPartnerStickerLibrary();
+            }
+            showNotification('\u5df2\u521b\u5efa\u5e76\u9009\u4e2d\u5206\u7ec4\u300c' + name + '\u300d', 'success');
         };
-        wrapper.appendChild(addBtn);
-        return wrapper;
+        container.appendChild(addGroupBtn);
     }
 
     function _showStickerGroupMenu(groupName, library) {
@@ -1504,7 +1560,8 @@ function initComboMenu() {
             var idx = order.indexOf(groupName);
             if (idx !== -1) { order[idx] = newName; _saveStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, order); }
             library.forEach(function(s) { if (_getStickerGroup(s) === groupName) s.group = newName; });
-            if (_chatStickerGroupFilter === groupName) _chatStickerGroupFilter = newName;
+            if (_myChatStickerFilter === groupName) _myChatStickerFilter = newName;
+            if (_partnerChatStickerFilter === groupName) _partnerChatStickerFilter = newName;
             throttledSaveData();
             if (isMy) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
             else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
@@ -1515,7 +1572,8 @@ function initComboMenu() {
             var order2 = _getStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY);
             var idx2 = order2.indexOf(groupName);
             if (idx2 !== -1) { order2.splice(idx2, 1); _saveStickerGroupOrder(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, order2); }
-            if (_chatStickerGroupFilter === groupName) _chatStickerGroupFilter = '全部';
+            if (_myChatStickerFilter === groupName) _myChatStickerFilter = '全部';
+            if (_partnerChatStickerFilter === groupName) _partnerChatStickerFilter = '全部';
             throttledSaveData();
             if (isMy) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); renderMyStickerLibrary(); }
             else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); renderPartnerStickerLibrary(); }
@@ -1535,36 +1593,15 @@ function initComboMenu() {
             `;
             return;
         }
-        // Group tabs
-        var groupTabsHtml = _renderGroupTabs(_stickerGroupOrder, stickerLibrary, _chatStickerGroupFilter, function(g) {
-            _chatStickerGroupFilter = g;
-            renderPartnerStickerLibrary();
-        });
-        if (groupTabsHtml) contentArea.appendChild(groupTabsHtml);
-        var filtered = _chatStickerGroupFilter === '全部' ? stickerLibrary : stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _chatStickerGroupFilter; });
-        if (filtered.length === 0 && _chatStickerGroupFilter !== '全部') {
-            var emptyMsg = document.createElement('div');
-            emptyMsg.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:12px;padding:16px;';
-            emptyMsg.textContent = '该分组还没有表情包';
-            contentArea.appendChild(emptyMsg);
-            return;
-        }
-        const grid = document.createElement('div');
-        grid.className = 'sticker-grid-view';
-        filtered.forEach(function(stickerObj) {
-            var url = _getStickerUrl(stickerObj);
-            const item = makeStickerItem(url, () => {
-                window._pendingChatSticker = url;
-                const _prev = document.getElementById('chat-sticker-preview');
-                const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
-                picker.classList.remove('active');
-                const input = document.getElementById('message-input');
-                if (input) input.focus();
-            });
-            grid.appendChild(item);
-        });
-        contentArea.appendChild(grid);
+        _renderStickerGroupSections(contentArea, stickerLibrary, _stickerGroupOrder, _stickerGroupCollapsed, 'partner', function(url) {
+            window._pendingChatSticker = url;
+            const _prev = document.getElementById('chat-sticker-preview');
+            const _img  = document.getElementById('chat-sticker-preview-img');
+            if (_prev && _img) { _img.src = url; _prev.style.display = 'block'; }
+            picker.classList.remove('active');
+            const input = document.getElementById('message-input');
+            if (input) input.focus();
+        }, null);
     }
 
     function renderStickerLibrary() { renderMyStickerLibrary(); }

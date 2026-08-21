@@ -230,7 +230,7 @@ const stickerInput = document.getElementById('sticker-file-input');
                     for (const file of validFiles) {
                         try {
                             const base64 = await optimizeSticker(file);
-                            stickerLibrary.push({ url: base64, group: _pendingUploadGroup || _stickerGroupOrder[0] || '默认分组' });
+                            stickerLibrary.push({ url: base64, group: (typeof _rlStickerGroupFilter !== 'undefined' && _rlStickerGroupFilter !== '全部') ? _rlStickerGroupFilter : (_stickerGroupOrder[0] || '默认分组') });
                             successCount++;
                         } catch (err) {
                             console.error(err);
@@ -250,33 +250,6 @@ const stickerInput = document.getElementById('sticker-file-input');
                     e.target.value = '';
                 });
             }
-var _pendingUploadGroup = null; // null means will use first group
-window._selectUploadGroup = function(libraryType) {
-    var isMy = libraryType === 'my';
-    var groups = isMy ? _myStickerGroupOrder : _stickerGroupOrder;
-    var msg = '选择要添加到的分组：\n\n';
-    msg += '0. ' + (groups[0] || '默认分组') + '（默认）\n';
-    groups.forEach(function(g, i) { if (i > 0) msg += (i+1) + '. ' + g + '\n'; });
-    msg += (groups.length + 1) + '. 新建分组\n\n';
-    msg += '直接点确定使用默认分组，输入编号选择其他分组：';
-    var choice = prompt(msg, '');
-    if (choice === null) return false; // cancelled
-    var num = parseInt(choice.trim());
-    if (!isNaN(num) && num === groups.length + 1) {
-        var newName = prompt('输入新分组名称：');
-        if (!newName || !newName.trim()) return false;
-        newName = newName.trim();
-        _ensureGroupExists(isMy ? MY_STICKER_GROUP_KEY : STICKER_GROUP_KEY, newName);
-        if (isMy) { _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY); }
-        else { _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY); }
-        _pendingUploadGroup = newName;
-    } else if (!isNaN(num) && num >= 0 && num < groups.length) {
-        _pendingUploadGroup = groups[num];
-    } else {
-        _pendingUploadGroup = groups[0] || '默认分组';
-    }
-    return true;
-};
 
 const myStickerQuickUpload = document.getElementById('my-sticker-quick-upload');
 if (myStickerQuickUpload) {
@@ -292,14 +265,13 @@ if (myStickerQuickUpload) {
         for (const file of validFiles) {
             try {
                 const base64 = await optimizeSticker(file);
-                myStickerLibrary.push({ url: base64, group: _pendingUploadGroup || _myStickerGroupOrder[0] || '默认分组' });
+                myStickerLibrary.push({ url: base64, group: _myChatStickerFilter === '全部' ? (_myStickerGroupOrder[0] || '默认分组') : _myChatStickerFilter });
                 ok++;
             } catch(err) { fail++; }
         }
         throttledSaveData();
         if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         showNotification(fail > 0 ? `上传完成：${ok} 成功 ${fail} 失败` : `✓ 已添加 ${ok} 张到我的表情库`, fail > 0 ? 'warning' : 'success');
-        _pendingUploadGroup = null;
         e.target.value = '';
     });
 }

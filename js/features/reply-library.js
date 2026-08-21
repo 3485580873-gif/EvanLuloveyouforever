@@ -145,9 +145,7 @@ function _renderListContentOnly() {
             itemsToRender = CONSTANTS.REPLY_EMOJIS;
             renderType = 'emoji';
         } else if (currentSubTab === 'stickers') {
-            itemsToRender = (typeof _rlStickerGroupFilter !== 'undefined' && _rlStickerGroupFilter && _rlStickerGroupFilter !== '全部')
-                ? stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _rlStickerGroupFilter; })
-                : stickerLibrary;
+            itemsToRender = stickerLibrary;
             renderType = 'image';
         }
     } else if (currentMajorTab === 'atmosphere') {
@@ -159,10 +157,6 @@ function _renderListContentOnly() {
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
     if (renderType === 'image') {
-        if (currentSubTab === 'stickers') {
-            var _gTabs = _renderReplyStickerGroupTabs();
-            if (_gTabs) list.appendChild(_gTabs);
-        }
         _renderStickerTab(list, itemsToRender); return;
     }
 
@@ -241,9 +235,7 @@ function renderReplyLibrary() {
             itemsToRender = CONSTANTS.REPLY_EMOJIS;
             renderType = 'emoji';
         } else if (currentSubTab === 'stickers') {
-            itemsToRender = (typeof _rlStickerGroupFilter !== 'undefined' && _rlStickerGroupFilter && _rlStickerGroupFilter !== '全部')
-                ? stickerLibrary.filter(function(s) { return _getStickerGroup(s) === _rlStickerGroupFilter; })
-                : stickerLibrary;
+            itemsToRender = stickerLibrary;
             renderType = 'image';
         }
     } else if (currentMajorTab === 'atmosphere') {
@@ -255,10 +247,6 @@ function renderReplyLibrary() {
 
     if (renderType === 'emoji') { _renderEmojiTab(list, itemsToRender); return; }
     if (renderType === 'image') {
-        if (currentSubTab === 'stickers') {
-            var _gTabs = _renderReplyStickerGroupTabs();
-            if (_gTabs) list.appendChild(_gTabs);
-        }
         _renderStickerTab(list, itemsToRender); return;
     }
 
@@ -874,47 +862,132 @@ function _renderEmojiTab(list, itemsToRender) {
 
 function _renderStickerTab(list, itemsToRender) {
     const disabledSet = _getDisabledStickerItemsSet();
-    itemsToRender.forEach((item, index) => {
-        var url = _getStickerUrl(item);
-        const div = document.createElement('div');
-        const isDisabled = disabledSet.has(url);
-        const isSelected = _batchModeActive && _batchSelectedIndices.has(index);
-        div.className = `sticker-item${isDisabled ? ' sticker-disabled' : ''}${isSelected ? ' sticker-batch-selected' : ''}`;
-        var groupLabel = _getStickerGroup(item);
-        div.innerHTML = `
-            <img src="${url}" loading="lazy">
-            <div class="sticker-batch-check">✓</div>
-            <div class="sticker-delete-btn"><i class="fas fa-times"></i></div>
-            <div style="position:absolute;bottom:2px;left:2px;right:2px;font-size:9px;color:var(--text-secondary);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.7;">${groupLabel}</div>
-        `;
-        div.style.position = 'relative';
-        div.addEventListener('click', () => {
-            if (!_batchModeActive) return;
-            if (currentMajorTab !== 'reply' || currentSubTab !== 'stickers') return;
-            if (isSelected) _batchSelectedIndices.delete(index);
-            else _batchSelectedIndices.add(index);
-            renderReplyLibrary();
-        });
-        div.querySelector('.sticker-delete-btn').addEventListener('click', e => {
-            e.stopPropagation();
-            if (confirm('删除此表情？')) {
-                if (isDisabled) {
-                    disabledSet.delete(url);
-                    _saveDisabledStickerItemsSet(disabledSet);
-                }
-                stickerLibrary.splice(index, 1);
-                _batchSelectedIndices.clear();
-                throttledSaveData();
-                renderReplyLibrary();
-            }
-        });
-        // Long press to change group
-        var _lpTimer = null;
-        div.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupPicker(index); }, 500); };
-        div.ontouchend = function() { clearTimeout(_lpTimer); };
-        div.ontouchmove = function() { clearTimeout(_lpTimer); };
-        list.appendChild(div);
+    
+    // Group stickers by their group
+    var groups = _stickerGroupOrder.slice();
+    var groupedItems = {};
+    groups.forEach(function(g) { groupedItems[g] = []; });
+    
+    stickerLibrary.forEach(function(item, idx) {
+        var g = _getStickerGroup(item);
+        if (!groupedItems[g]) groupedItems[g] = [];
+        groupedItems[g].push({item: item, idx: idx});
     });
+    
+    // Render each group as a collapsible section
+    groups.forEach(function(gName) {
+        var items = groupedItems[gName] || [];
+        var isCollapsed = (typeof _stickerGroupCollapsed !== 'undefined' && _stickerGroupCollapsed[gName] === true);
+        var isActive = _rlStickerGroupFilter === gName;
+        
+        var block = document.createElement('div');
+        block.className = 'rl-group-block';
+        block.style.marginBottom = '10px';
+        
+        var header = document.createElement('div');
+        header.className = 'rl-group-header' + (isCollapsed ? ' collapsed' : '');
+        if (isActive) header.style.borderLeft = '3px solid var(--accent-color)';
+        header.innerHTML = `
+            <span style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1;">${gName}</span>
+            <span style="font-size:11px;color:var(--text-secondary);">${items.length} 个</span>
+            ${isActive && !isCollapsed ? '<span style="font-size:9px;color:var(--accent-color);margin-left:4px;">\u2190 \u4e0a\u4f20\u5230\u8fd9</span>' : ''}
+            <div class="grp-chevron" style="color:var(--text-secondary);transition:transform 0.2s;transform:rotate(${isCollapsed ? '-90' : '0'}deg);flex-shrink:0;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+        `;
+        
+        header.onclick = function(e) {
+            if (e.target.closest('.grp-edit-btn')) return;
+            if (typeof _stickerGroupCollapsed === 'undefined') window._stickerGroupCollapsed = {};
+            _stickerGroupCollapsed[gName] = !_stickerGroupCollapsed[gName];
+            _rlStickerGroupFilter = gName;
+            renderReplyLibrary();
+        };
+        
+        header.oncontextmenu = function(e) { e.preventDefault(); _showReplyStickerGroupMenu(gName); };
+        var _lp = null;
+        header.ontouchstart = function() { _lp = setTimeout(function() { _showReplyStickerGroupMenu(gName); }, 500); };
+        header.ontouchend = function() { clearTimeout(_lp); };
+        header.ontouchmove = function() { clearTimeout(_lp); };
+        
+        block.appendChild(header);
+        
+        if (!isCollapsed) {
+            var body = document.createElement('div');
+            body.className = 'rl-group-body';
+            body.style.display = 'block';
+            
+            if (items.length === 0) {
+                body.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:var(--text-secondary);opacity:0.6;">\u6682\u65e0\u8868\u60c5\u5305</div>';
+            } else {
+                var grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:8px;';
+                items.forEach(function(entry) {
+                    var item = entry.item;
+                    var index = entry.idx;
+                    var url = _getStickerUrl(item);
+                    const div = document.createElement('div');
+                    const isDisabled = disabledSet.has(url);
+                    const isSelected = _batchModeActive && _batchSelectedIndices.has(index);
+                    div.className = `sticker-item${isDisabled ? ' sticker-disabled' : ''}${isSelected ? ' sticker-batch-selected' : ''}`;
+                    div.innerHTML = `
+                        <img src="${url}" loading="lazy">
+                        <div class="sticker-batch-check">\u2713</div>
+                        <div class="sticker-delete-btn"><i class="fas fa-times"></i></div>
+                    `;
+                    div.style.position = 'relative';
+                    div.addEventListener('click', () => {
+                        if (!_batchModeActive) return;
+                        if (currentMajorTab !== 'reply' || currentSubTab !== 'stickers') return;
+                        if (isSelected) _batchSelectedIndices.delete(index);
+                        else _batchSelectedIndices.add(index);
+                        renderReplyLibrary();
+                    });
+                    div.querySelector('.sticker-delete-btn').addEventListener('click', e => {
+                        e.stopPropagation();
+                        if (confirm('\u5220\u9664\u6b64\u8868\u60c5\uff1f')) {
+                            if (isDisabled) {
+                                disabledSet.delete(url);
+                                _saveDisabledStickerItemsSet(disabledSet);
+                            }
+                            stickerLibrary.splice(index, 1);
+                            _batchSelectedIndices.clear();
+                            throttledSaveData();
+                            renderReplyLibrary();
+                        }
+                    });
+                    // Long press to change group
+                    var _lpTimer = null;
+                    div.ontouchstart = function(e) { _lpTimer = setTimeout(function() { _showStickerGroupPicker(index); }, 500); };
+                    div.ontouchend = function() { clearTimeout(_lpTimer); };
+                    div.ontouchmove = function() { clearTimeout(_lpTimer); };
+                    grid.appendChild(div);
+                });
+                body.appendChild(grid);
+            }
+            block.appendChild(body);
+        }
+        
+        list.appendChild(block);
+    });
+    
+    // Add group button
+    var addGroupBtn = document.createElement('button');
+    addGroupBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;margin-top:8px;border-radius:10px;border:1px dashed rgba(128,128,128,0.5);background:transparent;color:var(--accent-color);font-size:12px;cursor:pointer;width:100%;';
+    addGroupBtn.innerHTML = '<i class="fas fa-plus" style="font-size:10px;"></i> \u65b0\u5efa\u5206\u7ec4';
+    addGroupBtn.onclick = function() {
+        var name = prompt('\u8f93\u5165\u65b0\u5206\u7ec4\u540d\u79f0\uff1a');
+        if (!name || !name.trim()) return;
+        name = name.trim();
+        _ensureGroupExists(STICKER_GROUP_KEY, name);
+        _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        if (typeof _stickerGroupCollapsed === 'undefined') window._stickerGroupCollapsed = {};
+        _stickerGroupCollapsed[name] = false;
+        _rlStickerGroupFilter = name;
+        renderReplyLibrary();
+        showNotification('\u5df2\u521b\u5efa\u5e76\u9009\u4e2d\u5206\u7ec4\u300c' + name + '\u300d', 'success');
+    };
+    list.appendChild(addGroupBtn);
 }
 
 
@@ -2341,7 +2414,6 @@ function initReplyLibraryListeners() {
     if (addBtn) {
         addBtn.addEventListener('click', () => {
             if (currentSubTab === 'stickers') {
-                if (window._selectUploadGroup && !window._selectUploadGroup('partner')) return;
                 document.getElementById('sticker-file-input')?.click(); return;
             }
             if (currentSubTab === 'emojis') {
@@ -2564,14 +2636,13 @@ function _renderReplyStickerGroupTabs() {
     wrapper.style.cssText = 'display:flex;gap:6px;padding:4px 0 8px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;';
     wrapper.style.scrollbarWidth = 'none';
     var allBtn = document.createElement('button');
-    allBtn.textContent = '全部 (' + stickerLibrary.length + ')';
-    var isAll = _rlStickerGroupFilter === '全部';
+    allBtn.textContent = '\u5168\u90e8 (' + stickerLibrary.length + ')';
+    var isAll = _rlStickerGroupFilter === '\u5168\u90e8';
     allBtn.style.cssText = 'flex-shrink:0;padding:4px 12px;border-radius:14px;border:1px solid ' + (isAll ? 'var(--accent-color)' : 'rgba(128,128,128,0.3)') + ';background:' + (isAll ? 'var(--accent-color)' : 'transparent') + ';color:' + (isAll ? '#fff' : 'var(--text-secondary)') + ';font-size:12px;cursor:pointer;white-space:nowrap;font-weight:' + (isAll ? '600' : '400') + ';';
-    allBtn.onclick = function() { _rlStickerGroupFilter = '全部'; renderReplyLibrary(); };
+    allBtn.onclick = function() { _rlStickerGroupFilter = '\u5168\u90e8'; renderReplyLibrary(); };
     wrapper.appendChild(allBtn);
     groups.forEach(function(gName) {
         var cnt = stickerLibrary.filter(function(s) { return _getStickerGroup(s) === gName; }).length;
-        if (cnt === 0) return;
         var btn = document.createElement('button');
         btn.textContent = gName + ' (' + cnt + ')';
         var isActive = _rlStickerGroupFilter === gName;
@@ -2585,15 +2656,17 @@ function _renderReplyStickerGroupTabs() {
         wrapper.appendChild(btn);
     });
     var addBtn = document.createElement('button');
-    addBtn.innerHTML = '<i class="fas fa-plus" style="font-size:10px;"></i>';
-    addBtn.style.cssText = 'flex-shrink:0;padding:4px 10px;border-radius:14px;border:1px dashed rgba(128,128,128,0.4);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;';
+    addBtn.innerHTML = '<i class="fas fa-plus" style="font-size:10px;"></i> \u65b0\u5efa';
+    addBtn.style.cssText = 'flex-shrink:0;padding:4px 10px;border-radius:14px;border:1px dashed rgba(128,128,128,0.5);background:transparent;color:var(--accent-color);font-size:12px;cursor:pointer;white-space:nowrap;';
     addBtn.onclick = function() {
-        var name = prompt('输入新分组名称：');
+        var name = prompt('\u8f93\u5165\u65b0\u5206\u7ec4\u540d\u79f0\uff1a');
         if (!name || !name.trim()) return;
-        _ensureGroupExists(STICKER_GROUP_KEY, name.trim());
+        name = name.trim();
+        _ensureGroupExists(STICKER_GROUP_KEY, name);
         _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
+        _rlStickerGroupFilter = name;
         renderReplyLibrary();
-        showNotification('已创建分组「' + name.trim() + '」', 'success');
+        showNotification('\u5df2\u521b\u5efa\u5e76\u9009\u4e2d\u5206\u7ec4\u300c' + name + '\u300d', 'success');
     };
     wrapper.appendChild(addBtn);
     return wrapper;

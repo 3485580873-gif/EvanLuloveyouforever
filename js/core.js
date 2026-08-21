@@ -42,7 +42,11 @@ var STICKER_GROUP_KEY = '__stickerGroupOrder';
 var MY_STICKER_GROUP_KEY = '__myStickerGroupOrder';
 var _stickerGroupOrder = _getStickerGroupOrder(STICKER_GROUP_KEY);
 var _myStickerGroupOrder = _getStickerGroupOrder(MY_STICKER_GROUP_KEY);
-var _chatStickerGroupFilter = '全部';
+var _myChatStickerFilter = '全部';
+var _partnerChatStickerFilter = '全部';
+// Collapsed state for sticker group sections
+var _myStickerGroupCollapsed = {};  // groupName -> true/false
+var _stickerGroupCollapsed = {};    // groupName -> true/false
 // ======== End Sticker Group Support ========
 
 function clearAllAppData() {
