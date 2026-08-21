@@ -552,7 +552,19 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         const b = document.getElementById('call-mini-timer');
         if (a) a.textContent = t;
         if (b) b.textContent = t;
-        S.timerRAF = requestAnimationFrame(tick);
+    }
+
+    function startCallTimer() {
+        stopCallTimer();
+        tick();
+        S.timerRAF = setInterval(tick, 1000);
+    }
+
+    function stopCallTimer() {
+        if (S.timerRAF) {
+            clearInterval(S.timerRAF);
+            S.timerRAF = null;
+        }
     }
 
     function applyBg() {
@@ -706,7 +718,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         const dur = S.elapsed;
         // 先停止通话状态
         S.active = false; S.startTime = null;
-        cancelAnimationFrame(S.timerRAF);
+        stopCallTimer();
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
         stopHeartbeat();
         clearCallSession('随机对方主动挂断');
@@ -760,7 +772,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 if (!S.active) return;
                 S.active = false;
                 S.minimized = false;
-                cancelAnimationFrame(S.timerRAF);
+                stopCallTimer();
                 const winEl = document.getElementById('call-window');
                 if (winEl) { winEl.classList.remove('visible'); winEl.classList.remove('immersive'); }
                 const connEl = document.getElementById('call-connecting-state');
@@ -787,7 +799,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 S.startTime = Date.now();
                 if (conn) conn.classList.remove('visible');
                 if (body) body.style.display = '';
-                tick();
+                startCallTimer();
                 startHeartbeat();
             }, 1400 + Math.random() * 1400);
         }
@@ -797,7 +809,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         if (!S.active) return;
         const dur = S.elapsed;
         S.active = false; S.startTime = null;
-        cancelAnimationFrame(S.timerRAF);
+        stopCallTimer();
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
         stopHeartbeat();
         clearCallSession('正常挂断(endCall)');
@@ -1100,8 +1112,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         if (conn) conn.classList.remove('visible');
         if (body) body.style.display = '';
 
-        cancelAnimationFrame(S.timerRAF);
-        tick();
+        startCallTimer();
         startHeartbeat();
 
         if (typeof showNotification === 'function') showNotification('通话已恢复', 'success', 2000);
