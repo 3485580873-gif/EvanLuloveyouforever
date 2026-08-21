@@ -1,13 +1,5 @@
 /*核心应用逻辑：数据加载保存、消息渲染、会话管理等*/
 
-// 梦角回复消息的多监听通道（跟 window._onPartnerMessage 单函数钩子并行，互不覆盖）
-// 需要监听"梦角发了消息"这个事件的新模块，用 window._registerPartnerMessageListener(fn) 注册，
-// 不要直接赋值 window._onPartnerMessage，那个是给旧模块（陪伴模块）用的，赋值会覆盖掉它。
-window._partnerMessageListeners = window._partnerMessageListeners || [];
-window._registerPartnerMessageListener = window._registerPartnerMessageListener || function (fn) {
-    if (typeof fn === 'function') window._partnerMessageListeners.push(fn);
-};
-
         function clearAllAppData() {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
@@ -48,9 +40,6 @@ window._registerPartnerMessageListener = window._registerPartnerMessageListener 
             messages = [];
             window.messages = messages; // 双保险：同步 window 属性
             displayedMessageCount = HISTORY_BATCH_SIZE;
-            msgViewMode = 'latest'; // 清空消息了，历史浏览模式的窗口下标肯定全部失效，一并重置
-            newMsgCountWhileBrowsing = 0;
-            if (typeof window._updateBackToLatestBtn === 'function') window._updateBackToLatestBtn();
 
             // 立即清除 localStorage 备份，防止 _tryRecoverFromBackup 在 IndexedDB 写入前恢复旧消息
             try { localStorage.removeItem('BACKUP_V1_critical'); } catch(e) {}
@@ -83,76 +72,10 @@ window._registerPartnerMessageListener = window._registerPartnerMessageListener 
     };
 }
 
-// 把 messages[startIdx, endIdxExclusive) 这一批更早的消息，直接插到聊天区域最上面——
-// 不清空、不重画已经显示着的内容，所以不会有"整个区域先藏起来再露出来"那种白屏闪烁
-function _prependOlderMessages(startIdx, endIdxExclusive) {
-    const container = DOMElements.chatContainer;
-    const batch = messages.slice(startIdx, endIdxExclusive);
-    if (!batch.length || !container) return;
-
-    const fragment = new DocumentFragment();
-    let lastSenderRef = { current: null };
-    batch.forEach((msg, i) => {
-        const globalIdx = startIdx + i;
-        const prevMsg = globalIdx > 0 ? messages[globalIdx - 1] : null;
-        const nextMsg = messages[globalIdx + 1] || null; // 批次内的下一条，或者已经渲染在下面的那一条，都能正确取到
-        const msgFragment = createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef);
-        fragment.appendChild(msgFragment);
-    });
-
-    // 最上面固定有一个用来撑高度的占位div（spacer），新内容要插在它后面、原有消息前面
-    const spacer = container.querySelector('div[style*="flex: 1"]');
-    const insertBeforeNode = spacer ? spacer.nextSibling : container.firstChild;
-
-    // 聊天框本身开着"平滑滚动"效果（CSS scroll-behavior: smooth），这跟"瞬间精确挪到某个位置"是冲突的——
-    // 不临时关掉的话，下面这行补偿滚动条位置的操作会被浏览器理解成"慢慢滑过去"，
-    // 读到的中间值就会不准，视觉上也会变成"先加载、又滑到别的地方"，这正是这次要修的问题
-    const prevScrollBehavior = container.style.scrollBehavior;
-    container.style.scrollBehavior = 'auto';
-
-    const oldScrollHeight = container.scrollHeight;
-    if (insertBeforeNode) {
-        container.insertBefore(fragment, insertBeforeNode);
-    } else {
-        container.appendChild(fragment);
-    }
-    // 上面新插入了这么多高度，滚动条也跟着往下挪同样的距离，视觉上就像"没有动过"，用户能无缝接着往上看
-    const newScrollHeight = container.scrollHeight;
-    container.scrollTop += (newScrollHeight - oldScrollHeight);
-
-    container.style.scrollBehavior = prevScrollBehavior || '';
-}
-
-// 把 messages[startIdx, endIdxExclusive) 这一批更晚的消息，直接接在聊天区域最下面——
-// 同样不清空重画，往下追加不会影响当前已经看到的内容和滚动位置，不需要额外补偿滚动条
-function _appendNewerMessages(startIdx, endIdxExclusive) {
-    const container = DOMElements.chatContainer;
-    const batch = messages.slice(startIdx, endIdxExclusive);
-    if (!batch.length || !container) return;
-
-    const fragment = new DocumentFragment();
-    // lastSenderRef 要先接上"当前已经渲染的最后一条是谁发的"，不然本来该合并显示的头像/时间会重复冒出来
-    let lastSenderRef = { current: null };
-    if (startIdx > 0) {
-        const lastRenderedMsg = messages[startIdx - 1];
-        const prevGroupMember = (lastRenderedMsg.sender !== 'user' && typeof getGroupMemberForMessage === 'function') ? getGroupMemberForMessage(lastRenderedMsg.id) : null;
-        lastSenderRef.current = prevGroupMember ? ('group_' + prevGroupMember.name) : lastRenderedMsg.sender;
-    }
-    batch.forEach((msg, i) => {
-        const globalIdx = startIdx + i;
-        const prevMsg = globalIdx > 0 ? messages[globalIdx - 1] : null;
-        const nextMsg = messages[globalIdx + 1] || null;
-        const msgFragment = createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef);
-        fragment.appendChild(msgFragment);
-    });
-
-    container.appendChild(fragment);
-}
-
 function loadMoreHistory() {
     const historyLoader = document.getElementById('history-loader');
     const container = DOMElements && DOMElements.chatContainer;
-    const currentOldestMsgIndex = msgViewMode === 'window' ? msgWinStart : (messages.length - displayedMessageCount);
+    const currentOldestMsgIndex = messages.length - displayedMessageCount;
 
     if (!container) return;
     if (isLoadingHistory) return;
@@ -165,64 +88,49 @@ function loadMoreHistory() {
     isLoadingHistory = true;
     if (historyLoader) historyLoader.style.display = 'flex';
 
-    // 消息本来就已经在内存里了，不是要发网络请求，这里保留一点延迟纯粹是为了让转圈动效能被看清楚、
-    // 感觉更像"正在加载"，不会显得太突兀。真正的DOM操作只插入新增的这一批，不会有白屏闪烁。
-    setTimeout(() => {
-        const oldStart = msgViewMode === 'window' ? msgWinStart : Math.max(0, messages.length - displayedMessageCount);
-        let newStart;
-        if (msgViewMode === 'window') {
-            msgWinStart = Math.max(0, msgWinStart - HISTORY_BATCH_SIZE);
-            newStart = msgWinStart;
-        } else {
-            displayedMessageCount = Math.min(messages.length, displayedMessageCount + HISTORY_BATCH_SIZE);
-            newStart = Math.max(0, messages.length - displayedMessageCount);
-        }
+    const visibleWrappers = Array.from(container.querySelectorAll('.message-wrapper'));
+    const firstVisible = visibleWrappers.find(function(el) {
+        return el.offsetTop + el.offsetHeight >= container.scrollTop;
+    }) || visibleWrappers[0] || null;
 
-        _prependOlderMessages(newStart, oldStart);
+    const anchorId = firstVisible ? firstVisible.dataset.msgId : null;
+    const anchorTop = firstVisible ? firstVisible.getBoundingClientRect().top : 0;
 
-        const stillHasMore = msgViewMode === 'window' ? msgWinStart > 0 : (messages.length > displayedMessageCount);
-        if (historyLoader) {
-            historyLoader.style.display = stillHasMore ? 'flex' : 'none';
-        }
-        isLoadingHistory = false;
-    }, 120);
-}
+    const prevVisibility = container.style.visibility;
+    const prevOverflow = container.style.overflow;
+    const prevScrollBehavior = container.style.scrollBehavior;
+    const prevOpacity = container.style.opacity;
 
-// 往下翻，加载更晚的消息——跟 loadMoreHistory 对称，只在 window（历史浏览）模式下会用到，
-// 正常的 latest 模式本来就已经渲染到最新消息了，没有"更晚"可以加载
-function loadMoreFuture() {
-    const futureLoader = document.getElementById('future-loader');
-    const container = DOMElements && DOMElements.chatContainer;
-    if (!container) return;
-    if (msgViewMode !== 'window') return;
-    if (isLoadingFuture) return;
-
-    if (msgWinEnd >= messages.length) {
-        if (futureLoader) futureLoader.style.display = 'none';
-        return;
-    }
-
-    isLoadingFuture = true;
-    if (futureLoader) futureLoader.style.display = 'flex';
+    container.style.opacity = '0.015';
+    container.style.visibility = 'hidden';
+    container.style.overflow = 'hidden';
+    container.style.scrollBehavior = 'auto';
 
     setTimeout(() => {
-        const oldEnd = msgWinEnd;
-        msgWinEnd = Math.min(messages.length, msgWinEnd + HISTORY_BATCH_SIZE);
+        displayedMessageCount = Math.min(messages.length, displayedMessageCount + HISTORY_BATCH_SIZE);
+        renderMessages(true);
 
-        // 如果这一下已经追到最新消息了，直接切回正常模式，体验上等同于"回到最新"——
-        // 这是一次性的模式切换，不是重复的翻页动作，用一次完整渲染没问题
-        if (msgWinEnd >= messages.length) {
-            window._backToLatestMessages();
-            isLoadingFuture = false;
-            return;
-        }
+        requestAnimationFrame(() => {
+            if (anchorId) {
+                const newAnchor = container.querySelector('[data-msg-id="' + anchorId + '"]');
+                if (newAnchor) {
+                    const newTop = newAnchor.getBoundingClientRect().top;
+                    container.scrollTop += (newTop - anchorTop);
+                }
+            }
 
-        _appendNewerMessages(oldEnd, msgWinEnd);
+            requestAnimationFrame(() => {
+                container.style.opacity = prevOpacity || '';
+                container.style.visibility = prevVisibility || '';
+                container.style.overflow = prevOverflow || '';
+                container.style.scrollBehavior = prevScrollBehavior || '';
 
-        if (futureLoader) {
-            futureLoader.style.display = (msgWinEnd < messages.length) ? 'flex' : 'none';
-        }
-        isLoadingFuture = false;
+                if (historyLoader) {
+                    historyLoader.style.display = (messages.length > displayedMessageCount) ? 'flex' : 'none';
+                }
+                isLoadingHistory = false;
+            });
+        });
     }, 120);
 }
 
@@ -233,7 +141,7 @@ function loadMoreFuture() {
                 myName: "我",
                 myStatus: "在线",
                 partnerStatus: "在线",
-                isDarkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+                isDarkMode: false,
                 colorTheme: "gold",
                 soundEnabled: true,
                 typingIndicatorEnabled: true,
@@ -241,6 +149,9 @@ function loadMoreFuture() {
                 replyEnabled: true,
                 lastStatusChange: Date.now(),
                 nextStatusChange: 1 + Math.random() * 7,
+                partnerTimezoneLabel: "近邻同步区",
+                lastTimezoneChange: Date.now(),
+                nextTimezoneChange: 1 + Math.random() * 7,
                 fontSize: 16,
                 bubbleStyle: 'standard',
                 messageFontFamily: "'Noto Serif SC', serif",
@@ -265,8 +176,6 @@ autoSendEnabled: false,
 autoSendInterval: 5,
         allowReadNoReply: false, 
         readNoReplyChance: 0.2,
-        combineReplyCards: false,
-        combineReplyMaxCards: 3,
         timeFormat: 'HH:mm',
         customSoundUrl: '',
         // 音效：两方分别可选（若对应 URL 为空则使用内置预设）
@@ -305,30 +214,19 @@ autoSendInterval: 5,
                 const item = document.createElement('div');
                 let isActive = false;
 
-                if (currentBg) {
-                    if (currentBg === bg.value) {
-                        // 本地 base64 完全匹配
-                        isActive = true;
-                    } else if (typeof currentBg === 'string' && currentBg.indexOf('oss://') === 0) {
-                        // 换设备恢复后 currentBg 是 oss:// 引用，跟 cloudUrl 比较
-                        isActive = bg.cloudUrl === currentBg;
-                    }
-                }
+                if (currentBg && currentBg === bg.value) isActive = true;
 
                 item.className = `bg-item ${isActive ? 'active': ''}`;
 
-                if (bg.type === 'image' || bg.type === 'gif') {
-                    // 图库预览：优先用缩略图（省内存），没有缩略图才用本地 base64
-                    // cloudUrl 存云端备份引用，但图库预览不走云端
-                    const displaySrc = bg.thumbnail || bg.value;
-                    item.innerHTML = `<img src="${displaySrc}" loading="lazy" alt="bg">`;
+                if (bg.type === 'image') {
+                    item.innerHTML = `<img src="${bg.value}" loading="lazy" alt="bg">`;
                 } else {
                     item.innerHTML = `<div class="bg-color-block" style="background: ${bg.value}"></div>`;
                 }
 
-                item.onclick = async (e) => {
+                item.onclick = (e) => {
                     if (e.target.closest('.bg-delete-btn')) return;
-                    await applyBackground(bg.value);
+                    applyBackground(bg.value);
                     safeSetItem(getStorageKey('chatBackground'), bg.value);
                     localforage.setItem(getStorageKey('chatBackground'), bg.value);
                     renderBackgroundGallery();
@@ -340,20 +238,9 @@ autoSendInterval: 5,
                     delBtn.className = 'bg-delete-btn';
                     delBtn.innerHTML = '<i class="fas fa-trash"></i>';
                     delBtn.title = "删除此背景";
-                    delBtn.onclick = async (e) => {
+                    delBtn.onclick = (e) => {
                         e.stopPropagation();
                         if (confirm('确定删除这张背景图吗？')) {
-                            // 阶段三B：如果有云端引用，先删云端对象（失败不阻塞本地删除）
-                            if (window.CloudMedia && bg) {
-                                const refToDelete = bg.cloudKey || (typeof bg.value === 'string' && bg.value.indexOf('oss://') === 0 ? bg.value : null);
-                                if (refToDelete) {
-                                    try {
-                                        await window.CloudMedia.delete(refToDelete);
-                                    } catch (err) {
-                                        console.warn('[cloud-media] 云端删除失败', err);
-                                    }
-                                }
-                            }
                             savedBackgrounds.splice(index, 1);
                             saveBackgroundGallery();
 
@@ -379,38 +266,9 @@ autoSendInterval: 5,
 }
 
 
-        const applyBackground = async (value) => {
+        const applyBackground = (value) => {
             if (!value || typeof value !== 'string') return;
             try {
-                // 聊天页背景本地存全尺寸 base64，直接应用，零延迟
-                // oss:// 引用只会在换设备恢复时临时出现（旧数据迁移过渡期），兜底处理
-                if (value.indexOf('oss://') === 0) {
-                    // 兜底：找本地 gallery 里有没有对应的 cloudUrl，有就用本地 base64
-                    const localItem = Array.isArray(savedBackgrounds)
-                        ? savedBackgrounds.find(function (bg) { return bg && (bg.cloudUrl === value || bg.value === value); })
-                        : null;
-                    if (localItem && localItem.value && localItem.value.indexOf('data:image') === 0) {
-                        // 本地有，直接用
-                        const cssValue = `url(${localItem.value})`;
-                        document.documentElement.style.setProperty('--chat-bg-image', cssValue);
-                        document.body.classList.add('with-background');
-                        return;
-                    }
-                    // 本地没有（换设备恢复后的旧数据）：才走云端下载，缩略图先垫底
-                    if (window.CloudMedia) {
-                        if (localItem && localItem.thumbnail) {
-                            document.documentElement.style.setProperty('--chat-bg-image', `url(${localItem.thumbnail})`);
-                            document.body.classList.add('with-background');
-                        }
-                        window.CloudMedia.fetchUrl(value).then(function (blobUrl) {
-                            document.documentElement.style.setProperty('--chat-bg-image', `url(${blobUrl})`);
-                            document.body.classList.add('with-background');
-                        }).catch(function (e) {
-                            console.warn('[cloud-media] 加载云端背景失败', e);
-                        });
-                    }
-                    return;
-                }
                 if (value.startsWith('linear-gradient') || value.startsWith('#') || value.startsWith('rgb')) {
                     document.documentElement.style.setProperty('--chat-bg-image', value);
                 } else {
@@ -435,6 +293,7 @@ const loadData = async () => {
             localforage.getItem(getStorageKey('backgroundGallery')),
             localforage.getItem(getStorageKey('customReplies')),
             localforage.getItem(getStorageKey('customPokes')),
+            localforage.getItem(getStorageKey('quickPokes')),
             localforage.getItem(getStorageKey('customStatuses')),
             localforage.getItem(getStorageKey('customMottos')),
             localforage.getItem(getStorageKey('customIntros')),
@@ -459,22 +318,23 @@ const loadData = async () => {
         const savedBgGallery = getVal(2);
         const savedCustomReplies = getVal(3);
         const savedPokes = getVal(4);
-        const savedStatuses = getVal(5);
-        const savedMottos = getVal(6);
-        const savedIntros = getVal(7);
-        const savedAnniversaries = getVal(8);
-        const savedStickers = getVal(9);
-        const savedCustomThemes = getVal(10);
-        const savedChatBg = getVal(11);
-        const partnerAvatarSrc = getVal(12);
-        const myAvatarSrc = getVal(13);
-        const savedPartnerPersonas = getVal(14);
-        const savedShowNameConfig = getVal(15);
-        const savedThemeSchemes = getVal(16);
-        const savedMyStickers = getVal(17);
-        const savedReplyGroups = getVal(18);
-        const savedPokeGroups = getVal(19);
-        const savedStatusGroups = getVal(20);
+        const savedQuickPokes = getVal(5);
+        const savedStatuses = getVal(6);
+        const savedMottos = getVal(7);
+        const savedIntros = getVal(8);
+        const savedAnniversaries = getVal(9);
+        const savedStickers = getVal(10);
+        const savedCustomThemes = getVal(11);
+        const savedChatBg = getVal(12);
+        const partnerAvatarSrc = getVal(13);
+        const myAvatarSrc = getVal(14);
+        const savedPartnerPersonas = getVal(15);
+        const savedShowNameConfig = getVal(16);
+        const savedThemeSchemes = getVal(17);
+        const savedMyStickers = getVal(18);
+        const savedReplyGroups = getVal(19);
+        const savedPokeGroups = getVal(20);
+        const savedStatusGroups = getVal(21);
 
         if (savedPartnerPersonas) partnerPersonas = savedPartnerPersonas;
 
@@ -487,13 +347,27 @@ const loadData = async () => {
         }
         document.body.classList.toggle('show-partner-name', showPartnerNameInChat);
         try {
-            if (settings.customFontUrl) applyCustomFont(settings.customFontUrl);
+            // customFontUrl 是 '__local__' 时表示用户上传的是本地字体文件，
+            // 不是真的网址，不能直接拿去当 URL 加载（之前就是这里每次进站都误把
+            // "__local__" 当网址请求，必然失败，弹出"字体加载失败"的提示）。
+            // 本地字体的恢复由 window._restoreLocalFontIfNeeded() 单独处理。
+            if (settings.customFontUrl && settings.customFontUrl !== '__local__') applyCustomFont(settings.customFontUrl);
             if (settings.customBubbleCss) applyCustomBubbleCss(settings.customBubbleCss);
             if (settings.customGlobalCss) applyGlobalThemeCss(settings.customGlobalCss);
         } catch(e) { console.warn("样式应用失败", e); }
         
         if (savedPokes) customPokes = savedPokes;
         else customPokes = [...CONSTANTS.POKE_ACTIONS];
+
+        if (savedQuickPokes) {
+            // 已有独立的快捷拍一拍数据，直接使用
+            quickPokes = savedQuickPokes;
+        } else if (savedPokes) {
+            // 旧版本没有独立存储，快捷拍一拍曾经就是字卡库前6条——一次性迁移，此后两者各自独立、互不联通
+            quickPokes = savedPokes.slice(0, 6);
+        } else {
+            quickPokes = [...CONSTANTS.POKE_ACTIONS].slice(0, 6);
+        }
 
         if (savedStatuses) customStatuses = savedStatuses;
         else customStatuses = [...CONSTANTS.PARTNER_STATUSES];
@@ -552,43 +426,6 @@ const loadData = async () => {
         if (DOMElements && DOMElements.partner && DOMElements.me) {
             updateAvatar(DOMElements.partner.avatar, partnerAvatarSrc);
             updateAvatar(DOMElements.me.avatar, myAvatarSrc);
-            // updateAvatar 已经把值写进 _avatarCache 了，这里不用再写一遍
-
-            // 阶段四：本地没有头像时，从云端下载（换设备恢复场景）
-            if (window.CloudMedia && window.CloudSync && window.CloudSync.isConnected()) {
-                const _tryRestoreAvatar = async (isPartner) => {
-                    const localSrc = isPartner ? partnerAvatarSrc : myAvatarSrc;
-                    // 本地 localforage 有 或 内存缓存有，都不拉
-                    const cacheVal = window._avatarCache && (isPartner ? window._avatarCache.partner : window._avatarCache.me);
-                    if (localSrc || cacheVal) return;
-
-                    const category = isPartner ? 'avatars' : 'my-avatars';
-                    const avatarId = isPartner ? 'partner' : 'me';
-                    const sid = SESSION_ID;
-                    // 只试 jpg 和 png（上传时统一用 jpg，png 做兜底）
-                    for (const ext of ['jpg', 'png']) {
-                        const ossRef = `oss://media/${sid}/${category}/${avatarId}.${ext}`;
-                        try {
-                            const blobUrl = await window.CloudMedia.fetchUrl(ossRef);
-                            const resp = await fetch(blobUrl);
-                            const buf = await resp.arrayBuffer();
-                            const b64arr = new Uint8Array(buf);
-                            let binary = '';
-                            b64arr.forEach(b => binary += String.fromCharCode(b));
-                            const base64 = `data:image/${ext};base64,` + btoa(binary);
-                            const storageKey = getStorageKey(isPartner ? 'partnerAvatar' : 'myAvatar');
-                            await localforage.setItem(storageKey, base64);
-                            const el = isPartner ? DOMElements.partner.avatar : DOMElements.me.avatar;
-                            updateAvatar(el, base64);
-                            break;
-                        } catch (e) {
-                            // 没有这个后缀，继续
-                        }
-                    }
-                };
-                _tryRestoreAvatar(true).catch(() => {});
-                _tryRestoreAvatar(false).catch(() => {});
-            }
         }
 
         if (savedChatBg) {
@@ -605,15 +442,11 @@ const loadData = async () => {
         try { await loadEnvelopeData(); } catch(e) { console.warn("信封数据加载失败", e); }
         
         displayedMessageCount = HISTORY_BATCH_SIZE;
-        msgViewMode = 'latest'; // 切换/加载会话时，重置掉"历史浏览模式"，避免带着上一个会话的浏览状态串过来
-        newMsgCountWhileBrowsing = 0;
-        if (typeof window._updateBackToLatestBtn === 'function') window._updateBackToLatestBtn();
         
         setTimeout(() => {
             applyAllAvatarFrames();
             manageAutoSendTimer(); 
             checkEnvelopeStatus(); 
-            if (typeof checkMomentsStatus === 'function') checkMomentsStatus();
             updateUI();
             if (settings.customBubbleCss) {
                 try { applyCustomBubbleCss(settings.customBubbleCss); } catch(e) {}
@@ -758,6 +591,7 @@ const saveData = async () => {
         { key: 'customEmojis',           val: () => localforage.setItem(getStorageKey('customEmojis'), customEmojis) },
         { key: 'anniversaries',          val: () => localforage.setItem(getStorageKey('anniversaries'), anniversaries) },
         { key: 'customPokes',            val: () => localforage.setItem(getStorageKey('customPokes'), customPokes) },
+        { key: 'quickPokes',             val: () => localforage.setItem(getStorageKey('quickPokes'), quickPokes) },
         { key: 'customStatuses',         val: () => localforage.setItem(getStorageKey('customStatuses'), customStatuses) },
         { key: 'customMottos',           val: () => localforage.setItem(getStorageKey('customMottos'), customMottos) },
         { key: 'customIntros',           val: () => localforage.setItem(getStorageKey('customIntros'), customIntros) },
@@ -768,17 +602,29 @@ const saveData = async () => {
         { key: 'chatMessages',           val: () => localforage.setItem(getStorageKey('chatMessages'), messages) },
     ];
 
-    // 头像从内存缓存读（不从 DOM 读，DOM 的 img.src 不可靠：可能是 blob URL、绝对路径或空字符串）
-    const partnerAvatarSrc = window._avatarCache && window._avatarCache.partner || null;
-    const myAvatarSrc = window._avatarCache && window._avatarCache.me || null;
+    const partnerAvatarSrc = (() => {
+        try {
+            const img = DOMElements.partner.avatar.querySelector('img');
+            return img ? img.src : null;
+        } catch(e) { return null; }
+    })();
+    const myAvatarSrc = (() => {
+        try {
+            const img = DOMElements.me.avatar.querySelector('img');
+            return img ? img.src : null;
+        } catch(e) { return null; }
+    })();
 
     if (partnerAvatarSrc) {
         promises.push({ key: 'partnerAvatar', val: () => localforage.setItem(getStorageKey('partnerAvatar'), partnerAvatarSrc) });
+    } else {
+        promises.push({ key: 'partnerAvatar', val: () => localforage.removeItem(getStorageKey('partnerAvatar')) });
     }
-    // 注意：头像不做 removeItem —— 用户没改头像时 _avatarCache 可能是 null，不能误删
 
     if (myAvatarSrc) {
         promises.push({ key: 'myAvatar', val: () => localforage.setItem(getStorageKey('myAvatar'), myAvatarSrc) });
+    } else {
+        promises.push({ key: 'myAvatar', val: () => localforage.removeItem(getStorageKey('myAvatar')) });
     }
 
     const results = await Promise.allSettled(promises.map(p => {
@@ -998,11 +844,14 @@ function manageAutoSendTimer() {
                 }
             }
 
-            DOMElements.html.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            DOMElements.html.setAttribute('data-theme', settings.isDarkMode ? 'dark': 'light');
+            DOMElements.themeToggle.innerHTML = settings.isDarkMode ? '<i class="fas fa-sun"></i>': '<i class="fas fa-moon"></i>';
             DOMElements.partner.name.textContent = settings.partnerName;
             DOMElements.me.name.textContent = settings.myName;
             DOMElements.partner.status.textContent = settings.partnerStatus || '在线';
             DOMElements.me.statusText.textContent = settings.myStatus;
+            if (typeof window._renderPartnerTimezone === 'function') window._renderPartnerTimezone();
+            if (typeof window._renderMyTimezone === 'function') window._renderMyTimezone();
             if (typeof window.updateDynamicNames === 'function') window.updateDynamicNames();
             document.documentElement.style.setProperty('--font-size', `${settings.fontSize}px`);
             
@@ -1039,6 +888,7 @@ function manageAutoSendTimer() {
                 '#typing-indicator-toggle': 'typingIndicatorEnabled',
                 '#read-no-reply-toggle': 'allowReadNoReply',
                 '#emoji-mix-toggle': 'emojiMixEnabled',
+                '#pinyin-card-toggle': 'pinyinCardEnabled',
                 '#auto-send-toggle': 'autoSendEnabled'
             };
             for (const [sel, prop] of Object.entries(_pillSyncMap)) {
@@ -1055,20 +905,7 @@ function manageAutoSendTimer() {
         };
 
         const updateAvatar = (element, src) => {
-            if (src) {
-                element.innerHTML = `<img src="${src}" alt="avatar">`;
-                // 同时写内存缓存，供 saveData 读取（不从 DOM img.src 读，不可靠）
-                if (!window._avatarCache) window._avatarCache = {};
-                if (element === DOMElements.partner.avatar) window._avatarCache.partner = src;
-                else if (element === DOMElements.me.avatar) window._avatarCache.me = src;
-            } else {
-                element.innerHTML = `<i class="fas fa-user"></i>`;
-                // src 为空时清缓存（用户主动删除头像）
-                if (window._avatarCache) {
-                    if (element === DOMElements.partner.avatar) window._avatarCache.partner = null;
-                    else if (element === DOMElements.me.avatar) window._avatarCache.me = null;
-                }
-            }
+            if (src) element.innerHTML = `<img src="${src}" alt="avatar">`; else element.innerHTML = `<i class="fas fa-user"></i>`;
         };
 
         const removeBackground = () => {
@@ -1082,21 +919,31 @@ function manageAutoSendTimer() {
         window.scrollToQuotedMessage = function(el) {
             const id = el.getAttribute('data-reply-id');
             if (!id) return;
-            const target = document.querySelector(`[data-msg-id="${id}"]`);
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                target.classList.add('msg-highlight');
-                setTimeout(() => target.classList.remove('msg-highlight'), 1500);
-                return;
+            const tryScroll = () => {
+                const target = document.querySelector(`[data-msg-id="${id}"]`);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.classList.add('msg-highlight');
+                    setTimeout(() => target.classList.remove('msg-highlight'), 1500);
+                    return true;
+                }
+                return false;
+            };
+            if (!tryScroll()) {
+                const msgIndex = messages.findIndex(m => String(m.id) === String(id));
+                if (msgIndex === -1) {
+                    if (typeof showNotification === 'function') showNotification('消息可能已被删除', 'info');
+                    return;
+                }
+                const needed = messages.length - msgIndex;
+                if (needed > displayedMessageCount) {
+                    displayedMessageCount = needed;
+                    renderMessages(false);
+                    setTimeout(tryScroll, 150);
+                } else {
+                    if (typeof showNotification === 'function') showNotification('消息可能已被删除', 'info');
+                }
             }
-            // 当前页面上没有这条消息（可能太老了，还没渲染到），统一走"定位到某条消息"这条路，
-            // 不管这条消息有多老，只渲染它附近一小段，不会因为聊天记录长就变慢
-            if (!window._jumpToMessage(id)) return;
-            setTimeout(() => {
-                const el2 = document.querySelector(`[data-msg-id="${id}"]`);
-                if (el2) el2.classList.add('msg-highlight');
-                setTimeout(() => { if (el2) el2.classList.remove('msg-highlight'); }, 1500);
-            }, 60);
         };
 
 function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
@@ -1133,10 +980,7 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         callEvDiv.className = 'call-event-message';
         callEvDiv.dataset.id = msg.id;
         const icon = msg.callIcon || 'fa-video';
-        // 红色样式：通话拒绝/未接 + 陪伴拒绝/错过/取消
-        const isRejected = icon === 'fa-phone-slash' ||
-                           icon === 'fa-heart-crack' ||
-                           icon === 'fa-circle-xmark';
+        const isRejected = icon === 'fa-phone-slash';
         const colorClass = isRejected ? 'call-event-pill--rejected' : 'call-event-pill--ended';
         const detail = msg.callDetail ? `<span class="call-event-detail">${msg.callDetail}</span>` : '';
         callEvDiv.innerHTML = `<div class="call-event-pill ${colorClass}"><i class="fas ${icon} call-event-icon"></i><span class="call-event-label">${msg.text.replace(/ · .*/, '')}</span>${detail}<button class="call-event-delete" title="删除" onclick="(function(btn){const id=btn.closest('[data-id]').dataset.id;const idx=messages.findIndex(m=>String(m.id)===String(id));if(idx>-1){messages.splice(idx,1);renderMessages();throttledSaveData();}})(this)"><i class="fas fa-times"></i></button></div>`;
@@ -1235,24 +1079,20 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         messageHTML += `<div class="reply-indicator" data-reply-id="${msg.replyTo.id || ''}" style="cursor:pointer;" onclick="scrollToQuotedMessage(this)"><span class="reply-indicator-sender">${repliedSender}</span><span class="reply-indicator-text">${repliedText}</span></div>`;
     }
 
-    const isImageOnly = !msg.text && !!msg.image;
-    let content = msg.text ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
-    if (msg.image) {
-        // 阶段三B：识别 oss:// 走懒加载；识别 pending:// 走本地 base64 + 上传中角标
-        const isCloudImg = typeof msg.image === 'string' && msg.image.indexOf('oss://') === 0;
-        const isPendingImg = typeof msg.image === 'string' && msg.image.indexOf('pending://') === 0;
-        const imgAttrs = `class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')"`;
-        if (isCloudImg) {
-            content += `<img data-lazy-cloud-ref="${msg.image}" ${imgAttrs}>`;
-        } else if (isPendingImg) {
-            // 用一个包裹层放"上传中"角标
-            content += `<div class="message-image-pending-wrap" style="position:relative;display:inline-block;">`
-                + `<img data-pending-ref="${msg.image}" ${imgAttrs}>`
-                + `<div class="upload-indicator" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;"><i class="fas fa-cloud-upload-alt"></i></div>`
-                + `</div>`;
-        } else {
-            content += `<img src="${msg.image}" ${imgAttrs}>`;
-        }
+    const isStickerOnly = !msg.text && !msg.image && !!msg.sticker;
+    const isRedPacket = msg.type === 'red-packet';
+    const isDQCard = msg.type === 'dq-card' && msg.cardHtml;
+    const isImageOnly = (!msg.text && !!msg.image) || isStickerOnly || isRedPacket || isDQCard;
+    let content = (!isDQCard && msg.text) ? `<div>${msg.text.replace(/\n/g, '<br>')}</div>` : '';
+    if (isDQCard) {
+        content = msg.cardHtml;
+    } else if (isRedPacket) {
+        content = window.renderRedPacketMessage ? window.renderRedPacketMessage(msg) : '<div style="padding:10px;color:#c4453c;">转账消息</div>';
+    } else if (msg.image) content += `<img src="${msg.image}" class="message-image${isImageOnly ? ' message-image-only' : ''}" alt="图片" style="max-width:${isImageOnly ? '100px' : '100px'}; border-radius: 12px;${!isImageOnly ? ' margin-top: 6px;' : ''} cursor: pointer;" onclick="viewImage('${msg.image}')">`;
+    // 渲染表情包（sticker，与文字/图片可以共存于同一条消息）
+    if (msg.sticker) {
+        const stickerSize = msg.sender === 'user' ? 100 : 120;
+        content += `<img src="${msg.sticker}" class="message-sticker" alt="表情包" style="max-width:${stickerSize}px;max-height:${stickerSize}px;border-radius:8px;${msg.text || msg.image ? ' margin-top:6px;' : ''} cursor:pointer;display:block;" onclick="viewImage('${msg.sticker}')">`;
     }
     messageHTML += content;
 
@@ -1263,24 +1103,29 @@ function createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef) {
         messageDiv.className = `message message-${msg.sender === 'user' ? 'sent' : 'received'} ${settings.bubbleStyle}`;
     }
     messageDiv.innerHTML = messageHTML;
-    // 阶段三B：innerHTML 塞完后，找带 data-lazy-cloud-ref 的图绑定懒加载
-    if (window.CloudMedia) {
-        messageDiv.querySelectorAll('img[data-lazy-cloud-ref]').forEach(function (imgEl) {
-            const ref = imgEl.getAttribute('data-lazy-cloud-ref');
-            window.CloudMedia.bindLazyImage(imgEl, ref);
-        });
-        // 阶段三B：pending 图从本地 base64 显示
-        messageDiv.querySelectorAll('img[data-pending-ref]').forEach(function (imgEl) {
-            const ref = imgEl.getAttribute('data-pending-ref');
-            window.CloudMedia.bindPendingImage(imgEl, ref);
-        });
+
+    // 转账卡片点击事件：打开领取弹窗
+    if (isRedPacket) {
+        const rpCard = messageDiv.querySelector('.red-packet-card');
+        if (rpCard) {
+            const rpId = rpCard.dataset.rpId || (msg.redPacket && msg.redPacket.id) || msg.id;
+            rpCard.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (typeof window.showRedPacketReceiveModal === 'function') {
+                    window.showRedPacketReceiveModal(rpId);
+                }
+            });
+        }
     }
 
     let actionsHTML = '';
+    if (!isRedPacket && !isDQCard) {
     if (settings.replyEnabled) actionsHTML += `<button class="meta-action-btn reply-btn" title="回复"><i class="fas fa-reply"></i></button>`;
+    actionsHTML += `<button class="meta-action-btn copy-btn" title="复制"><i class="fas fa-copy"></i></button>`;
     const starIcon = msg.favorited ? 'fas fa-star' : 'far fa-star';
     actionsHTML += `<button class="meta-action-btn favorite-action-btn ${msg.favorited ? 'favorited' : ''}" title="${msg.favorited ? '取消收藏' : '收藏'}"><i class="${starIcon}"></i></button>`;
     actionsHTML += `<button class="meta-action-btn delete-btn" title="删除"><i class="fas fa-trash-alt"></i></button>`;
+    }
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'message-meta-actions';
     actionsDiv.innerHTML = actionsHTML;
@@ -1366,27 +1211,12 @@ function _updateReadReceiptsDOM() {
 function renderMessages(preserveScroll = false) {
     const container = DOMElements.chatContainer;
     const totalMessages = messages.length;
-
-    let startIndex, endIndex, msgsToRender;
-    if (msgViewMode === 'window') {
-        // 历史浏览模式：只渲染 [msgWinStart, msgWinEnd) 这一小段，不管这段离最新消息有多远，
-        // 渲染量都是恒定的，不会因为聊天记录变长就跟着变慢
-        startIndex = Math.max(0, Math.min(msgWinStart, totalMessages));
-        endIndex = Math.max(startIndex, Math.min(msgWinEnd, totalMessages));
-        msgsToRender = messages.slice(startIndex, endIndex);
-    } else {
-        startIndex = Math.max(0, totalMessages - displayedMessageCount);
-        endIndex = totalMessages;
-        msgsToRender = messages.slice(startIndex);
-    }
+    const startIndex = Math.max(0, totalMessages - displayedMessageCount);
+    const msgsToRender = messages.slice(startIndex);
 
     const historyLoader = document.getElementById('history-loader');
     if (historyLoader) {
         historyLoader.style.display = startIndex > 0 ? 'flex' : 'none';
-    }
-    const futureLoader = document.getElementById('future-loader');
-    if (futureLoader) {
-        futureLoader.style.display = (msgViewMode === 'window' && endIndex < totalMessages) ? 'flex' : 'none';
     }
 
     DOMElements.emptyState.style.display = totalMessages === 0 ? 'flex' : 'none';
@@ -1406,8 +1236,14 @@ function renderMessages(preserveScroll = false) {
     msgsToRender.forEach((msg, i) => {
         const prevMsg = i > 0 ? msgsToRender[i - 1] : (startIndex > 0 ? messages[startIndex - 1] : null);
         const nextMsg = i < msgsToRender.length - 1 ? msgsToRender[i + 1] : null;
-        const msgFragment = createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef);
-        fragment.appendChild(msgFragment);
+        try {
+            const msgFragment = createMessageFragment(msg, prevMsg, nextMsg, lastSenderRef);
+            fragment.appendChild(msgFragment);
+        } catch (e) {
+            // 单条消息渲染出错，不能让整个聊天记录都跟着消失——
+            // 跳过这一条，其余消息照常显示，并在控制台留个痕迹方便排查
+            console.error('[renderMessages] 第', i, '条消息渲染失败，已跳过:', msg, e);
+        }
     });
 
     container.appendChild(fragment);
@@ -1415,167 +1251,33 @@ function renderMessages(preserveScroll = false) {
     if (preserveScroll) {
         const newScrollHeight = container.scrollHeight;
         container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
-    } else if (msgViewMode !== 'window') {
+    } else {
         requestAnimationFrame(() => {
             container.scrollTop = container.scrollHeight;
         });
     }
-    // window模式下不自动滚动到底部/顶部，滚动位置由调用方（比如跳转定位）自己处理
-}
 
-// 跳转到某一条消息（搜索结果点击、引用消息点击都可以用这个统一入口），
-// 不管这条消息离最新消息有多远，只渲染它附近一小段，不会因为聊天记录很长就卡顿
-window._jumpToMessage = function(id) {
-    const idx = messages.findIndex(m => String(m.id) === String(id));
-    if (idx === -1) {
-        if (typeof showNotification === 'function') showNotification('这条消息可能已被删除', 'info');
-        return false;
-    }
-
-    const container = DOMElements && DOMElements.chatContainer;
-    if (!container) return false;
-
-    const HALF = 50; // 目标消息前后各带50条上下文，数量固定，不会因为消息在哪个位置而变化
-    msgViewMode = 'window';
-    msgWinStart = Math.max(0, idx - HALF);
-    msgWinEnd = Math.min(messages.length, idx + HALF + 1);
-    newMsgCountWhileBrowsing = 0;
-
-    renderMessages(false);
-
-    requestAnimationFrame(() => {
-        const el = container.querySelector('[data-msg-id="' + id + '"]');
-        if (el) {
-            el.scrollIntoView({ behavior: 'auto', block: 'center' });
-            el.style.transition = 'background .3s ease';
-            el.style.background = 'rgba(var(--accent-color-rgb),.14)';
-            setTimeout(() => { el.style.background = ''; }, 1800);
-        }
-        if (typeof window._updateBackToLatestBtn === 'function') window._updateBackToLatestBtn();
-        if (typeof window._updateNewMsgIndicator === 'function') window._updateNewMsgIndicator();
-    });
-    return true;
-};
-
-// 从历史浏览模式回到最新消息——切回正常模式，重置成"只看最近一批"，然后自动滚到底部
-window._backToLatestMessages = function() {
-    msgViewMode = 'latest';
-    displayedMessageCount = HISTORY_BATCH_SIZE;
-    newMsgCountWhileBrowsing = 0;
-    renderMessages(false);
-    if (typeof window._updateBackToLatestBtn === 'function') window._updateBackToLatestBtn();
-    if (typeof window._updateNewMsgIndicator === 'function') window._updateNewMsgIndicator();
-};
-
-// "回到最新消息"悬浮按钮的显示/隐藏——判断标准跟自动滚动是同一套：只要没追上底部就显示
-window._updateBackToLatestBtn = function() {
-    const btn = document.getElementById('back-to-latest-btn');
-    if (!btn) return;
-    btn.style.display = _isCaughtUpToLatest() ? 'none' : 'flex';
-};
-
-// "有N条新消息"提示——文案套在同一个按钮上，不额外加控件
-window._updateNewMsgIndicator = function() {
-    const btn = document.getElementById('back-to-latest-btn');
-    const label = document.getElementById('back-to-latest-label');
-    if (!btn || !label) return;
-    if (msgViewMode === 'window' && newMsgCountWhileBrowsing > 0) {
-        label.textContent = '有' + newMsgCountWhileBrowsing + '条新消息';
-        btn.classList.add('has-new-msg');
-    } else {
-        label.textContent = '';
-        btn.classList.remove('has-new-msg');
-    }
-};
-
-
-// 判断"用户现在是不是正停在聊天最底部"——不看是通过什么方式到达当前位置的（正常聊天时手指往上划了一点、
-// 还是从搜索/引用跳转过来的历史记录），只看两件事：① 当前渲染的这一段有没有已经连到最新消息；
-// ② 滚动条实际位置离底部够不够近。两个都满足才算"追上了"，新消息来的时候才会自动帮你滚下去。
-function _isCaughtUpToLatest() {
-    if (msgViewMode === 'window' && msgWinEnd < messages.length) return false; // 当前渲染的窗口本来就没到最新，不管怎么滚都不算追上
-    const c = DOMElements && DOMElements.chatContainer;
-    if (!c) return true;
-    return (c.scrollHeight - c.scrollTop - c.clientHeight) < 100;
+    // iOS Safari animation fallback: ensure message-wrappers never stay at opacity:0
+    setTimeout(() => {
+        container.querySelectorAll('.message-wrapper').forEach(w => {
+            if (w.style.opacity !== '1') w.style.opacity = '1';
+        });
+    }, 500);
 }
 
 const addMessage = (message) => {
     if (!(message.timestamp instanceof Date)) message.timestamp = new Date(message.timestamp);
-
+    
     const container = DOMElements.chatContainer;
     const wasEmpty = messages.length === 0;
 
     const prevMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-    // 追没追上底部，要在"往数组里塞新消息、改动滚动高度"之前就先判断好，不然滚动高度已经变了，判断就不准了
-    const wasCaughtUp = _isCaughtUpToLatest();
     messages.push(message);
     
     if (wasEmpty) {
         DOMElements.emptyState.style.display = 'none';
     }
 
-    // 用户自己发的新消息：不能让它发出去后自己却看不到，不管之前在不在底部，都直接跳回/滚到最新（所有聊天软件的通用逻辑）
-    if (message.sender === 'user') {
-        if (msgViewMode === 'window') {
-            throttledSaveData();
-            if (message.type === 'normal' && typeof window._onUserMessage === 'function') {
-                try { window._onUserMessage(message); } catch (e) { console.warn('[onUserMessage]', e); }
-            }
-            if (typeof window._backToLatestMessages === 'function') window._backToLatestMessages();
-            return;
-        }
-        // 已经在 latest 模式，走下面正常的"追加+滚动到底"逻辑即可（wasCaughtUp 对用户自己发消息没意义，永远滚底）
-    } else if (!wasCaughtUp) {
-        // 对方发来新消息，但用户当前没有停在底部（不管是因为在翻很久以前的历史记录，
-        // 还是就是正常聊天时手指往上划了一点点）——新消息不硬塞进当前视野、也不强行拽人，只悄悄计数提示
-        if (msgViewMode === 'window' && msgWinEnd < messages.length) {
-            // 窗口本来就没连到最新，DOM里没法接着往后加，直接跳过渲染这一步
-        } else {
-            // 处于 latest 模式但没在底部：消息本身仍然要能在"滚到底"之后看到，所以还是要把DOM追加上，只是不强制滚动
-            const existingWrappers = container.querySelectorAll('.message-wrapper');
-            const lastWrapper = existingWrappers.length > 0 ? existingWrappers[existingWrappers.length - 1] : null;
-            if (lastWrapper && prevMsg) {
-                const currentTs = new Date(message.timestamp).getTime();
-                const prevTs = new Date(prevMsg.timestamp).getTime();
-                if (message.sender === prevMsg.sender && message.type === 'normal' && prevMsg.type === 'normal' && (currentTs - prevTs < 60000)) {
-                    const metaEl = lastWrapper.querySelector('.message-meta');
-                    if (metaEl) metaEl.style.display = 'none';
-                    const avatarEl = lastWrapper.querySelector('.message-avatar');
-                    if (avatarEl) avatarEl.style.marginBottom = '';
-                }
-            }
-            let lastSenderRef = { current: null };
-            if (prevMsg) {
-                const prevGroupMember = (prevMsg.sender !== 'user' && typeof getGroupMemberForMessage === 'function') ? getGroupMemberForMessage(prevMsg.id) : null;
-                lastSenderRef.current = prevGroupMember ? ('group_' + prevGroupMember.name) : prevMsg.sender;
-            }
-            const newMsgFragment = createMessageFragment(message, prevMsg, null, lastSenderRef);
-            const spacer = container.querySelector('div[style*="flex: 1"]');
-            if (spacer && spacer === container.lastElementChild) {
-                spacer.before(newMsgFragment);
-            } else {
-                container.appendChild(newMsgFragment);
-            }
-            // 修复消息重复bug：这里直接把新消息插入了DOM，displayedMessageCount 必须同步+1，
-            // 否则这个计数器会跟实际显示的消息数量脱节，导致下次往上翻页时把已显示过的消息误判成"还没显示"而重复插入
-            if (msgViewMode !== 'window') displayedMessageCount++;
-        }
-        newMsgCountWhileBrowsing++;
-        if (typeof window._updateNewMsgIndicator === 'function') window._updateNewMsgIndicator();
-        if (typeof window._updateBackToLatestBtn === 'function') window._updateBackToLatestBtn();
-        throttledSaveData();
-        if (message.type === 'normal' && typeof window._onPartnerMessage === 'function') {
-            try { window._onPartnerMessage(message); } catch (e) { console.warn('[onPartnerMessage]', e); }
-        }
-        if (message.type === 'normal' && Array.isArray(window._partnerMessageListeners)) {
-            window._partnerMessageListeners.forEach(function (fn) {
-                try { fn(message); } catch (e) { console.warn('[onPartnerMessage:listener]', e); }
-            });
-        }
-        return;
-    }
-
-    // --- 正常情况：用户自己发消息、或对方发消息时用户本来就在底部 —— 追加消息并滚动到底 ---
     // --- Update previous message if needed ---
     const existingWrappers = container.querySelectorAll('.message-wrapper');
     const lastWrapper = existingWrappers.length > 0 ? existingWrappers[existingWrappers.length - 1] : null;
@@ -1598,39 +1300,27 @@ const addMessage = (message) => {
         lastSenderRef.current = prevGroupMember ? ('group_' + prevGroupMember.name) : prevMsg.sender;
     }
     
-    const newMsgFragment = createMessageFragment(message, prevMsg, null, lastSenderRef);
-    
+    let newMsgFragment;
+    try {
+        newMsgFragment = createMessageFragment(message, prevMsg, null, lastSenderRef);
+    } catch (e) {
+        console.error('[addMessage] 消息渲染失败:', message, e);
+        throttledSaveData();
+        return;
+    }
+
     const spacer = container.querySelector('div[style*="flex: 1"]');
     if (spacer && spacer === container.lastElementChild) {
         spacer.before(newMsgFragment);
     } else {
         container.appendChild(newMsgFragment);
     }
-    // 修复消息重复bug：同上，正常追加到底部时也要同步+1，理由同前面那处注释
-    if (msgViewMode !== 'window') displayedMessageCount++;
 
     requestAnimationFrame(() => {
         container.scrollTop = container.scrollHeight;
     });
 
     throttledSaveData();
-
-    // 钩子：通知陪伴模块"梦角刚说了一句话"，让陪伴页可以同步显示气泡
-    // 只对梦角的普通消息触发（不是用户消息、不是 system call-event 等）
-    // 保留原有的单函数赋值方式（陪伴模块在用，不改动，避免影响它）
-    if (message.sender !== 'user' && message.type === 'normal' && typeof window._onPartnerMessage === 'function') {
-        try { window._onPartnerMessage(message); } catch (e) { console.warn('[onPartnerMessage]', e); }
-    }
-    // 新增：多监听通道，供电影院等新模块注册，跟上面那个单函数钩子并行、互不覆盖
-    if (message.sender !== 'user' && message.type === 'normal' && Array.isArray(window._partnerMessageListeners)) {
-        window._partnerMessageListeners.forEach(function (fn) {
-            try { fn(message); } catch (e) { console.warn('[onPartnerMessage:listener]', e); }
-        });
-    }
-    // 钩子：通知陪伴模块"用户刚发了一条消息"，让陪伴页气泡同步显示
-    if (message.sender === 'user' && message.type === 'normal' && typeof window._onUserMessage === 'function') {
-        try { window._onUserMessage(message); } catch (e) { console.warn('[onUserMessage]', e); }
-    }
 };
 
         window._addCallEvent = (icon, label, detail) => {
@@ -1647,6 +1337,80 @@ const addMessage = (message) => {
                 note: null,
             });
         };
+
+        // 估算 dataURL(base64) 解码后的真实字节数，用来跟压缩前的文件体积做比较。
+        // 修复表情包/图片"压缩后反而变大"的问题：之前 optimizeSticker/optimizeImage
+        // 只管转码，从不检查转码结果是否真的比原图小。
+        function _estimateDataUrlBytes(dataUrl) {
+            if (!dataUrl || typeof dataUrl !== 'string') return Infinity;
+            var idx = dataUrl.indexOf(',');
+            var pure = idx > -1 ? dataUrl.slice(idx + 1) : dataUrl;
+            return Math.round(pure.length * 0.75);
+        }
+
+        // 表情包专用压缩：跟普通图片（optimizeImage）分开处理，原因两点——
+        // 1. optimizeImage 只有文件超过 300KB 才会压缩，很多表情包本身就没那么大，
+        //    压根没被压缩过，攒多了照样占地方；这里门槛调低很多，基本都会被压一遍。
+        // 2. optimizeImage 压缩后统一转成 JPEG，没有透明通道，
+        //    如果表情包是带透明背景的（很常见），压完会变成一块黑/白底，效果不对；
+        //    这里改用 WebP（体积比 PNG 小很多，同时保留透明度）。
+        function optimizeSticker(file, maxWidth = 160, quality = 0.75) {
+            return new Promise((resolve, reject) => {
+                // 门槛降到 20KB，绝大多数表情包都会被处理到
+                if (file.size < 20 * 1024) {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        let { width, height } = img;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+                        // WebP 支持透明通道，体积也比同质量的 PNG 小不少
+                        let out = canvas.toDataURL('image/webp', quality);
+                        // 极少数老浏览器不支持 webp 编码时，toDataURL 会退回 png，做个保险判断
+                        if (!out || out.indexOf('data:image/webp') !== 0) {
+                            out = canvas.toDataURL('image/png');
+                        }
+                        // 修复：很多表情包本来就很小、或者已经是压缩过的 webp/png，
+                        // 用 canvas 重新编码一遍，体积不降反升是常事（尤其是纯色/简单
+                        // 线条的图）。这里跟原文件实际体积比一下，压完更大就直接存原图，
+                        // 避免"压缩"越压数据越大。
+                        if (_estimateDataUrlBytes(out) >= file.size) {
+                            const reader = new FileReader();
+                            reader.onload = e => resolve(e.target.result);
+                            reader.onerror = () => resolve(out); // 兜底，理论上不会走到
+                            reader.readAsDataURL(file);
+                            return;
+                        }
+                        resolve(out);
+                    } catch (e) {
+                        reject(e);
+                    } finally {
+                        URL.revokeObjectURL(img.src);
+                    }
+                };
+                img.onerror = () => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
 
         function optimizeImage(file, maxWidth = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
@@ -1672,7 +1436,17 @@ const addMessage = (message) => {
                     canvas.width = width;
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
+                    const out = canvas.toDataURL('image/jpeg', quality);
+                    // 同 optimizeSticker：压完反而更大的话就用原图，不做无意义的"负压缩"
+                    if (_estimateDataUrlBytes(out) >= file.size) {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.onerror = () => resolve(out);
+                        reader.readAsDataURL(file);
+                        URL.revokeObjectURL(img.src);
+                        return;
+                    }
+                    resolve(out);
                     URL.revokeObjectURL(img.src);
                 };
                 img.onerror = () => {
@@ -1707,6 +1481,22 @@ const addMessage = (message) => {
                 </div>`;
         };
         function updateReplyPreview() { window.updateReplyPreview(); }
+
+        // ── 聊天表情包预览（与文字框配套发送，也可单独发送）──
+        window.setChatStickerPreview = function(src) {
+            window._pendingChatSticker = src;
+            const preview = document.getElementById('chat-sticker-preview');
+            const img = document.getElementById('chat-sticker-preview-img');
+            if (preview && img) {
+                img.src = src;
+                preview.style.display = 'block';
+            }
+        };
+        window.clearChatStickerPreview = function() {
+            window._pendingChatSticker = null;
+            const preview = document.getElementById('chat-sticker-preview');
+            if (preview) preview.style.display = 'none';
+        };
 
         // ── 对方拍一拍核心逻辑（提取为独立函数，供随机触发和测试指令共用）──
         window._triggerPartnerPoke = function() {
@@ -1755,13 +1545,19 @@ const addMessage = (message) => {
 
             addMessage({ id: Date.now(), text: pokeText, timestamp: new Date(), type: 'system' });
             if (typeof playSound === 'function') playSound('partner_poke');
+            // 系统通知：不用把具体拍一拍的内容念出来，笼统提示一下就好
+            if (typeof window._sendPartnerNotification === 'function') {
+                window._sendPartnerNotification(settings.partnerName || '对方', (settings.partnerName || '对方') + ' 拍了拍你');
+            }
             (function(){try{if(window._typingIndicatorAutoHideTimer){clearTimeout(window._typingIndicatorAutoHideTimer);window._typingIndicatorAutoHideTimer=null;}}catch(e){}var _tiW=document.getElementById('typing-indicator-wrapper');if(_tiW){var _tiInner=_tiW.querySelector('.typing-indicator');if(_tiInner){_tiInner.classList.add('hiding');setTimeout(function(){_tiW.style.display='none';if(_tiInner)_tiInner.classList.remove('hiding');},240);}else{_tiW.style.display='none';}}})();
         };
 
         function sendMessage(textOverride = null, type = 'normal') {
             const text = textOverride || DOMElements.messageInput.value.trim();
             const imageFile = DOMElements.imageInput.files[0];
-            if (!text && !imageFile && type === 'normal') return;
+            // 检查是否有待发送的表情包（点击表情包后先在输入框上方预览，可与文字一起或单独发送）
+            const pendingSticker = window._pendingChatSticker || null;
+            if (!text && !imageFile && !pendingSticker && type === 'normal') return;
 
             // ── 斜杠指令拦截 ──
             if (text && text.startsWith('/') && type === 'normal') {
@@ -1801,6 +1597,12 @@ const addMessage = (message) => {
                     replyTo: currentReplyTo,
                     type: type
                 };
+                // 如果有待发送的表情包，作为 sticker 字段附加（可与文字同条，也可单独发送）
+                if (pendingSticker) {
+                    messageData.sticker = pendingSticker;
+                    window._pendingChatSticker = null;
+                    window.clearChatStickerPreview && window.clearChatStickerPreview();
+                }
                 if (type === 'system') messageData.sender = null;
 
                 addMessage(messageData);
@@ -1808,9 +1610,168 @@ const addMessage = (message) => {
                 currentReplyTo = null;
                 updateReplyPreview();
 
+// 拍一拍（system类型）也触发已读 + 自动回复
+if (!isBatchMode && type === 'system') {
+    const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+    const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+    const chance = Math.max(0, Math.min(1, Number(settings.readNoReplyChance) || 0));
+    const shouldIgnore = settings.allowReadNoReply && (Math.random() < chance);
+    const readDelay = 1500 + Math.random() * 2500;
+    setTimeout(() => {
+        let changed = false;
+        messages.forEach(msg => {
+            if (msg.sender === 'user' && msg.status !== 'read') {
+                msg.status = 'read';
+                changed = true;
+            }
+        });
+        if (changed) { _updateReadReceiptsDOM(); throttledSaveData(); }
+    }, readDelay);
+    if (window._pendingReplyTimer) clearTimeout(window._pendingReplyTimer);
+    window._pendingReplyTimer = null;
+    if (!shouldIgnore) {
+        if (settings.typingIndicatorEnabled) {
+            const tiWrapper = document.getElementById('typing-indicator-wrapper');
+            const tiLabel = document.getElementById('typing-indicator-label');
+            const tiAvatar = document.getElementById('typing-indicator-avatar');
+            if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+            if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+            if (tiAvatar) {
+                const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+            }
+            if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+        }
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            simulateReply();
+        }, randomDelay);
+        // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_next';
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + randomDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    } else {
+        // 已读不回：先标记已读，过 3~10 分钟再回
+        const lateReplyDelay = 3 * 60 * 1000 + Math.random() * 7 * 60 * 1000;
+        const typingDelay = 3000 + Math.random() * 5000;
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            if (settings.typingIndicatorEnabled) {
+                const tiWrapper = document.getElementById('typing-indicator-wrapper');
+                const tiLabel = document.getElementById('typing-indicator-label');
+                const tiAvatar = document.getElementById('typing-indicator-avatar');
+                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+                if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+                if (tiAvatar) {
+                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+                }
+                if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            }
+            setTimeout(() => { simulateReply(); }, typingDelay);
+        }, lateReplyDelay);
+        // 后台推送：已读不回的延迟回复也登记一下
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_next';
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + lateReplyDelay + typingDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    }
+}
+
 if (!isBatchMode && type === 'normal') {
-    // 触发延迟回复（真实用户消息 → isUserMessage = true）
-    window._triggerDelayedReply(true);
+    const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+    const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+
+    const chance = Math.max(0, Math.min(1, Number(settings.readNoReplyChance) || 0));
+    const shouldIgnore = settings.allowReadNoReply && (Math.random() < chance);
+
+    const readDelay = 1500 + Math.random() * 2500;
+                setTimeout(() => {
+        let changed = false;
+        messages.forEach(msg => {
+            if (msg.sender === 'user' && msg.status !== 'read') {
+                msg.status = 'read';
+                changed = true;
+            }
+        });
+        if (changed) { _updateReadReceiptsDOM(); throttledSaveData(); }
+    }, readDelay);
+
+    if (window._pendingReplyTimer) clearTimeout(window._pendingReplyTimer);
+    window._pendingReplyTimer = null;
+
+            if (!shouldIgnore) {
+        if (settings.typingIndicatorEnabled) {
+            const tiWrapper = document.getElementById('typing-indicator-wrapper');
+            const tiLabel = document.getElementById('typing-indicator-label');
+            const tiAvatar = document.getElementById('typing-indicator-avatar');
+            if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+            if (tiWrapper) { 
+                positionTypingIndicator(); 
+                tiWrapper.style.display = 'block'; 
+            }
+            if (tiAvatar) {
+                const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+            }
+            if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+        }
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            simulateReply();
+        }, randomDelay);
+        // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_next';
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + randomDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    } else {
+        // 已读不回：先标记已读，过 3~10 分钟再回
+        const lateReplyDelay = 3 * 60 * 1000 + Math.random() * 7 * 60 * 1000;
+        const typingDelay = 3000 + Math.random() * 5000;
+        window._pendingReplyTimer = setTimeout(() => {
+            window._pendingReplyTimer = null;
+            if (settings.typingIndicatorEnabled) {
+                const tiWrapper = document.getElementById('typing-indicator-wrapper');
+                const tiLabel = document.getElementById('typing-indicator-label');
+                const tiAvatar = document.getElementById('typing-indicator-avatar');
+                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
+                if (tiWrapper) { positionTypingIndicator(); tiWrapper.style.display = 'block'; }
+                if (tiAvatar) {
+                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
+                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
+                }
+                if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            }
+            setTimeout(() => { simulateReply(); }, typingDelay);
+        }, lateReplyDelay);
+        // 后台推送：已读不回的延迟回复也登记一下
+        if (window.pushNotify) {
+            window._pendingPushTag = 'chat_reply_next';
+            window.pushNotify.schedule(
+                window._pendingPushTag,
+                Date.now() + lateReplyDelay + typingDelay,
+                (settings.partnerName || '对方'),
+                '给你发来一条消息～'
+            );
+        }
+    }
 }
 };
 
@@ -1850,16 +1811,9 @@ if (!isBatchMode && type === 'normal') {
             let listHTML = '';
             if (batchMessages.length > 0) {
                 listHTML = batchMessages.map((msg, index) => {
-                    // 阶段三B：识别 oss:// 走懒加载（预览不设 src，塞完 innerHTML 后绑定）
-                    let preview = '';
-                    if (msg.image) {
-                        const isCloudImg = typeof msg.image === 'string' && msg.image.indexOf('oss://') === 0;
-                        if (isCloudImg) {
-                            preview = `<img data-lazy-cloud-ref="${msg.image}" style="height:36px;width:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;">`;
-                        } else {
-                            preview = `<img src="${msg.image}" style="height:36px;width:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;">`;
-                        }
-                    }
+                    const preview = msg.image
+                        ? `<img src="${msg.image}" style="height:36px;width:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px;">`
+                        : '';
                     const label = msg.text
                         ? `<span class="batch-preview-text">${msg.text}</span>`
                         : `<span class="batch-preview-text" style="color:var(--text-secondary);font-style:italic;">图片</span>`;
@@ -1877,14 +1831,6 @@ if (!isBatchMode && type === 'normal') {
         <button class="batch-action-btn batch-cancel-btn">取消</button>
         <button class="batch-action-btn batch-send-btn" ${batchMessages.length === 0 ? 'disabled': ''}>发送全部 (${batchMessages.length})</button>
         </div>`;
-
-            // 阶段三B：innerHTML 塞完后绑定云端图懒加载
-            if (window.CloudMedia) {
-                previewContainer.querySelectorAll('img[data-lazy-cloud-ref]').forEach(function (imgEl) {
-                    const ref = imgEl.getAttribute('data-lazy-cloud-ref');
-                    window.CloudMedia.bindLazyImage(imgEl, ref);
-                });
-            }
 
             const batchImgInput = document.getElementById('batch-image-input');
             if (batchImgInput) {
@@ -1914,7 +1860,18 @@ if (!isBatchMode && type === 'normal') {
             });
             const delayRange = settings.replyDelayMax - settings.replyDelayMin;
             const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-            setTimeout(simulateReply, batchMessages.length * 300 + randomDelay);
+            const batchReplyDelay = batchMessages.length * 300 + randomDelay;
+            // 后台推送：批量发送后的回复也登记一下
+            if (window.pushNotify) {
+                window._pendingPushTag = 'chat_reply_next';
+                window.pushNotify.schedule(
+                    window._pendingPushTag,
+                    Date.now() + batchReplyDelay,
+                    (settings.partnerName || '对方'),
+                    '给你发来一条消息～'
+                );
+            }
+            setTimeout(simulateReply, batchReplyDelay);
             isBatchMode = false; batchMessages = [];
             DOMElements.batchBtn.classList.remove('active'); DOMElements.batchPreview.style.display = 'none';
             const placeholder = "";
@@ -1945,70 +1902,13 @@ if (!isBatchMode && type === 'normal') {
             ro.observe(inputArea);
         })();
 
-        // 通用：触发"模拟用户发了消息后的延迟回复"机制
-        //   isUserMessage: true 表示真实有用户消息（默认），false 表示陪伴页点击触发（不存在的虚拟消息）
-        //   返回 true 表示已排队等待回复，false 表示被"已读不回"概率拦截
-        window._triggerDelayedReply = function(isUserMessage) {
-            if (isBatchMode) return false;
-            // 真实用户消息一定要清除陪伴静默标志（避免陪伴中点了一下，回首页发消息时还跳过引用）
-            if (isUserMessage) {
-                window._companionSilentTrigger = false;
-            }
-            const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-            const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-
-            const chance = Math.max(0, Math.min(1, Number(settings.readNoReplyChance) || 0));
-            const shouldIgnore = settings.allowReadNoReply && (Math.random() < chance);
-
-            // 只在有真实用户消息时才更新已读状态
-            if (isUserMessage) {
-                const readDelay = 1500 + Math.random() * 2500;
-                setTimeout(() => {
-                    let changed = false;
-                    messages.forEach(msg => {
-                        if (msg.sender === 'user' && msg.status !== 'read') {
-                            msg.status = 'read';
-                            changed = true;
-                        }
-                    });
-                    if (changed) { _updateReadReceiptsDOM(); throttledSaveData(); }
-                }, readDelay);
-            }
-
-            // 取消之前排队的回复（连续触发时只保留最后一次）
-            if (window._pendingReplyTimer) clearTimeout(window._pendingReplyTimer);
-            window._pendingReplyTimer = null;
-
-            if (shouldIgnore) return false;
-
-            // 显示 typing
-            if (settings.typingIndicatorEnabled) {
-                const tiWrapper = document.getElementById('typing-indicator-wrapper');
-                const tiLabel = document.getElementById('typing-indicator-label');
-                const tiAvatar = document.getElementById('typing-indicator-avatar');
-                if (tiLabel) tiLabel.textContent = (settings.partnerName || '对方') + ' 正在输入';
-                if (tiWrapper) {
-                    positionTypingIndicator();
-                    tiWrapper.style.display = 'block';
-                }
-                if (tiAvatar) {
-                    const partnerImg = DOMElements.partner.avatar.querySelector('img');
-                    tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
-                }
-                if (_isCaughtUpToLatest() && DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
-            }
-
-            // 排队回复
-            window._pendingReplyTimer = setTimeout(() => {
-                window._pendingReplyTimer = null;
-                simulateReply();
-                // 清除陪伴静默标志：延迟清除，确保 simulateReply 内部所有消息都已取到 recentUserMsgs 之后再清
-                setTimeout(() => { window._companionSilentTrigger = false; }, (settings.replyDelayMax || 3000) + 500);
-            }, randomDelay);
-            return true;
-        };
-
         window.simulateReply = function() {
+            // 消息已经实际生成了，取消后台推送（避免重复通知）
+            if (window.pushNotify && window._pendingPushTag) {
+                window.pushNotify.cancel(window._pendingPushTag);
+                window._pendingPushTag = null;
+            }
+
             function showTypingIndicator() {
                 if (!settings.typingIndicatorEnabled) return;
                 const tiWrapper = document.getElementById('typing-indicator-wrapper');
@@ -2023,12 +1923,9 @@ if (!isBatchMode && type === 'normal') {
                     const partnerImg = DOMElements.partner.avatar.querySelector('img');
                     tiAvatar.innerHTML = partnerImg ? `<img src="${partnerImg.src}">` : '<i class="fas fa-user"></i>';
                 }
-                // 判断标准不是"在不在历史浏览模式"，而是"用户现在实际有没有停在底部"——
-                // 哪怕没有搜索/跳转，正常聊天时手指往上划了一点，也一样不该被强行拽回去
-                if (_isCaughtUpToLatest()) {
-                    DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
-                }
+                DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
             }
+
             let changed = false;
             messages.forEach(msg => {
                 if (msg.sender === 'user' && msg.status !== 'read') {
@@ -2062,6 +1959,60 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                 return;
             }
 
+            // 拼字卡模式：随机抽取2-3条字卡合并发送
+            if (settings.pinyinCardEnabled && Math.random() < 0.3) {
+                const allCards = [];
+                if (window._customReplies && window._customReplies.length > 0) {
+                    allCards.push(...window._customReplies.map(r => String(r || '').trim()).filter(Boolean));
+                }
+                if (typeof customEmojis !== 'undefined' && customEmojis && customEmojis.length > 0) {
+                    allCards.push(...customEmojis.map(e => String(e || '').trim()).filter(Boolean));
+                }
+                if (allCards.length >= 2) {
+                    showTypingIndicator();
+                    const minCount = Math.max(2, settings.pinyinCardMin || 2);
+                    const maxCount = Math.max(minCount, settings.pinyinCardMax || 3);
+                    const cardCount = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+                    const shuffled = allCards.sort(() => Math.random() - 0.5);
+                    const picked = shuffled.slice(0, Math.min(cardCount, shuffled.length));
+                    const mergedText = picked.join('，');
+                    const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+                    const delay = settings.replyDelayMin + Math.random() * delayRange;
+                    setTimeout(() => {
+                        addMessage({
+                            id: Date.now(),
+                            sender: settings.partnerName || '对方',
+                            text: mergedText,
+                            timestamp: new Date(),
+                            status: 'received',
+                            favorited: false,
+                            note: null,
+                            type: 'normal'
+                        });
+                        playSound('message');
+                        // 之前这里发完消息没有把"正在输入"隐藏掉，导致气泡已经到了、
+                        // 上面那个"对方正在输入"的提示还一直挂着不消失，看起来就像卡住/延迟了
+                        (function(){
+                            try { if (window._typingIndicatorAutoHideTimer) { clearTimeout(window._typingIndicatorAutoHideTimer); window._typingIndicatorAutoHideTimer = null; } } catch (e) {}
+                            var _tiW = document.getElementById('typing-indicator-wrapper');
+                            if (_tiW) {
+                                var _tiInner = _tiW.querySelector('.typing-indicator');
+                                if (_tiInner) {
+                                    _tiInner.classList.add('hiding');
+                                    setTimeout(function() {
+                                        _tiW.style.display = 'none';
+                                        if (_tiInner) _tiInner.classList.remove('hiding');
+                                    }, 240);
+                                } else {
+                                    _tiW.style.display = 'none';
+                                }
+                            }
+                        })();
+                    }, delay);
+                    return;
+                }
+            }
+
             const replyCount = Math.random() < 0.75 ? 1: (Math.random() < 0.95 ? 2: 3);
             if (!customReplies || customReplies.length === 0) {
                 showNotification('回复库为空，请先到「自定义回复」中添加内容', 'info', 3500);
@@ -2089,8 +2040,7 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
             // 确认有可用回复后再展示“正在输入中”，避免空转
             showTypingIndicator();
             let delay = 0;
-            // 陪伴页静默触发时不引用用户消息（陪伴中的触发不是用户发了某条具体消息）
-            const recentUserMsgs = (settings.replyEnabled && !window._companionSilentTrigger)
+            const recentUserMsgs = settings.replyEnabled
                 ? messages.filter(m => m.sender === 'user' && m.text).slice(-10)
                 : [];
             for (let i = 0; i < replyCount; i++) {
@@ -2101,22 +2051,11 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                     const replyPool = replyPoolOnce;
                     // 被屏蔽或无效项直接换下一个，尽量保证每次都产出可用回复
                     let replyText = '';
-                    if (settings.combineReplyCards) {
-                        // 拼接字卡：1 ~ combineReplyMaxCards 句随机拼接，句子间随机加标点断句
-                        const maxN = Math.max(1, Math.min(5, parseInt(settings.combineReplyMaxCards, 10) || 3));
-                        const n = 1 + Math.floor(Math.random() * maxN);
-                        for (let k = 0; k < n; k++) {
-                            const picked = replyPool[Math.floor(Math.random() * replyPool.length)];
-                            replyText += picked + (Math.random() < .2 ? '！' : Math.random() < .2 ? '……' : '。');
-                        }
-                    } else {
-                        // 开关关闭：老逻辑，只抽1句（保留原有的跳过空/无效项重试）
-                        for (let t = 0; t < 6; t++) {
-                            const picked = replyPool[Math.floor(Math.random() * replyPool.length)];
-                            if (picked && String(picked).trim()) {
-                                replyText = String(picked).trim();
-                                break;
-                            }
+                    for (let t = 0; t < 6; t++) {
+                        const picked = replyPool[Math.floor(Math.random() * replyPool.length)];
+                        if (picked && String(picked).trim()) {
+                            replyText = String(picked).trim();
+                            break;
                         }
                     }
                     if (!replyText && i === replyCount - 1) {
@@ -2222,6 +2161,18 @@ if (partnerPersonas && partnerPersonas.length > 0 && Math.random() < 0.3) {
                                 }
                             }
                         })();
+                        // 系统随机发转账（在回复完成后触发）
+                        if (typeof window.trySystemRedPacket === 'function') {
+                            setTimeout(function() { window.trySystemRedPacket(); }, 800 + Math.random() * 1200);
+                        }
+                        // 系统随机收取待领取转账
+                        if (typeof window.tryCollectPendingRedPacket === 'function') {
+                            setTimeout(function() { window.tryCollectPendingRedPacket(); }, 1200 + Math.random() * 1500);
+                        }
+                        // 检查24小时过期转账
+                        if (typeof window.checkRedPacketExpiry === 'function') {
+                            setTimeout(function() { window.checkRedPacketExpiry(); }, 500);
+                        }
                     }
                     } catch (e) {
                         console.error('[simulateReply] 渲染/回填出错:', e);
@@ -2268,36 +2219,14 @@ function showModal(modalElement, focusElement = null) {
             }, 300);
         }
 
-        async function viewImage(src) {
-            // 阶段三B：云端引用先下载；pending 引用从本地 base64 读
-            let displaySrc = src;
-            let downloadHref = src;
-            if (typeof src === 'string' && src.indexOf('oss://') === 0) {
-                if (!window.CloudMedia) return;
-                try {
-                    displaySrc = await window.CloudMedia.fetchUrl(src);
-                    downloadHref = displaySrc;
-                } catch (e) {
-                    if (typeof showNotification === 'function') showNotification('图片加载失败', 'error');
-                    return;
-                }
-            } else if (typeof src === 'string' && src.indexOf('pending://') === 0) {
-                if (!window.CloudMedia) return;
-                const base64 = await window.CloudMedia.getPendingBase64(src);
-                if (!base64) {
-                    if (typeof showNotification === 'function') showNotification('图片仍在准备中', 'info');
-                    return;
-                }
-                displaySrc = base64;
-                downloadHref = base64;
-            }
+        function viewImage(src) {
             const modal = document.createElement('div');
             modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;touch-action:pinch-zoom;';
             modal.innerHTML = `
                 <div style="position:relative;max-width:95vw;max-height:92vh;display:flex;align-items:center;justify-content:center;">
-                    <img src="${displaySrc}" style="max-width:95vw;max-height:88vh;object-fit:contain;display:block;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);" draggable="false">
+                    <img src="${src}" style="max-width:95vw;max-height:88vh;object-fit:contain;display:block;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);" draggable="false">
                     <button onclick="this.closest('[style*=fixed]').remove()" style="position:fixed;top:16px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);z-index:10;line-height:1;">×</button>
-                    <a href="${downloadHref}" download style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;color:#fff;font-size:13px;text-decoration:none;backdrop-filter:blur(8px);display:flex;align-items:center;gap:6px;"><i class="fas fa-download"></i> 保存图片</a>
+                    <a href="${src}" download style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;color:#fff;font-size:13px;text-decoration:none;backdrop-filter:blur(8px);display:flex;align-items:center;gap:6px;"><i class="fas fa-download"></i> 保存图片</a>
                 </div>`;
             modal.addEventListener('click', (e) => {
                 if (e.target === modal || e.target.tagName === 'IMG') modal.remove();
@@ -2305,21 +2234,7 @@ function showModal(modalElement, focusElement = null) {
             document.body.appendChild(modal);
         }
 
-        async function exportChatHistory() {
-            // 直接从 localforage 读取日记（不依赖内存缓存，防止懒加载未就绪时为空）
-            let _diaryForExport = [];
-            let _moodForExport = null;
-            let _customMoodOptionsForExport = [];
-            try {
-                const _allKeys = await localforage.keys();
-                const _diaryKey = _allKeys.find(k => k.includes('companionDiary') && !k.includes('Bg') && !k.includes('Gallery'));
-                if (_diaryKey) _diaryForExport = (await localforage.getItem(_diaryKey)) || [];
-                const _moodKey = _allKeys.find(k => k.includes('moodCalendar'));
-                if (_moodKey) _moodForExport = (await localforage.getItem(_moodKey)) || {};
-                const _moodOptsKey = _allKeys.find(k => k.includes('customMoodOptions'));
-                if (_moodOptsKey) _customMoodOptionsForExport = (await localforage.getItem(_moodOptsKey)) || [];
-            } catch(e) { _diaryForExport = []; _moodForExport = {}; }
-
+        function exportChatHistory() {
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
             overlay.innerHTML = `
@@ -2354,16 +2269,6 @@ function showModal(modalElement, focusElement = null) {
                             <i class="fas fa-palette" style="color:var(--accent-color);width:16px;text-align:center;"></i>
                             <span>自定义主题配色</span>
                         </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);transition:border-color 0.2s;">
-                            <input type="checkbox" id="_exp_diary" style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-book-open" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>陪伴日记 <span style="font-size:11px;color:var(--text-secondary);">(${_diaryForExport.length} 条)</span></span>
-                        </label>
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);font-size:13px;color:var(--text-primary);transition:border-color 0.2s;">
-                            <input type="checkbox" id="_exp_mood" style="accent-color:var(--accent-color);width:15px;height:15px;">
-                            <i class="fas fa-face-smile" style="color:var(--accent-color);width:16px;text-align:center;"></i>
-                            <span>心情手账 <span style="font-size:11px;color:var(--text-secondary);">(${Object.keys(_moodForExport || {}).length} 天)</span></span>
-                        </label>
                     </div>
                     <div style="display:flex;gap:10px;">
                         <button id="_exp_cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:none;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">取消</button>
@@ -2386,10 +2291,8 @@ function showModal(modalElement, focusElement = null) {
                 const inclReplies  = !!document.getElementById('_exp_replies')?.checked;
                 const inclAnn      = !!document.getElementById('_exp_ann')?.checked;
                 const inclThemes   = !!document.getElementById('_exp_themes')?.checked;
-                const inclDiary    = !!document.getElementById('_exp_diary')?.checked;
-                const inclMood     = !!document.getElementById('_exp_mood')?.checked;
 
-                if (!inclMsgs && !inclSettings && !inclReplies && !inclAnn && !inclThemes && !inclDiary && !inclMood) {
+                if (!inclMsgs && !inclSettings && !inclReplies && !inclAnn && !inclThemes) {
                     showNotification('请至少选择一项导出内容', 'error');
                     return;
                 }
@@ -2433,28 +2336,13 @@ function showModal(modalElement, focusElement = null) {
                     if (inclReplies)  {
                         exportObj.customReplies = customReplies;
                         if (customEmojis && customEmojis.length > 0) exportObj.customEmojis = customEmojis;
-                        if (customPokes && customPokes.length > 0) exportObj.customPokes = customPokes;
-                        if (customStatuses && customStatuses.length > 0) exportObj.customStatuses = customStatuses;
-                        if (customMottos && customMottos.length > 0) exportObj.customMottos = customMottos;
-                        if (customIntros && customIntros.length > 0) exportObj.customIntros = customIntros;
-                        if (window.customReplyGroups && window.customReplyGroups.length > 0) exportObj.customReplyGroups = window.customReplyGroups;
-                        if (window.customPokeGroups && window.customPokeGroups.length > 0) exportObj.customPokeGroups = window.customPokeGroups;
-                        if (window.customStatusGroups && window.customStatusGroups.length > 0) exportObj.customStatusGroups = window.customStatusGroups;
                         exportObj.exportModules.push('customReplies');
                     }
                     if (inclAnn)      { exportObj.anniversaries = anniversaries; exportObj.exportModules.push('anniversaries'); }
                     if (inclThemes)   {
                         exportObj.customThemes = customThemes;
+                        // stickerLibrary 体积较大，这里不再随聊天备份导出
                         exportObj.exportModules.push('themes');
-                    }
-                    if (inclDiary) {
-                        exportObj.companionDiary = _diaryForExport;
-                        exportObj.exportModules.push('companionDiary');
-                    }
-                    if (inclMood && _moodForExport && Object.keys(_moodForExport).length > 0) {
-                        exportObj.moodCalendar = _moodForExport;
-                        if (_customMoodOptionsForExport.length > 0) exportObj.customMoodOptions = _customMoodOptionsForExport;
-                        exportObj.exportModules.push('moodCalendar');
                     }
 
                     const dataStr = JSON.stringify(exportObj, null, 2);
@@ -2583,10 +2471,8 @@ function showModal(modalElement, focusElement = null) {
                     const hasReplies   = importedData.customReplies && Array.isArray(importedData.customReplies);
                     const hasAnn       = importedData.anniversaries && Array.isArray(importedData.anniversaries);
                     const hasThemes    = !!importedData.customThemes || !!importedData.stickerLibrary;
-                    const hasDiary     = importedData.companionDiary && Array.isArray(importedData.companionDiary);
-                    const hasMood      = !!importedData.moodCalendar && typeof importedData.moodCalendar === 'object';
 
-                    if (!hasMessages && !hasSettings && !hasReplies && !hasAnn && !hasThemes && !hasDiary && !hasMood) {
+                    if (!hasMessages && !hasSettings && !hasReplies && !hasAnn && !hasThemes) {
                         throw new Error('无效的聊天记录文件（未检测到可识别的数据模块）');
                     }
 
@@ -2614,8 +2500,6 @@ function showModal(modalElement, focusElement = null) {
                                 ${makeRow('_imp_replies', 'fas fa-reply', '字卡回复库', '', hasReplies, false)}
                                 ${makeRow('_imp_ann', 'fas fa-calendar-heart', '纪念日 / 倒计时', '', hasAnn, false)}
                                 ${makeRow('_imp_themes', 'fas fa-palette', '自定义主题配色', '', hasThemes, false)}
-                                ${makeRow('_imp_diary', 'fas fa-book-open', '陪伴日记', hasDiary ? `(${importedData.companionDiary.length} 条)` : '', hasDiary, false)}
-                                ${makeRow('_imp_mood', 'fas fa-face-smile', '心情手账', hasMood ? `(${Object.keys(importedData.moodCalendar).length} 天)` : '', hasMood, false)}
                             </div>
                             <div style="display:flex;gap:10px;">
                                 <button id="_imp_cancel" style="flex:1;padding:11px;border:1px solid var(--border-color);border-radius:12px;background:none;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">取消</button>
@@ -2638,10 +2522,8 @@ function showModal(modalElement, focusElement = null) {
                         const doReplies  = hasReplies   && !!document.getElementById('_imp_replies')?.checked;
                         const doAnn      = hasAnn       && !!document.getElementById('_imp_ann')?.checked;
                         const doThemes   = hasThemes    && !!document.getElementById('_imp_themes')?.checked;
-                        const doDiary    = hasDiary     && !!document.getElementById('_imp_diary')?.checked;
-                        const doMood     = hasMood      && !!document.getElementById('_imp_mood')?.checked;
 
-                        if (!doMsgs && !doSettings && !doReplies && !doAnn && !doThemes && !doDiary && !doMood) {
+                        if (!doMsgs && !doSettings && !doReplies && !doAnn && !doThemes) {
                             showNotification('请至少选择一项导入内容', 'error');
                             return;
                         }
@@ -2656,7 +2538,7 @@ function showModal(modalElement, focusElement = null) {
                             if (importedData.settings) {
                                 Object.assign(settings, importedData.settings);
                                 try {
-                                    if (settings.customFontUrl) applyCustomFont(settings.customFontUrl);
+                                    if (settings.customFontUrl && settings.customFontUrl !== '__local__') applyCustomFont(settings.customFontUrl);
                                     if (settings.customBubbleCss) applyCustomBubbleCss(settings.customBubbleCss);
                                     if (settings.customGlobalCss) applyGlobalThemeCss(settings.customGlobalCss);
                                 } catch(e2) { console.warn('导入后样式应用失败', e2); }
@@ -2667,22 +2549,9 @@ function showModal(modalElement, focusElement = null) {
                         }
                         if (doReplies  && importedData.customReplies)  customReplies  = importedData.customReplies;
                         if (doReplies  && importedData.customEmojis && Array.isArray(importedData.customEmojis)) customEmojis = importedData.customEmojis;
-                        if (doReplies  && importedData.customPokes && Array.isArray(importedData.customPokes)) customPokes = importedData.customPokes;
-                        if (doReplies  && importedData.customStatuses && Array.isArray(importedData.customStatuses)) customStatuses = importedData.customStatuses;
-                        if (doReplies  && importedData.customMottos && Array.isArray(importedData.customMottos)) customMottos = importedData.customMottos;
-                        if (doReplies  && importedData.customIntros && Array.isArray(importedData.customIntros)) customIntros = importedData.customIntros;
-                        if (doReplies  && importedData.customReplyGroups) window.customReplyGroups = importedData.customReplyGroups;
-                        if (doReplies  && importedData.customPokeGroups) window.customPokeGroups = importedData.customPokeGroups;
-                        if (doReplies  && importedData.customStatusGroups) window.customStatusGroups = importedData.customStatusGroups;
                         if (doAnn      && importedData.anniversaries)   anniversaries  = importedData.anniversaries;
                         if (doThemes   && importedData.customThemes)    customThemes   = importedData.customThemes;
                         if (doThemes   && importedData.stickerLibrary)  stickerLibrary = importedData.stickerLibrary;
-                        if (doDiary    && importedData.companionDiary && typeof window._setCompanionDiaryEntries === 'function') {
-                            window._setCompanionDiaryEntries(importedData.companionDiary);
-                        }
-                        if (doMood && importedData.moodCalendar && typeof window._setMoodData === 'function') {
-                            window._setMoodData(importedData.moodCalendar, importedData.customMoodOptions || []);
-                        }
 
                         saveData();
                         if (doMsgs && typeof renderMessages === 'function') renderMessages();
@@ -2739,7 +2608,7 @@ function showModal(modalElement, focusElement = null) {
                 newStatus = getRandomItem(CONSTANTS.PARTNER_STATUSES);
             }
             if (!newStatus) {
-                // 静默跳过（不再 toast 提示用户）
+                if (typeof showNotification === 'function') showNotification('状态库为空，请先添加内容', 'warning', 2500);
                 return;
             }
 
@@ -2756,6 +2625,98 @@ function showModal(modalElement, focusElement = null) {
             }
         };
 
+        // 「我」的时间：固定北京时间，不参与随机切换，只走时钟
+        window._renderMyTimezone = function() {
+            const el = document.getElementById('my-timezone-text');
+            if (!el) return;
+            try {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Shanghai'
+                }).formatToParts(new Date());
+                const get = (t) => (parts.find(p => p.type === t) || {}).value || '00';
+                el.textContent = `${get('hour')}时${get('minute')}分${get('second')}秒`;
+            } catch (e) {
+                el.textContent = '--时--分--秒';
+            }
+        };
+
+
+        // 内置兜底时区池：即使 CONSTANTS.PARTNER_TIMEZONES 因为旧文件/缓存没加载到，这里也能正常工作
+        const _FALLBACK_PARTNER_TIMEZONES = [
+            { label: "近邻同步区", mode: "fixed", diffHours: 0 },
+            { label: "中东西亚区", mode: "fixed", diffHours: -5 },
+            { label: "欧洲大陆区", mode: "fixed", diffHours: -6 },
+            { label: "大西洋非洲区", mode: "fixed", diffHours: -8 },
+            { label: "美洲新大陆区", mode: "fixed", diffHours: -13 },
+            { label: "北京时间", mode: "tz", tz: "Asia/Shanghai" },
+            { label: "伦敦时间", mode: "tz", tz: "Europe/London" }
+        ];
+        function _getPartnerTimezonePool() {
+            if (typeof CONSTANTS !== 'undefined' && Array.isArray(CONSTANTS.PARTNER_TIMEZONES) && CONSTANTS.PARTNER_TIMEZONES.length > 0) {
+                return CONSTANTS.PARTNER_TIMEZONES;
+            }
+            return _FALLBACK_PARTNER_TIMEZONES;
+        }
+
+        // 根据 zone 配置算出对方当前本地时间的「HH时MM分SS秒」字符串
+        function _getPartnerZoneTimeString(zone) {
+            try {
+                if (!zone) return '--时--分--秒';
+                if (zone.mode === 'tz' && zone.tz) {
+                    const parts = new Intl.DateTimeFormat('en-US', {
+                        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: zone.tz
+                    }).formatToParts(new Date());
+                    const get = (t) => (parts.find(p => p.type === t) || {}).value || '00';
+                    return `${get('hour')}时${get('minute')}分${get('second')}秒`;
+                }
+                // fixed 模式：以「真实北京时间」为基准，叠加固定时差
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Shanghai', hour12: false,
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                }).formatToParts(new Date());
+                const get = (t) => (parts.find(p => p.type === t) || {}).value || '00';
+                const beijingDate = new Date(
+                    parseInt(get('year'), 10), parseInt(get('month'), 10) - 1, parseInt(get('day'), 10),
+                    parseInt(get('hour'), 10), parseInt(get('minute'), 10), parseInt(get('second'), 10)
+                );
+                beijingDate.setHours(beijingDate.getHours() + (zone.diffHours || 0));
+                const hh = String(beijingDate.getHours()).padStart(2, '0');
+                const mm = String(beijingDate.getMinutes()).padStart(2, '0');
+                const ss = String(beijingDate.getSeconds()).padStart(2, '0');
+                return `${hh}时${mm}分${ss}秒`;
+            } catch (e) {
+                return '--时--分--秒';
+            }
+        }
+
+        // 固定显示伦敦时间（不再随机切换时区）
+        window._renderPartnerTimezone = function() {
+            const el = document.getElementById('partner-timezone-text');
+            if (!el) return;
+            const zone = { label: "伦敦时间", mode: "tz", tz: "Europe/London" };
+            el.textContent = _getPartnerZoneTimeString(zone);
+        };
+
+
+        // 已固定为伦敦时间，不再随机切换
+        window._triggerTimezoneChange = function() {
+            window._renderPartnerTimezone();
+        };
+
+        const checkTimezoneChange = () => {
+            // 每次检查都有 3% 的概率提前切换（不管是否到预定时间）
+            const earlyTrigger = Math.random() < 0.03;
+            const elapsedHours = (Date.now() - (settings.lastTimezoneChange || Date.now())) / 36e5;
+            if (earlyTrigger || elapsedHours >= (settings.nextTimezoneChange || 4)) {
+                window._triggerTimezoneChange();
+            } else {
+                // 未到切换时机，也要把时钟本身走动的部分刷新出来
+                window._renderPartnerTimezone();
+            }
+        };
+        window._checkTimezoneChange = checkTimezoneChange;
+
 
 
         function getStorageKey(baseKey) {
@@ -2765,12 +2726,6 @@ function showModal(modalElement, focusElement = null) {
             }
             return `${APP_PREFIX}${SESSION_ID}_${baseKey}`;
         }
-
-        // 阶段四：收藏语音键名（带 SESSION_ID 前缀，按梦角隔离）
-        function favAudioKey(messageId) {
-            return getStorageKey(`favAudio_${messageId}`);
-        }
-        window.favAudioKey = favAudioKey;
 
         async function migrateData() {
             const isMigrated = await localforage.getItem(APP_PREFIX + 'MIGRATION_V2_DONE');
@@ -2825,12 +2780,23 @@ window.initializeSession = async function() {
     await localforage.setItem(`${APP_PREFIX}lastSessionId`, SESSION_ID);
 }
 
-// 监听系统昼夜变化，实时更新 data-theme
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+document.addEventListener('DOMContentLoaded', function() {
+    const chatArea = document.querySelector('.main-chat-area');
+    const historyLoader = document.getElementById('history-loader');
+    
+    if (chatArea && historyLoader && typeof IntersectionObserver !== 'undefined') {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && messages.length > displayedMessageCount) {
+                loadMoreHistory();
+            }
+        }, {
+            root: chatArea,
+            rootMargin: '200px 0px 0px 0px',
+            threshold: 0.01
+        });
+        observer.observe(historyLoader);
+    }
 });
 
-// 注：往上/往下翻页加载更多消息的触发，只靠 listeners.js 里那个绑定在真正可滚动容器（chat-container）
-// 上的 scroll 事件监听（检查 scrollTop 实际位置）。这里原本还有一套用 IntersectionObserver 做的重复监听，
-// 但它绑定的参照容器（.main-chat-area）本身并不会滚动，导致这套监听只要"加载提示条一显示出来"就会误触发，
-// 跟用户有没有真的滑动到顶部/底部没有关系，会引发连环自动加载、把用户拽到意料之外的位置。已确认删除，不会影响功能。
+
+

@@ -1,3 +1,21 @@
+// ── 语音克隆/TTS 功能体积较大，非首屏必需，改成"第一次真正用到时才加载"，
+//    减少刚打开 App 时的内存占用 ──
+window._loadVoiceTTS = (function () {
+    let loadingPromise = null;
+    return function loadVoiceTTS() {
+        if (window.voiceTTS) return Promise.resolve(window.voiceTTS);
+        if (loadingPromise) return loadingPromise;
+        loadingPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'js/features/voice-tts.js';
+            script.onload = () => resolve(window.voiceTTS || null);
+            script.onerror = () => { loadingPromise = null; reject(new Error('voice-tts.js 加载失败')); };
+            document.body.appendChild(script);
+        });
+        return loadingPromise;
+    };
+})();
+
 document.addEventListener('DOMContentLoaded', async () => {
     const loaderBar = document.getElementById('loader-tech-bar');
     const welcomeSubtitle = document.querySelector('.welcome-subtitle-scramble');
@@ -52,6 +70,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLoader('正在读取记忆存档...', '40%');
         await safeAwait(loadData());
 
+        // settings 已经加载完成，这时候才能正确判断上次是否用的是本地字体
+        if (typeof window._restoreLocalFontIfNeeded === 'function') {
+            await safeAwait(window._restoreLocalFontIfNeeded());
+        }
+
         updateLoader('正在渲染我们的世界...', '70%');
         
         await Promise.allSettled([
@@ -60,13 +83,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         ]);
 
         setInterval(checkStatusChange, 60000);
-
-        // 动态/回信 后台定时检查——不管停在哪个页面，每隔30秒自动看一眼有没有该送达的内容了，
-        // 不需要刷新页面或者重新进入情侣空间/信箱才能触发
-        setInterval(() => {
-            try { if (typeof checkEnvelopeStatus === 'function') checkEnvelopeStatus(); } catch(e) { console.warn('[后台轮询] 回信检查失败', e); }
-            try { if (typeof checkMomentsStatus === 'function') checkMomentsStatus(); } catch(e) { console.warn('[后台轮询] 动态检查失败', e); }
-        }, 30000);
+        setInterval(() => { if (typeof window._checkTimezoneChange === 'function') window._checkTimezoneChange(); }, 60000);
+        setInterval(() => { if (typeof window._renderPartnerTimezone === 'function') window._renderPartnerTimezone(); }, 1000);
+        setInterval(() => { if (typeof window._renderMyTimezone === 'function') window._renderMyTimezone(); }, 1000);
+        if (typeof window._renderPartnerTimezone === 'function') window._renderPartnerTimezone();
+        if (typeof window._renderMyTimezone === 'function') window._renderMyTimezone();
 
         if (disclaimerModal) {
             const tourSeen = await safeAwait(localforage?.getItem(APP_PREFIX + 'tour_seen'), false);
@@ -155,11 +176,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     const permission = await Notification.requestPermission();
                     if (permission === 'granted') {
+                        localStorage.setItem('notifEnabled', '1');
                         showNotification('已开启系统通知，收到消息时会提醒你', 'success', 3000);
                     }
                 } catch(e) {
                     console.warn('通知权限请求失败:', e);
                 }
+            } else if ('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('notifEnabled') === null) {
+                // 之前已经手动同意过浏览器权限，但本地还没记录开关状态，默认视为开启
+                localStorage.setItem('notifEnabled', '1');
             }
         }, 3000);
 
@@ -201,23 +226,11 @@ const stickerInput = document.getElementById('sticker-file-input');
 
                     let successCount = 0;
                     let failCount = 0;
-                    const cloudReady = !!(window.CloudMedia && window.CloudSync && window.CloudSync.isConnected());
 
                     for (const file of validFiles) {
                         try {
-                            const base64 = await optimizeImage(file, 300, 0.8);
-                            let toStore = base64;
-                            // 阶段三B：连了云端就上传，本地只存 oss:// 引用
-                            if (cloudReady) {
-                                try {
-                                    const r = await window.CloudMedia.upload(base64, 'stickers');
-                                    toStore = r.url;
-                                } catch (upErr) {
-                                    console.warn('[cloud-media] 贴纸上传失败，降级本地', upErr);
-                                    // toStore 保持 base64
-                                }
-                            }
-                            stickerLibrary.push(toStore);
+                            const base64 = await optimizeSticker(file);
+                            stickerLibrary.push(base64);
                             successCount++;
                         } catch (err) {
                             console.error(err);
@@ -248,26 +261,13 @@ if (myStickerQuickUpload) {
         if (!validFiles.length) return;
         showNotification('正在处理 ' + validFiles.length + ' 张...', 'info');
         let ok = 0, fail = 0;
-        const newStickers = [];
-        const cloudReady = !!(window.CloudMedia && window.CloudSync && window.CloudSync.isConnected());
         for (const file of validFiles) {
             try {
-                const base64 = await optimizeImage(file, 300, 0.8);
-                let toStore = base64;
-                if (cloudReady) {
-                    try {
-                        const r = await window.CloudMedia.upload(base64, 'my-stickers');
-                        toStore = r.url;
-                    } catch (upErr) {
-                        console.warn('[cloud-media] 我的贴纸上传失败，降级本地', upErr);
-                    }
-                }
-                newStickers.push(toStore);
+                const base64 = await optimizeSticker(file);
+                myStickerLibrary.push(base64);
                 ok++;
             } catch(err) { fail++; }
         }
-        // 新表情插到最前面，批量上传时保持原顺序
-        myStickerLibrary.unshift(...newStickers);
         throttledSaveData();
         if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         showNotification(fail > 0 ? `上传完成：${ok} 成功 ${fail} 失败` : `✓ 已添加 ${ok} 张到我的表情库`, fail > 0 ? 'warning' : 'success');
@@ -275,247 +275,7 @@ if (myStickerQuickUpload) {
     });
 }
 
-// 启动时检查闪退未结束的陪伴会话（独立于 load 事件，确保一定执行）
-(function() {
-    function _cdRecLog(msg, data) {
-        try {
-            const logs = JSON.parse(localStorage.getItem('_cdRecLogs') || '[]');
-            logs.push({ t: new Date().toLocaleTimeString(), msg: msg, data: data === undefined ? '' : JSON.stringify(data) });
-            if (logs.length > 50) logs.splice(0, logs.length - 50);
-            localStorage.setItem('_cdRecLogs', JSON.stringify(logs));
-        } catch (e) {}
-        try { console.log('[cdRec]', msg, data !== undefined ? data : ''); } catch (e) {}
-    }
-
-    _cdRecLog('script 已加载，准备启动检查');
-
-    async function doRecoverCheck(attempt) {
-        attempt = attempt || 1;
-        _cdRecLog('开始恢复检查，第 ' + attempt + ' 次');
-        try {
-            if (!window.localforage) {
-                _cdRecLog('❌ localforage 未加载');
-                if (attempt < 5) setTimeout(() => doRecoverCheck(attempt + 1), 2000);
-                return;
-            }
-
-            // 直接扫描所有 key，找含 companionLiveSession 的那个
-            // 这样不依赖 SESSION_ID 是否初始化
-            const allKeys = await localforage.keys();
-            _cdRecLog('localforage key 总数', allKeys.length);
-
-            const sessionKeys = allKeys.filter(k => k.indexOf('companionLiveSession') !== -1);
-            _cdRecLog('匹配的 session key', sessionKeys);
-
-            if (sessionKeys.length === 0) {
-                _cdRecLog('无未结束的会话');
-                return;
-            }
-
-            // 取最近一条（按心跳时间排序，最新的优先）
-            let bestSession = null;
-            let bestKey = null;
-            for (const k of sessionKeys) {
-                const s = await localforage.getItem(k);
-                if (s && s.mode && s.heartbeatTs) {
-                    if (!bestSession || s.heartbeatTs > bestSession.heartbeatTs) {
-                        bestSession = s;
-                        bestKey = k;
-                    }
-                }
-            }
-
-            _cdRecLog('最近的会话 key', bestKey);
-            _cdRecLog('会话数据', bestSession);
-
-            if (!bestSession) {
-                _cdRecLog('所有 key 都是空数据，清理');
-                for (const k of sessionKeys) {
-                    await localforage.removeItem(k).catch(() => {});
-                }
-                return;
-            }
-
-            const elapsedSinceHeartbeat = Date.now() - bestSession.heartbeatTs;
-            _cdRecLog('心跳距今秒数', Math.floor(elapsedSinceHeartbeat / 1000));
-
-            if (elapsedSinceHeartbeat > 24 * 60 * 60 * 1000) {
-                _cdRecLog('超过 24 小时，丢弃');
-                await localforage.removeItem(bestKey).catch(() => {});
-                return;
-            }
-
-            // 新逻辑：按真实墙上时间计算
-            // 不再"暂停时间"，而是"时间一直在跑"
-            const realElapsedSec = Math.floor((Date.now() - bestSession.startTs) / 1000)
-                                 + (bestSession.accumulatedExtendTime || 0);
-            _cdRecLog('从开始时间到现在的真实秒数', realElapsedSec);
-
-            // 把找到的真实 key 存起来，方便弹窗按钮使用
-            window.__cdRecoverFoundKey = bestKey;
-            window.__cdRecoverFoundSession = bestSession;
-            bestSession._realElapsedSec = realElapsedSec;
-
-            // 如果是倒计时模式 + 时间已经到了 → 自动写入日记 + 弹"已结束"提示
-            if (bestSession.isCountdown && realElapsedSec >= bestSession.totalSeconds) {
-                _cdRecLog('✓ 倒计时已到，自动写入日记 + 弹结束提示');
-                // 用正常的字卡逻辑（30% 概率不写、70% 抽 1-2 句）
-                const partnerNote = (typeof window.pickCompanionDiaryCards === 'function')
-                    ? window.pickCompanionDiaryCards()
-                    : '';
-                if (typeof window.addCompanionDiaryEntry === 'function') {
-                    await window.addCompanionDiaryEntry({
-                        ts: bestSession.startTs,
-                        mode: bestSession.mode,
-                        duration: bestSession.totalSeconds, // 完整时长
-                        initiator: bestSession.initiator || 'user',
-                        partnerNote: partnerNote,
-                        userNote: ''
-                    });
-                    _cdRecLog('✓ 日记已写入');
-                }
-                await localforage.removeItem(bestKey).catch(() => {});
-                // 弹"已结束"提示窗
-                if (typeof showCompanionCompletedDialog === 'function') {
-                    showCompanionCompletedDialog(bestSession);
-                    _cdRecLog('✓ 已结束提示已显示');
-                } else {
-                    setTimeout(() => {
-                        if (typeof showCompanionCompletedDialog === 'function') {
-                            showCompanionCompletedDialog(bestSession);
-                        }
-                    }, 2000);
-                }
-                return;
-            }
-
-            _cdRecLog('✓ 准备显示恢复弹窗');
-            if (typeof showCompanionRecoverDialog === 'function') {
-                showCompanionRecoverDialog(bestSession);
-                _cdRecLog('✓ 弹窗函数已调用');
-            } else {
-                _cdRecLog('❌ showCompanionRecoverDialog 函数不存在，等待 2 秒后重试');
-                setTimeout(() => {
-                    if (typeof showCompanionRecoverDialog === 'function') {
-                        showCompanionRecoverDialog(bestSession);
-                        _cdRecLog('✓ 重试成功，弹窗函数已调用');
-                    } else {
-                        _cdRecLog('❌ 重试后仍无 showCompanionRecoverDialog');
-                    }
-                }, 2000);
-            }
-        } catch(e) {
-            _cdRecLog('❌ 异常', String(e && e.message || e));
-        }
-    }
-
-    // 8 秒后启动（给 localforage、SESSION_ID 充足初始化时间）
-    setTimeout(() => doRecoverCheck(1), 8000);
-
-    // 通话闪退恢复（独立于陪伴的）
-    async function doCallRecoverCheck(attempt) {
-        attempt = attempt || 1;
-        try {
-            if (!window.localforage) {
-                if (attempt < 5) setTimeout(() => doCallRecoverCheck(attempt + 1), 2000);
-                return;
-            }
-            if (!window._callModule || !window._callModule.getCallSessionKey) {
-                if (attempt < 5) setTimeout(() => doCallRecoverCheck(attempt + 1), 2000);
-                return;
-            }
-
-            // 扫描 callLiveSession 相关 key
-            const allKeys = await localforage.keys();
-            const sessionKeys = allKeys.filter(k => k.indexOf('callLiveSession') !== -1);
-            if (sessionKeys.length === 0) return;
-
-            // 取最新的
-            let bestSession = null;
-            let bestKey = null;
-            for (const k of sessionKeys) {
-                const s = await localforage.getItem(k);
-                if (s && s.startTs && s.heartbeatTs) {
-                    if (!bestSession || s.heartbeatTs > bestSession.heartbeatTs) {
-                        bestSession = s;
-                        bestKey = k;
-                    }
-                }
-            }
-
-            if (!bestSession) {
-                // 清理无效数据
-                for (const k of sessionKeys) {
-                    await localforage.removeItem(k).catch(() => {});
-                }
-                return;
-            }
-
-            // 直接恢复通话（不弹任何窗），并弹一个 toast 提示
-            const ok = window._callModule.resumeFromSession(bestSession);
-            if (ok) {
-                if (typeof showNotification === 'function') {
-                    showNotification('通话已恢复', 'success', 3000);
-                }
-            } else {
-                // 恢复失败 → 清掉这个 session
-                await localforage.removeItem(bestKey).catch(() => {});
-            }
-        } catch (e) {
-            console.warn('[call-recover] error:', e);
-        }
-    }
-    setTimeout(() => doCallRecoverCheck(1), 8500);
-})();
-
 window.addEventListener('load', function() {
-    // 阶段三B：恢复未完成的图片上传队列（页面刷新后继续传）
-    setTimeout(function () {
-        if (!window.CloudMedia || typeof window.CloudMedia.restorePendingQueue !== 'function') return;
-        window.CloudMedia.restorePendingQueue(function (taskId, record) {
-            var msgId = record && record.messageId;
-            if (msgId == null) return null;
-            return async function (result) {
-                try {
-                    if (typeof messages === 'undefined' || !Array.isArray(messages)) return;
-                    var target = messages.find(function (m) { return String(m.id) === String(msgId); });
-                    if (!target) return;
-                    target.image = result.url;
-                    delete target.uploadStatus;
-                    try { if (typeof throttledSaveData === 'function') throttledSaveData(); } catch (e) {}
-                    try {
-                        var wrapper = document.querySelector('.message-wrapper[data-id="' + msgId + '"]');
-                        if (wrapper) {
-                            var wrap = wrapper.querySelector('.message-image-pending-wrap');
-                            if (wrap) {
-                                var img = wrap.querySelector('img');
-                                var parent = wrap.parentNode;
-                                if (img && parent) {
-                                    var blobUrl = null;
-                                    try {
-                                        blobUrl = window.CloudMedia ? await window.CloudMedia.fetchUrl(result.url) : null;
-                                    } catch (fetchErr) {
-                                        console.warn('[cloud-media] restore 拉图失败', fetchErr);
-                                    }
-                                    img.removeAttribute('data-pending-ref');
-                                    img.setAttribute('onclick', "viewImage('" + result.url + "')");
-                                    if (blobUrl) {
-                                        img.src = blobUrl;
-                                    } else {
-                                        img.src = '';
-                                        img.setAttribute('data-lazy-cloud-ref', result.url);
-                                        if (window.CloudMedia) window.CloudMedia.bindLazyImage(img, result.url);
-                                    }
-                                    parent.replaceChild(img, wrap);
-                                }
-                            }
-                        }
-                    } catch (e) { console.warn('[cloud-media] restore 局部更新失败', e); }
-                } catch (e) { console.warn(e); }
-            };
-        });
-    }, 3000);
-
     setTimeout(function() {
         try {
             if (localStorage.getItem('dailyGreetingShown') === new Date().toDateString()) return;
@@ -549,210 +309,10 @@ window.addEventListener('load', function() {
     }, 4500);
 }, { once: true });
 
-// 陪伴闪退恢复弹窗
-function showCompanionRecoverDialog(session) {
-    const modeNames = { study: '学习', work: '工作', exercise: '运动', sleep: '睡觉' };
-    const modeName = modeNames[session.mode] || '陪伴';
-    const startTime = new Date(session.startTs);
-    const startTimeStr = ('0' + startTime.getHours()).slice(-2) + ':' + ('0' + startTime.getMinutes()).slice(-2);
-
-    // 用真实墙上时间算（不再用心跳）
-    function calcElapsedSec() {
-        return Math.max(0, Math.floor((Date.now() - session.startTs) / 1000) + (session.accumulatedExtendTime || 0));
-    }
-    function formatMin(sec) {
-        const m = Math.floor(sec / 60);
-        return m >= 60
-            ? Math.floor(m / 60) + 'h ' + (m % 60) + 'min'
-            : m + 'min';
-    }
-
-    let elapsedSec = calcElapsedSec();
-    let canContinue = !(session.isCountdown && session.totalSeconds - elapsedSec <= 0);
-
-    const overlay = document.createElement('div');
-    overlay.id = 'companion-recover-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.25s ease;padding:20px;';
-
-    overlay.innerHTML = `
-        <div style="background:var(--secondary-bg);border-radius:20px;padding:24px 22px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.4);font-family:var(--font-family);">
-            <div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-                <i class="fas fa-hourglass-half" style="color:var(--accent-color);"></i>
-                上次陪伴还没结束
-            </div>
-            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:16px;">
-                检测到一次未结束的「${modeName}」陪伴<br>
-                · 开始时间：${startTimeStr}<br>
-                · 已陪伴：<span id="_cmp_rec_elapsed">${formatMin(elapsedSec)}</span>
-                ${session.isCountdown ? '<br>· 剩余时间：约 <span id="_cmp_rec_remaining">' + formatMin(Math.max(0, session.totalSeconds - elapsedSec)) + '</span>' : ''}
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px;" id="_cmp_rec_btns">
-                <button id="_cmp_rec_continue" style="padding:11px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-family);${canContinue ? '' : 'display:none;'}">
-                    <i class="fas fa-play" style="margin-right:6px;"></i>继续陪伴
-                </button>
-                <button id="_cmp_rec_save" style="padding:11px;border:1px solid var(--border-color);border-radius:12px;background:var(--primary-bg);color:var(--text-primary);font-size:13px;cursor:pointer;font-family:var(--font-family);">
-                    <i class="fas fa-save" style="margin-right:6px;color:var(--accent-color);"></i>结束并保存到日记
-                </button>
-                <button id="_cmp_rec_discard" style="padding:11px;border:1px solid var(--border-color);border-radius:12px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:var(--font-family);">
-                    丢弃这次陪伴
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // 每秒刷新：让用户看到时间一直在跑
-    const tickHandle = setInterval(() => {
-        const curElapsed = calcElapsedSec();
-        const elEl = document.getElementById('_cmp_rec_elapsed');
-        const remEl = document.getElementById('_cmp_rec_remaining');
-        if (elEl) elEl.textContent = formatMin(curElapsed);
-
-        if (session.isCountdown) {
-            const remainSec = session.totalSeconds - curElapsed;
-            if (remEl) remEl.textContent = formatMin(Math.max(0, remainSec));
-
-            // 如果在弹窗页停留到时间过完了 → 自动转为"已结束"弹窗
-            if (remainSec <= 0) {
-                clearInterval(tickHandle);
-                // 自动完成：写入日记，提示用户
-                (async () => {
-                    if (typeof window._companionRecoverModule !== 'undefined') {
-                        // 用正常字卡逻辑
-                        const partnerNote = (typeof window.pickCompanionDiaryCards === 'function')
-                            ? window.pickCompanionDiaryCards()
-                            : '';
-                        if (typeof window.addCompanionDiaryEntry === 'function') {
-                            await window.addCompanionDiaryEntry({
-                                ts: session.startTs,
-                                mode: session.mode,
-                                duration: session.totalSeconds,
-                                initiator: session.initiator || 'user',
-                                partnerNote: partnerNote,
-                                userNote: ''
-                            });
-                        }
-                        window._companionRecoverModule.clearLiveSession();
-                    }
-                    closeDialog();
-                    if (typeof showCompanionCompletedDialog === 'function') {
-                        showCompanionCompletedDialog(session);
-                    }
-                })();
-            }
-        }
-    }, 1000);
-
-    function closeDialog() {
-        clearInterval(tickHandle);
-        overlay.remove();
-    }
-
-    const continueBtn = document.getElementById('_cmp_rec_continue');
-    if (continueBtn) {
-        continueBtn.onclick = function() {
-            const ok = window._companionRecoverModule.resumeFromSession(session);
-            if (!ok) {
-                // 恢复失败 → 写日记
-                window._companionRecoverModule.saveSessionAsDiary(session);
-                window._companionRecoverModule.clearLiveSession();
-            }
-            closeDialog();
-        };
-    }
-    document.getElementById('_cmp_rec_save').onclick = async function() {
-        await window._companionRecoverModule.saveSessionAsDiary(session);
-        window._companionRecoverModule.clearLiveSession();
-        if (typeof showNotification === 'function') showNotification('已保存到陪伴日记', 'success');
-        closeDialog();
-    };
-    document.getElementById('_cmp_rec_discard').onclick = function() {
-        if (!confirm('确定丢弃这次陪伴记录吗？')) return;
-        window._companionRecoverModule.clearLiveSession();
-        closeDialog();
-    };
-}
-
-// 陪伴已结束提示弹窗（倒计时模式：闪退后过太久，时间已经到了）
-function showCompanionCompletedDialog(session) {
-    const modeNames = { study: '学习', work: '工作', exercise: '运动', sleep: '睡觉' };
-    const modeName = modeNames[session.mode] || '陪伴';
-    const startTime = new Date(session.startTs);
-    const startTimeStr = ('0' + startTime.getHours()).slice(-2) + ':' + ('0' + startTime.getMinutes()).slice(-2);
-
-    const totalMin = Math.floor(session.totalSeconds / 60);
-    const totalStr = totalMin >= 60
-        ? Math.floor(totalMin / 60) + 'h' + (totalMin % 60 > 0 ? ' ' + (totalMin % 60) + 'min' : '')
-        : totalMin + 'min';
-
-    const overlay = document.createElement('div');
-    overlay.id = 'companion-completed-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.25s ease;padding:20px;';
-
-    overlay.innerHTML = `
-        <div style="background:var(--secondary-bg);border-radius:20px;padding:24px 22px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.4);font-family:var(--font-family);">
-            <div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-                <i class="fas fa-check-circle" style="color:var(--accent-color);"></i>
-                上次陪伴已结束
-            </div>
-            <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:16px;">
-                这次「${modeName}」陪伴已经完整结束<br>
-                · 开始时间：${startTimeStr}<br>
-                · 陪伴时长：${totalStr}<br>
-                <span style="color:var(--accent-color);">已自动保存到陪伴日记 📔</span>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                <button id="_cmp_completed_ok" style="padding:11px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-family);">
-                    好的
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    document.getElementById('_cmp_completed_ok').onclick = function() {
-        overlay.remove();
-    };
-}
-
-// ============================================
-// 陪伴模式 (Companion Mode) - 新增功能
-// ============================================
-function selectCompanionMode(mode) {
-    // mode 可以是: 'study' | 'work' | 'exercise' | 'sleep'
-    const modeNames = {
-        study: '陪我学习',
-        work: '陪我工作',
-        exercise: '陪我运动',
-        sleep: '陪我睡觉'
-    };
-
-    const modeName = modeNames[mode] || '陪伴';
-
-    // 关闭陪伴主弹窗
-    const modal = document.getElementById('companion-modal');
-    if (modal && typeof hideModal === 'function') {
-        hideModal(modal);
-    }
-
-    // 子页面占位 —— 后续可在此处接入对应子功能
-    // TODO: 后续接入 study / work / exercise / sleep 各自的子页面
-    setTimeout(() => {
-        if (typeof window.showToast === 'function') {
-            window.showToast(`已选择「${modeName}」，子页面开发中...`);
-        } else {
-            alert(`已选择「${modeName}」，子页面开发中...`);
-        }
-    }, 300);
-}
-
-
-// ============================================
-// TTS 真实语音 · 设置页逻辑
-// ============================================
+// ============================================================
+// AI 真实语音（TTS）配置面板逻辑
+// ============================================================
 (function () {
-    'use strict';
-
     let _lastSavedTtsConfig = null;
     let _ttsConfigDirty = false;
     let _ttsFieldsBound = false;
@@ -948,6 +508,7 @@ function selectCompanionMode(mode) {
         _bindTtsFieldListeners();
         _setTtsDirty(false);
     }
+    window._initTtsFields = _initTtsFields;
 
     function _updateTtsStatus() {
         const el = document.getElementById('tts-status');
@@ -1016,6 +577,7 @@ function selectCompanionMode(mode) {
     // 不读 / 不写 localStorage，所以可以在「保存」之前就听到效果。
     let _speedPreviewAudio = null;
     window._previewTts = async function () {
+        if (typeof window._loadVoiceTTS === 'function') { try { await window._loadVoiceTTS(); } catch (e) {} }
         if (!window.voiceTTS) return;
         const btn   = document.getElementById('tts-preview-btn');
         const label = document.getElementById('tts-preview-label');
@@ -1081,17 +643,27 @@ function selectCompanionMode(mode) {
     });
 
     // ─── 聊天设置打开时初始化 ───
+    // 注意：milk-main 的 showModal()/hideModal() 是直接改 style.display，
+    // 不会给弹窗加 'active' 这个 class（这点跟别的项目不一样），
+    // 之前监听 class 变化永远等不到，导致 TTS 模块和输入框事件从来没绑上过，
+    // 存配置的按钮永远是禁用状态——这里改成监听 style 属性变化。
     const chatModal = document.getElementById('chat-modal');
     if (chatModal) {
         const observer = new MutationObserver(() => {
-            if (chatModal.classList.contains('active')) {
-                setTimeout(_initTtsFields, 50);
+            if (chatModal.style.display === 'flex') {
+                // 打开聊天设置面板时才需要用到 TTS 配置，这时候才加载 voice-tts.js
+                if (typeof window._loadVoiceTTS === 'function') {
+                    window._loadVoiceTTS().then(() => setTimeout(_initTtsFields, 50)).catch(() => {});
+                } else {
+                    setTimeout(_initTtsFields, 50);
+                }
             }
         });
-        observer.observe(chatModal, { attributes: true, attributeFilter: ['class'] });
+        observer.observe(chatModal, { attributes: true, attributeFilter: ['style'] });
     }
 
-    // ─── 页面加载时也回填一次（防止刷新后显示空白）───
+    // ─── 页面加载时也回填一次（防止刷新后显示空白；只在 voiceTTS 已经因为其他原因加载过时才有意义，
+    //      不会主动触发加载，避免刚打开 App 就把 TTS 模块塞进内存）───
     document.addEventListener('DOMContentLoaded', () => setTimeout(_initTtsFields, 300));
     setTimeout(_initTtsFields, 500);
 
@@ -1105,6 +677,8 @@ function selectCompanionMode(mode) {
         const modal = document.getElementById('voice-clone-modal');
         if (!modal) return;
         _resetCloneModal();
+        // 打开声音克隆面板一定会用到 TTS 模块，提前触发懒加载
+        if (typeof window._loadVoiceTTS === 'function') window._loadVoiceTTS().catch(() => {});
         // 兼容不同时机：优先用全局showModal，否则直接操作class
         if (typeof showModal === 'function') {
             showModal(modal);
@@ -1162,6 +736,7 @@ function selectCompanionMode(mode) {
 
     // ─── 开始克隆 ───
     window._startVoiceClone = async function () {
+        if (typeof window._loadVoiceTTS === 'function') { try { await window._loadVoiceTTS(); } catch (e) {} }
         if (!window.voiceTTS) return;
         const fileInput = document.getElementById('voice-clone-file-input');
         const file = fileInput && fileInput.files[0];
@@ -1200,6 +775,7 @@ function selectCompanionMode(mode) {
 
     // ─── 试听 ───
     window._playVoicePreview = async function () {
+        if (typeof window._loadVoiceTTS === 'function') { try { await window._loadVoiceTTS(); } catch (e) {} }
         if (!_clonedVoiceId || !window.voiceTTS) return;
         const btn = document.getElementById('voice-clone-play-preview');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 生成中…'; }
@@ -1242,5 +818,4 @@ function selectCompanionMode(mode) {
             showNotification('声音 ID 已填入，请点击保存配置后生效', 'success');
         }
     };
-
 })();

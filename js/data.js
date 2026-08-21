@@ -9,8 +9,12 @@
     })();
 
     var INNER_HTML =
-        '<div class="modal-title" style="flex-shrink:0;">'
-        +   '<i class="fas fa-database"></i><span>数据管理</span>'
+        '<div class="dm-topbar">'
+        +   '<div class="dm-topbar-left">'
+        +     '<button class="dm-topbar-back" id="back-data"><i class="fas fa-arrow-left"></i></button>'
+        +     '<span class="dm-topbar-title">数据管理</span>'
+        +   '</div>'
+        +   '<button class="dm-topbar-close" id="close-data"><i class="fas fa-xmark"></i></button>'
         + '</div>'
 
         + '<div class="dm-body">'
@@ -26,6 +30,18 @@
         +       '<div class="dm-stat-block"><div class="dm-stat-block-icon" style="color:#3BC8A4"><i class="fas fa-images"></i></div><div class="dm-stat-pill-val" id="dm-stat-media">—</div><div class="dm-stat-pill-key">图片媒体</div></div>'
         +     '</div>'
         +     '<div class="dm-progress-track"><div class="dm-progress-fill" id="dm-storage-bar" style="width:0%"></div></div>'
+        +   '</div>'
+
+        +   '<div class="dm-section-label"><i class="fas fa-compress"></i> 表情包瘦身</div>'
+        +   '<div class="dm-row-card">'
+        +     '<div class="dm-row-item">'
+        +       '<div class="dm-row-icon pink" style="background:rgba(255,150,180,0.15);color:#ff6b9d"><i class="fas fa-sticky-note"></i></div>'
+        +       '<div class="dm-row-info">'
+        +         '<div class="dm-row-title">压缩已有表情包</div>'
+        +         '<div class="dm-row-desc" id="sticker-compress-info">点击计算当前占用…</div>'
+        +       '</div>'
+        +       '<button class="dm-nav-btn" id="sticker-compress-btn" style="background:linear-gradient(135deg,#ff9a9e,#fad0c4);color:#fff;border:none;font-weight:600;padding:8px 14px;border-radius:10px;font-size:12px;cursor:pointer">一键压缩</button>'
+        +     '</div>'
         +   '</div>'
 
         +   '<div class="dm-section-label"><i class="fas fa-cloud-upload-alt"></i> 备份与恢复</div>'
@@ -49,8 +65,13 @@
         +     '<button id="import-chat-btn"></button>'
         +   '</div>'
 
-        +   '<div class="dm-section-label"><i class="fas fa-info-circle"></i> 关于</div>'
+        +   '<div class="dm-section-label"><i class="fas fa-bell"></i> 通知与关于</div>'
         +   '<div class="dm-row-card">'
+        +     '<div class="dm-row-item">'
+        +       '<div class="dm-row-icon amber"><i class="fas fa-bell"></i></div>'
+        +       '<div class="dm-row-info"><div class="dm-row-title">后台消息推送</div><div class="dm-row-desc" id="notif-status-text">收到新消息时弹出提醒</div></div>'
+        +       '<label class="dm-toggle-pill"><input type="checkbox" id="notif-permission-toggle" onchange="handleNotifToggle(this)"><span class="dm-toggle-slider"></span></label>'
+        +     '</div>'
         +     '<div class="dm-row-item" id="replay-tutorial-btn-row" style="cursor:pointer">'
         +       '<div class="dm-row-icon slate"><i class="fas fa-compass"></i></div>'
         +       '<div class="dm-row-info"><div class="dm-row-title">重放新手引导</div><div class="dm-row-desc">重新播放功能介绍教程</div></div>'
@@ -82,10 +103,7 @@
         +   '</div>'
 
         + '</div>'
-        + '<div class="modal-buttons" style="display:flex;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--border-color);background:var(--secondary-bg);flex-shrink:0;">'
-        +   '<button class="modal-btn modal-btn-secondary" id="back-data"><i class="fas fa-arrow-left"></i> 返回</button>'
-        +   '<button class="modal-btn modal-btn-secondary" id="close-data">关闭</button>'
-        + '</div>';
+        ;
 
     var DRAWER_FULL_HTML =
         '<div class="dm-action-drawer" id="dm-drawer-full">'
@@ -106,7 +124,6 @@
         +         '<div class="dm-drawer-btn-text"><div class="dm-drawer-btn-title">从文件恢复</div><div class="dm-drawer-btn-desc">选择之前导出的备份文件</div></div>'
         +       '</button>'
         +     '</div>'
-        +     '<div id="dm-drawer-full-notice"></div>'
         +     '<button class="dm-drawer-cancel" id="dm-drawer-full-cancel">取消</button>'
         +   '</div>'
         + '</div>';
@@ -132,10 +149,10 @@
         +     '</div>'
         +     '<button class="dm-drawer-cancel" id="dm-drawer-chat-cancel">取消</button>'
         +   '</div>'
-        + '</div>'
+        + '</div>';
 
     function isCorrect(mc) {
-        return mc.querySelector('.modal-title') !== null
+        return mc.querySelector('.dm-topbar') !== null
             && mc.querySelector('.dm-storage-card') !== null
             && mc.querySelector('.dm6') === null
             && mc.querySelector('.dm6-tabs') === null;
@@ -159,60 +176,36 @@
 
     function writeHTML(mc) {
         mc.innerHTML = INNER_HTML;
-        mc.dataset.dm6Built = 'v11'; 
+        mc.dataset.dm6Built = 'v9'; 
         ensureDrawersOnBody();
         bindAll(mc);
     }
 
     function ensureHTML(mc) {
         if (!mc) return;
-        if (mc.dataset.dm6Built !== 'v11' || !isCorrect(mc)) writeHTML(mc);
+        mc.dataset.dm6Built = 'v9'; 
+        if (!isCorrect(mc)) writeHTML(mc);
         else ensureDrawersOnBody(); 
     }
 
     function fmt(b) {
-        if (b < 1024) return Math.round(b) + ' B';
+        if (b < 1024) return b + ' B';
         if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
         return (b / 1048576).toFixed(2) + ' MB';
     }
 
     function applyStats(total, msgs, cfg, media) {
+        var pct = Math.min(100, total / (5 * 1024 * 1024) * 100);
         var g = function (id) { return document.getElementById(id); };
-
-        // 直接显示手动累加的分类
+        var bar = g('dm-storage-bar');
+        if (bar) {
+            bar.style.width = pct.toFixed(1) + '%';
+            bar.style.background = 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
+        }
+        if (g('dm-storage-total')) g('dm-storage-total').textContent = fmt(total) + ' / ~5 MB';
         if (g('dm-stat-msgs'))     g('dm-stat-msgs').textContent     = fmt(msgs);
         if (g('dm-stat-settings')) g('dm-stat-settings').textContent = fmt(cfg);
         if (g('dm-stat-media'))    g('dm-stat-media').textContent    = fmt(media);
-
-        // 顶部总用量 = total（手动累加），进度条 = total / quota
-        var totalEl = g('dm-storage-total');
-        var barEl   = g('dm-storage-bar');
-
-        if (navigator.storage && navigator.storage.estimate) {
-            navigator.storage.estimate().then(function(est) {
-                var quota = est.quota || 0;
-                var pct = quota > 0 ? Math.min(100, total / quota * 100) : 0;
-                var pctStr = pct.toFixed(1);
-                var quotaStr = quota >= 1073741824 ? (quota/1073741824).toFixed(2)+' GB'
-                             : quota >= 1048576    ? (quota/1048576).toFixed(1)+' MB'
-                             : quota > 0           ? (quota/1024).toFixed(1)+' KB' : '未知';
-                if (totalEl) totalEl.textContent = fmt(total) + ' / ' + quotaStr + ' (' + pctStr + '%)';
-                if (barEl) {
-                    barEl.style.width = pctStr + '%';
-                    barEl.style.background = pct > 80
-                        ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
-                        : pct > 50
-                        ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
-                        : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
-                }
-            }).catch(function() {
-                if (totalEl) totalEl.textContent = fmt(total);
-                if (barEl) barEl.style.width = '0%';
-            });
-        } else {
-            if (totalEl) totalEl.textContent = fmt(total);
-            if (barEl) barEl.style.width = '0%';
-        }
     }
 
     function updateStats() {
@@ -233,14 +226,6 @@
             if (window.localforage) {
                 localforage.keys().then(function (keys) {
                     var promises = keys.map(function (k) {
-                        // favAudio_ 是音频 Base64 或 oss:// 引用，直接估算大小，不读内容避免内存爆炸
-                        // 阶段四：键名格式变为 CHAT_APP_V3_<SID>_favAudio_<msgId>，兼容旧格式
-                        if (k.startsWith('favAudio_') || k.includes('_favAudio_')) {
-                            return localforage.getItem(k).then(function(raw) {
-                                var bytes = typeof raw === 'string' ? raw.length * 2 : 0;
-                                return { k: k, b: bytes };
-                            }).catch(function() { return { k: k, b: 0 }; });
-                        }
                         return localforage.getItem(k).then(function (raw) {
                             if (raw == null) return { k: k, b: 0 };
                             var str = typeof raw === 'string' ? raw : JSON.stringify(raw);
@@ -297,21 +282,7 @@
         });
 
         var tileFullBackup = mc.querySelector('#dm-tile-full-backup');
-        if (tileFullBackup) tileFullBackup.addEventListener('click', function () {
-            openDrawer('dm-drawer-full');
-            var notice = document.getElementById('dm-drawer-full-notice');
-            if (notice) {
-                var isCloudConnected = window.CloudSync && typeof window.CloudSync.isConnected === 'function' && window.CloudSync.isConnected();
-                if (isCloudConnected) {
-                    notice.innerHTML = '<div style="margin:12px 0 4px;padding:10px 12px;background:rgba(197,164,126,0.12);border:1px solid rgba(197,164,126,0.35);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.6;">'
-                        + '<i class="fas fa-circle-info" style="color:var(--accent-color);margin-right:5px;"></i>'
-                        + '已启用云端存储：全量备份<b>不包含</b>背景图、表情包、聊天图片、收藏语音等媒体文件，这些文件仅存储在云端。文字类数据（聊天记录、字卡回复库、陪伴日记、心情手账、纪念日/倒计时、主题配色）可通过「聊天记录 → 选择导出」单独备份。'
-                        + '</div>';
-                } else {
-                    notice.innerHTML = '';
-                }
-            }
-        });
+        if (tileFullBackup) tileFullBackup.addEventListener('click', function () { openDrawer('dm-drawer-full'); });
 
         var tileChatBackup = mc.querySelector('#dm-tile-chat-backup');
         if (tileChatBackup) tileChatBackup.addEventListener('click', function () { openDrawer('dm-drawer-chat'); });
@@ -442,6 +413,168 @@
                 } else { startTour(); }
             }
         });
+
+        // 表情包压缩功能
+        var compressBtn = mc.querySelector('#sticker-compress-btn');
+        var compressInfo = mc.querySelector('#sticker-compress-info');
+        if (compressBtn && compressInfo) {
+            // 页面打开时先计算一次大小
+            setTimeout(function () { updateStickerSizeInfo(); }, 300);
+
+            function updateStickerSizeInfo() {
+                var all = getAllStickers();
+                var totalBytes = 0;
+                all.forEach(function (s) { totalBytes += estimateBase64Size(s); });
+                var count = all.length;
+                var fmt = function (b) { return b > 1048576 ? (b/1048576).toFixed(1)+'MB' : b > 1024 ? (b/1024).toFixed(0)+'KB' : b+'B'; };
+                compressInfo.textContent = count + ' 张表情，共 ' + fmt(totalBytes) + '（可压缩约 50%-70%）';
+            }
+
+            function getAllStickers() {
+                var all = [];
+                if (typeof stickerLibrary !== 'undefined' && Array.isArray(stickerLibrary)) {
+                    stickerLibrary.forEach(function (s, i) { all.push({ src: s, type: 'stickerLibrary', index: i }); });
+                }
+                if (typeof myStickerLibrary !== 'undefined' && Array.isArray(myStickerLibrary)) {
+                    myStickerLibrary.forEach(function (s, i) { all.push({ src: s, type: 'myStickerLibrary', index: i }); });
+                }
+                // 注意：customEmojis 存的是纯 Unicode emoji 文字（"请输入要添加的 Emoji"
+                // 那个入口加的），不是图片 base64，之前混进来一起统计会导致"多少张表情/
+                // 占用多少体积"的展示数字不准确，这里排除掉，只统计真正的图片表情包。
+                return all;
+            }
+
+            function estimateBase64Size(base64) {
+                if (!base64 || typeof base64 !== 'string') return 0;
+                // 去掉 data:image/xxx;base64, 前缀
+                var pure = base64.indexOf(',') > -1 ? base64.split(',')[1] : base64;
+                return Math.round(pure.length * 0.75);
+            }
+
+            function compressBase64Image(base64, maxWidth, quality) {
+                maxWidth = maxWidth || 160;
+                quality = quality || 0.75;
+                return new Promise(function (resolve, reject) {
+                    if (!base64 || typeof base64 !== 'string') { resolve(base64); return; }
+                    // 已经是 webp 且尺寸不大的跳过
+                    var curSize = estimateBase64Size(base64);
+                    if (curSize < 20 * 1024) { resolve(base64); return; }
+
+                    var img = new Image();
+                    img.onload = function () {
+                        try {
+                            var canvas = document.createElement('canvas');
+                            var ctx = canvas.getContext('2d');
+                            var w = img.width, h = img.height;
+                            if (w > maxWidth) {
+                                h = Math.round((h * maxWidth) / w);
+                                w = maxWidth;
+                            }
+                            canvas.width = w;
+                            canvas.height = h;
+                            ctx.clearRect(0, 0, w, h);
+                            ctx.drawImage(img, 0, 0, w, h);
+                            var out = canvas.toDataURL('image/webp', quality);
+                            if (!out || out.indexOf('data:image/webp') !== 0) {
+                                out = canvas.toDataURL('image/png');
+                            }
+                            // 如果压缩后反而更大了，就用原图
+                            if (estimateBase64Size(out) >= curSize) {
+                                resolve(base64);
+                            } else {
+                                resolve(out);
+                            }
+                        } catch (e) {
+                            resolve(base64);
+                        }
+                    };
+                    img.onerror = function () { resolve(base64); };
+                    img.src = base64;
+                });
+            }
+
+            compressBtn.addEventListener('click', async function () {
+                var all = getAllStickers();
+                if (all.length === 0) {
+                    if (typeof showNotification === 'function') showNotification('还没有表情包，先去添加一些吧~', 'info');
+                    return;
+                }
+
+                if (!confirm('确定要压缩所有 ' + all.length + ' 张表情包吗？\n\n压缩后体积会变小，清晰度会略微降低（不影响正常使用）。\n建议先备份数据再压缩。')) return;
+
+                compressBtn.disabled = true;
+                compressBtn.style.opacity = '0.6';
+                compressBtn.textContent = '压缩中 0/' + all.length;
+
+                var beforeTotal = 0;
+                var afterTotal = 0;
+                var successCount = 0;
+
+                for (var i = 0; i < all.length; i++) {
+                    var item = all[i];
+                    beforeTotal += estimateBase64Size(item.src);
+
+                    try {
+                        var compressed = await compressBase64Image(item.src, 160, 0.75);
+                        afterTotal += estimateBase64Size(compressed);
+
+                        // 替换回原数组
+                        if (item.type === 'stickerLibrary' && typeof stickerLibrary !== 'undefined') {
+                            stickerLibrary[item.index] = compressed;
+                        } else if (item.type === 'myStickerLibrary' && typeof myStickerLibrary !== 'undefined') {
+                            myStickerLibrary[item.index] = compressed;
+                        }
+
+                        successCount++;
+                    } catch (e) {
+                        afterTotal += estimateBase64Size(item.src);
+                    }
+
+                    compressBtn.textContent = '压缩中 ' + (i+1) + '/' + all.length;
+
+                    // 每10张保存一次，避免丢失
+                    if ((i+1) % 10 === 0 && typeof throttledSaveData === 'function') {
+                        throttledSaveData();
+                    }
+
+                    // 给UI一点喘息时间
+                    if ((i+1) % 5 === 0) {
+                        await new Promise(function (r) { setTimeout(r, 10); });
+                    }
+                }
+
+                // 最终保存：这里改成直接等 saveData() 真正写完，不再走 throttledSaveData。
+                // 修复：throttledSaveData 有 500ms 防抖，之前压缩一结束就立刻调
+                // updateStats() 去刷新"存储用量"，读到的其实是还没落盘的旧数据，
+                // 显示出来就像"压缩没生效"。
+                compressBtn.textContent = '保存中…';
+                if (typeof saveData === 'function') {
+                    try { await saveData(); } catch (e) { console.error('[表情包压缩] 保存失败:', e); }
+                } else if (typeof throttledSaveData === 'function') {
+                    throttledSaveData();
+                }
+
+                // 更新显示
+                var saved = beforeTotal - afterTotal;
+                var pct = beforeTotal > 0 ? Math.round(saved / beforeTotal * 100) : 0;
+                var fmt = function (b) { return b > 1048576 ? (b/1048576).toFixed(1)+'MB' : b > 1024 ? (b/1024).toFixed(0)+'KB' : b+'B'; };
+
+                compressInfo.textContent = successCount + ' 张已压缩，节省 ' + fmt(saved) + '（-' + pct + '%）';
+                compressBtn.textContent = '完成';
+                compressBtn.style.opacity = '1';
+                setTimeout(function () {
+                    compressBtn.disabled = false;
+                    compressBtn.textContent = '再次压缩';
+                }, 2000);
+
+                if (typeof showNotification === 'function') {
+                    showNotification('表情包压缩完成！节省 ' + fmt(saved) + ' 空间', 'success');
+                }
+
+                // 更新存储用量显示（此时数据已经真正落盘，数字是准的）
+                if (typeof updateStats === 'function') updateStats();
+            });
+        }
     }
 
     function onModalOpen(modal) {
@@ -495,12 +628,54 @@
         init();
     }
 
-    window.updateStats = updateStats;
-
 })();
 
 function updateStorageUsageBar() {
-    if (typeof window.updateStats === 'function') window.updateStats();
+    var bar   = document.getElementById('dm-storage-bar')   || document.getElementById('storage-usage-fill');
+    var text  = document.getElementById('dm-storage-total') || document.getElementById('storage-usage-text');
+    if (!bar && !text) return;
+
+    try {
+        if (window.localforage && window.APP_PREFIX) {
+            localforage.keys().then(function(keys) {
+                var promises = keys.map(function(k) {
+                    return localforage.getItem(k).then(function(v) {
+                        if (v === null || v === undefined) return 0;
+                        var str = typeof v === 'string' ? v : JSON.stringify(v);
+                        return (k.length + str.length) * 2;
+                    });
+                });
+                Promise.all(promises).then(function(sizes) {
+                    var total   = sizes.reduce(function(a,b){return a+b;},0);
+                    var usedKB  = (total / 1024).toFixed(1);
+                    var maxBytes = 5 * 1024 * 1024;
+                    var pct     = Math.min(total / maxBytes * 100, 100).toFixed(1);
+                    var fmt     = function(b) { return b<1024 ? b+' B' : b<1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(2)+' MB'; };
+
+                    if (bar) {
+                        bar.style.width = pct + '%';
+                        bar.style.background = 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
+                    }
+                    if (text) text.textContent = fmt(total) + ' / ~5 MB (' + pct + '%)';
+                });
+            }).catch(function() {
+                var ls = 0;
+                for (var i = 0; i < localStorage.length; i++) {
+                    var k = localStorage.key(i) || '';
+                    var v = localStorage.getItem(k) || '';
+                    ls += (k.length + v.length) * 2;
+                }
+                var pct = Math.min(ls / (5*1024*1024) * 100, 100).toFixed(1);
+                if (bar) bar.style.width = pct + '%';
+                if (text) text.textContent = (ls/1024).toFixed(1) + ' KB (localStorage)';
+            });
+        } else {
+            if (text) text.textContent = '暂无数据';
+            if (bar)  bar.style.width  = '0%';
+        }
+    } catch(e) {
+        if (text) text.textContent = '无法读取';
+    }
 }
 
 (function() {
@@ -522,18 +697,69 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ── 记录"刚从后台切回来"的时间点 ──
+// 手机长时间锁屏/切后台后，setInterval/setTimeout 这类定时器会被系统暂停，
+// 等你切回来的那一刻，浏览器往往会立刻把积压的一次"对方发消息/来电"逻辑补跑一遍——
+// 这时候 document.hidden 其实已经变成 false 了（因为你已经在看着屏幕），
+// 如果严格按"只有在后台才通知"来判断，这种"刚补上的消息"就永远不会有通知提醒你，
+// 但实际上这条消息发生的时间点，用户体感上就是"我不在的时候他发的"。
+// 所以这里额外记录一个宽限期：切回前台之后一段时间内产生的消息，也照样弹通知。
+window._lastBecameVisibleAt = 0;
+window._lastBecameHiddenAt = 0;
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+        const wasHiddenFor = window._lastBecameHiddenAt ? (Date.now() - window._lastBecameHiddenAt) : 0;
+        window._lastBecameVisibleAt = Date.now();
+        // 切回前台时，补查一下有没有"后台期间对方发了但没弹通知"的消息
+        // （iOS 后台杀进程/定时器暂停，消息是切回来才补跑出来的）
+        if (wasHiddenFor > 10 * 1000 && typeof messages !== 'undefined' && messages.length > 0) {
+            try {
+                const cutoff = Date.now() - Math.min(wasHiddenFor + 30000, 5 * 60 * 1000);
+                const hiddenMsgs = messages.filter(function(m) {
+                    return m.sender !== 'user' && m.sender !== null && m.type !== 'system'
+                        && new Date(m.timestamp).getTime() > cutoff;
+                });
+                if (hiddenMsgs.length > 0 && localStorage.getItem('notifEnabled') === '1'
+                    && 'Notification' in window && Notification.permission === 'granted') {
+                    const last = hiddenMsgs[hiddenMsgs.length - 1];
+                    const preview = last.text ? (last.text.length > 50 ? last.text.substring(0, 50) + '…' : last.text) : '[新消息]';
+                    const title = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
+                    const body = hiddenMsgs.length > 1
+                        ? hiddenMsgs.length + ' 条新消息 · ' + preview
+                        : preview;
+                    var n = new Notification(title, {
+                        body: body,
+                        icon: (document.querySelector('#partner-avatar img') || {}).src,
+                        tag: 'partner-msg',
+                        renotify: true
+                    });
+                    n.onclick = function() { try { window.focus(); } catch(e) {} n.close(); };
+                }
+            } catch(e) {}
+        }
+    } else if (document.visibilityState === 'hidden') {
+        window._lastBecameHiddenAt = Date.now();
+    }
+});
+
 window._sendPartnerNotification = function(title, body) {
     try {
         if (localStorage.getItem('notifEnabled') !== '1') return;
         if (!('Notification' in window)) return;
         if (Notification.permission !== 'granted') return;
-        if (!document.hidden) return;
-        new Notification(title || '传讯', {
+        // 宽限期从 4 秒延长到 20 秒：iOS 切回前台后定时器恢复 + 消息生成需要时间
+        const justResumed = window._lastBecameVisibleAt && (Date.now() - window._lastBecameVisibleAt < 20000);
+        if (!document.hidden && !justResumed) return;
+        const n = new Notification(title || '传讯', {
             body: body || '对方发来了消息',
             icon: (document.querySelector('#partner-avatar img') || {}).src,
             tag: 'partner-msg',
             renotify: true
         });
+        n.onclick = function() {
+            try { window.focus(); } catch (e) {}
+            n.close();
+        };
     } catch(e) {}
 };
 
@@ -570,12 +796,16 @@ window.handleNotifToggle = function(checkbox) {
     }
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+// 同步通知开关状态的独立函数，供初始化和modal打开时复用
+window._syncNotifToggle = function() {
     var toggle   = document.getElementById('notif-permission-toggle');
     var statusEl = document.getElementById('notif-status-text');
     if (!toggle) return;
     var enabled = localStorage.getItem('notifEnabled') === '1';
+    // 已经授权过的情况下（iOS PWA 16.4+ 支持 Notification，permission 会是 granted）
+    // 直接用 localStorage 的值，不再因为某些环境 permission 检查失败而强制关掉开关
     var granted = ('Notification' in window) && Notification.permission === 'granted';
+    // 如果已经授权，就信任 localStorage；如果没授权，开关保持关
     toggle.checked = enabled && granted;
     if (!statusEl) return;
     if (toggle.checked) {
@@ -584,5 +814,24 @@ document.addEventListener('DOMContentLoaded', function() {
         statusEl.textContent = '❌ 通知权限已被浏览器屏蔽，请自行搜索如何开启';
     } else {
         statusEl.textContent = '关闭状态 — 开启后可在后台接收消息提醒';
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    window._syncNotifToggle();
+
+    // 每次数据管理modal（dm-modal）打开时重新同步，防止刷新后重进modal开关显示错误
+    var dmModal = document.getElementById('dm-modal');
+    if (dmModal) {
+        new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                if (m.type === 'attributes' && m.attributeName === 'style') {
+                    var s = dmModal.style.display;
+                    if (s === 'flex' || s === 'block') {
+                        setTimeout(window._syncNotifToggle, 80);
+                    }
+                }
+            });
+        }).observe(dmModal, { attributes: true, attributeFilter: ['style'] });
     }
 });

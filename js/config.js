@@ -312,6 +312,17 @@
                 "fas fa-heart", "fas fa-star", "fas fa-moon", "fas fa-sun", "fas fa-cloud", "fas fa-feather", "fas fa-book", "fas fa-music", "fas fa-pen", "fas fa-key", "fas fa-compass", "fas fa-globe", "fas fa-leaf", "fas fa-water", "fas fa-fire", "fas fa-snowflake", "fas fa-umbrella", "fas fa-anchor", "fas fa-bell", "fas fa-gem", "fas fa-crown", "fas fa-dragon", "fas fa-feather-alt", "fas fa-fish", "fas fa-frog", "fas fa-hat-wizard", "fas fa-magic", "fas fa-ring", "fas fa-scroll", "fas fa-shield-alt", "fas fa-dove", "fas fa-cat", "fas fa-dog", "fas fa-horse", "fas fa-otter", "fas fa-paw", "fas fa-spider", "fas fa-kiwi-bird", "fas fa-crow", "fas fa-dove", "fas fa-seedling", "fas fa-tree", "fas fa-mountain", "fas fa-water", "fas fa-wind", "fas fa-volcano", "fas fa-meteor", "fas fa-satellite", "fas fa-rocket", "fas fa-user-astronaut"
             ],
             PARTNER_STATUSES: [],
+            // 对方所在地时区（相对我方固定的北京时间随机切换）
+            // mode: 'fixed' -> 用「北京时间 + diffHours」推算；mode: 'tz' -> 直接用真实时区（自动处理夏令时）
+            PARTNER_TIMEZONES: [
+                { label: "近邻同步区", mode: "fixed", diffHours: 0 },
+                { label: "中东西亚区", mode: "fixed", diffHours: -5 },
+                { label: "欧洲大陆区", mode: "fixed", diffHours: -6 },
+                { label: "大西洋非洲区", mode: "fixed", diffHours: -8 },
+                { label: "美洲新大陆区", mode: "fixed", diffHours: -13 },
+                { label: "北京时间", mode: "tz", tz: "Asia/Shanghai" },
+                { label: "伦敦时间", mode: "tz", tz: "Europe/London" }
+            ],
             REPLY_MESSAGES: [],
             REPLY_EMOJIS: [],
             POKE_ACTIONS: [],

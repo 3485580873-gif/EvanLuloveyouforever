@@ -309,124 +309,141 @@ let isTourActive = false;
 const tourSteps = [
     {
         title: "✨ 欢迎来到「传讯」",
-        content: "这里是你们专属的私密空间。<br><br>这个教程共 <b>20 步</b>，带你从头到尾认识每一个功能，建议完整看完哦 🥺<br><br>点击「下一步」开始吧！",
+        content: "这里是你们专属的私密空间。<br><br>这个教程共 <b>20 步</b>，带你从头到尾认识每一个功能，建议完整看完哦🥺<br><br>点击「下一步」开始吧！",
         position: 'center'
     },
     {
         element: '#my-avatar',
         title: "📷 你的头像",
-        content: "这是你的头像。点击它可以上传图片作为你的头像。",
+        content: "这是<b>你的头像</b>。<br><br>点击它可以上传图片作为你的头像。",
         position: 'bottom'
     },
     {
         element: '#my-name',
         title: "✏️ 你的昵称",
-        content: "这里显示的是你的名字。点击名字可以直接修改。",
+        content: "这里显示的是<b>你的名字</b>。<br><br>点击名字可以直接修改。",
         position: 'bottom'
     },
     {
         element: '#my-status-container',
         title: "💬 你的状态签名",
-        content: "这里是你的状态签名。点击可以编辑，一般而言对方是能看见的哦～",
+        content: "这里是你的<b>状态签名</b>。<br><br>点击可以编辑，一般而言对方是能看见的哦～",
         position: 'bottom'
     },
     {
         element: '#partner-avatar',
-        title: "🖼️ Ta 的头像",
-        content: "这里是对方的头像，同样可以点击上传更换。",
+        title: "Ta 的头像",
+        content: "这里是<b>梦角的头像</b>，同样点击可以上传更换。",
         position: 'bottom'
     },
     {
         element: '#partner-name',
-        title: "🏷️ Ta 的昵称",
-        content: "这里是对方的昵称，点击这里可以修改。",
+        title: "Ta 的昵称",
+        content: "这是<b>梦角的昵称</b>，同样点击可以修改。",
         position: 'bottom'
     },
     {
-        element: '#videocall-btn',
-        title: "📹 视频通话",
-        content: "点击这里可以发起视频通话，对方会在接通后出现在屏幕上。",
+        element: '.header-motto',
+        title: "🌸 顶部格言",
+        content: "这里显示着格言～自定义回复里可修改。",
         position: 'bottom'
     },
     {
         element: '#message-input',
-        title: "⌨️ 发送消息",
-        content: "在这里输入你想说的话，按回车键即可发送。<br><br>发送后对方会在几秒内回复你，回复速度可以在「聊天设置」里调整。",
+        title: "⌨️ 消息输入框",
+        content: "在这里<b>输入你想说的话</b>，按回车键或点击右边的发送按钮就能发出去。",
         position: 'top'
     },
     {
-        elements: ['#attachment-btn', '#combo-btn'],
-        title: "🖼️ 发图 & 表情包",
-        content: "点击这里可以发送图片，也可以打开表情包面板发送表情。<br><br>在「高级功能 → 自定义回复」里还可以上传对方的专属表情，到时候 Ta 也会发给你！",
+        element: '#send-btn',
+        title: "🚀 发送消息",
+        content: "点击这个<b>纸飞机按钮</b>就能发送消息。<br><br>发送后对方会在几秒内给你回复，你可以在「聊天设置」里调整回复的速度快慢哦。",
         position: 'top'
     },
     {
-        title: "👋 拍一拍",
-        content: "双击对方的头像，可以拍一拍 Ta！<br><br>拍一拍的文字可以在「聊天设置 → 功能」里自定义；对方回应你的拍一拍文字，则在「高级功能 → 自定义回复」里设置。",
-        position: 'center'
+        element: '#attachment-btn',
+        title: "🖼️ 发送图片 / 表情包",
+        content: "点击这里可以<b>发送图片</b>，支持相册图片和表情包。<br><br>你还可以在「高级功能 → 回复库」中上传自定义的表情，到时候对方也会发给你！",
+        position: 'top'
     },
     {
-        element: '#envelope-header-btn',
-        title: "💌 信箱",
-        content: "点击这里打开信箱。你可以给对方写一封信，信件会在一段时间后送达；对方也会不定期给你来信，记得查收～",
-        position: 'bottom'
+        element: '#poke-btn',
+        title: "👋 拍一拍互动",
+        content: "这是「<b>拍一拍</b>」功能，发出后会显示一条互动消息，比如「轻拍了你一下」。<br><br>可以在「高级功能 → 自定义拍一拍」里添加更多的动作！",
+        position: 'top'
     },
     {
-        element: '#companion-btn',
-        title: "🕯️ 陪伴模式",
-        content: "点击这里邀请对方陪伴。可以选择一起学习、工作、运动或休息，对方会陪在你身边，偶尔和你说几句话。Ta 也同样会邀请你哦～",
-        position: 'bottom'
+        element: '#continue-btn',
+        title: "让 Ta 继续说",
+        content: "不知道说什么了？或者想让 Ta 多说几句？<br><br>点击这个按钮，<b>梦角会主动找你说话。",
+        position: 'top'
     },
     {
-        element: '#moments-header-btn',
-        title: "🏠 你们的空间",
-        content: "点击进入你们的专属空间，里面有：<br>• <b>动态</b>：一起分享日常和照片<br>• <b>心情手账</b>：一起记录每天的心情<br>• <b>纪念日</b>：一起倒数重要的日子<br>• <b>电影院</b>：约定时间一起看电影 🎬",
-        position: 'bottom'
-    },
-    {
-        element: '#daily-greeting-btn',
-        title: "📰 今日公告",
-        content: "点击这里查看今日公告，每天会有一张专属的早安卡片，记录对方今日的心情和状态。",
-        position: 'bottom'
+        element: '#batch-btn',
+        title: "📦 批量发送模式",
+        content: "开启<b>批量模式</b>后，你可以先写好多条消息，再一次性全部发出去<br><br>点击按钮开启，编辑完成后再次点击「发送全部」即可。",
+        position: 'top'
     },
     {
         element: '#settings-btn',
         title: "⚙️ 设置中心",
-        content: "所有个性化配置都在这个设置按钮里，我们点进去看一下！",
+        content: "所有个性化配置都在这个<b>设置按钮</b>里，我们点进去看一下！<br>",
         position: 'bottom',
         onBefore: () => { if (isTourActive) document.querySelectorAll('.modal').forEach(m => hideModal(m)); }
     },
     {
         element: '#appearance-settings',
         title: "🎨 外观设置",
-        content: "外观设置里可以调整：<br>• 切换不同的颜色主题<br>• 更换聊天背景图和陪伴模式背景<br>• 调整字体大小和气泡样式<br>• 设置聊天界面的头像显示方式",
+        content: "<b>外观设置</b>里可以：<br>• 切换 10 款主题配色（金/蓝/粉…）<br>• 调整字体大小<br>• 更换聊天背景图<br>• 自定义气泡样式 CSS<br>",
         position: 'bottom',
         onBefore: () => { if (isTourActive) showModal(DOMElements.settingsModal.modal); }
     },
     {
         element: '#chat-settings',
         title: "💬 聊天设置",
-        content: "聊天设置里可以调整：<br>• <b>功能</b>：信息交互设置、拍一拍文字等<br>• <b>节奏</b>：回复速度 & 频率、后台运行等<br>• <b>音效</b>：消息提示音<br>• <b>显示</b>：沉浸模式、底部栏收纳等<br>• <b>昵称</b>：快速修改双方昵称",
+        content: "<b>聊天设置</b>里可以调整：<br>• 消息音效开关<br>• 已读回执显示<br>• 对方回复速度（快/慢）<br>• 消息气泡样式（圆角/方形）",
         position: 'bottom'
     },
     {
         element: '#advanced-settings',
         title: "🚀 高级功能 — 必看！",
-        content: "高级功能是整个 app 最丰富的板块，里面有：<br>• <b>自定义回复</b>：让对方说你想听的话<br>• <b>消息统计</b>：查看你们的聊天数据<br>• <b>陪伴日记</b>：记录每次陪伴的时光<br>• <b>悬浮音乐播放器</b>：与 Ta 一起听喜欢的音乐<br>• <b>运势·占卜</b>：每日运势<br>• <b>抉择</b>：转盘 / 硬币帮你做决定",
+        content: "<b>高级功能</b>是整个应用最强大的板块，里面有：<br>• <b>心晴手账</b>：记录每天的心情<br>• <b>信封投递</b>：给梦角写一封信<br>• <b>纪念日</b>：倒计时 / 纪念天数<br>• <b>运势占卜</b>：每日运势<br>• <b>自定义回复</b>：让梦角说你想听的话<br>• <b>音乐播放器</b>：背景音乐",
         position: 'bottom'
     },
     {
         element: '#data-settings',
         title: "💾 数据管理",
-        content: "数据管理里可以：<br>• 备份 / 导入聊天记录<br>• 查看存储空间占用<br>• 重置所有数据<br>• 重新播放本教程",
-        position: 'top',
-        onBefore: () => { if (isTourActive) document.querySelectorAll('.modal').forEach(m => hideModal(m)); setTimeout(() => { if (isTourActive) showModal(DOMElements.settingsModal.modal); }, 10); }
+        content: "<b>数据管理</b>里可以：<br>• 导出聊天记录（备份到本地）<br>• 导入之前备份的记录<br>• 查看存储空间占用<br>• 开启后台消息通知推送<br>• 重置所有数据<br>• 重放本教程",
+        position: 'top'
     },
     {
-        title: "🎉 你已了解所有功能！",
-        content: "现在你已经掌握了「传讯」的全部功能，希望你们在这里留下满满的回忆 💕",
-        position: 'center',
-        onBefore: () => { if (isTourActive) document.querySelectorAll('.modal').forEach(m => hideModal(m)); }
+        element: '#theme-toggle',
+        title: "🌙 日 / 夜模式切换",
+        content: "这个按钮可以快速<b>切换白天 / 夜晚</b>模式。<br><br>夜晚模式下整体变成深色背景，对眼睛更友好，睡前聊天必备！✨",
+        position: 'bottom',
+        onBefore: () => { if (isTourActive) hideModal(DOMElements.settingsModal.modal); }
+    },
+    {
+        element: '#favorites-btn',
+        title: "⭐ 收藏夹",
+        content: "长按或点击一条消息，会弹出操作菜单，可以把消息<b>收藏</b>起来。<br><br>所有收藏的消息都会保存在这个收藏夹里，随时可以翻阅回味～",
+        position: 'bottom'
+    },
+    {
+        element: '#session-manager-btn',
+        title: "📂 会话管理",
+        content: "你可以创建<b>多个独立的聊天会话</b>，每个会话都有独立的聊天记录。<br>",
+        position: 'bottom'
+    },
+    {
+        title: "✋ 消息操作提示",
+        content: "点击任意一条消息，会出现操作菜单：<br>• ⭐ <b>收藏</b>：保存到收藏夹<br>• ↩️ <b>回复</b>：引用这条消息回复<br>• 📝 <b>注释</b>：给消息添加备注<br>• 🗑️ <b>删除</b>：删除这条消息",
+        position: 'center'
+    },
+    {
+        title: "🎉 你已掌握所有功能！",
+        content: "恭喜你完成了新手引导！现在你已经了解了「传讯」的全部功能。<br><br>希望你们在这里收获满满的爱与幸福 🥺💕",
+        position: 'center'
     }
 ];
 
@@ -477,23 +494,9 @@ function showTourStep(index) {
         } else {
             tourNextBtn.innerHTML = '下一步 <i class="fas fa-arrow-right"></i>';
         }
-        // 支持单个 element 或多个 elements 合并高亮
-        let combinedRect = null;
-        if (step.elements && step.elements.length > 0) {
-            const rects = step.elements.map(sel => document.querySelector(sel)).filter(Boolean).map(el => el.getBoundingClientRect());
-            if (rects.length > 0) {
-                const minLeft = Math.min(...rects.map(r => r.left));
-                const minTop = Math.min(...rects.map(r => r.top));
-                const maxRight = Math.max(...rects.map(r => r.right));
-                const maxBottom = Math.max(...rects.map(r => r.bottom));
-                combinedRect = { left: minLeft, top: minTop, right: maxRight, bottom: maxBottom, width: maxRight - minLeft, height: maxBottom - minTop };
-            }
-        } else if (step.element) {
-            const el = document.querySelector(step.element);
-            if (el) combinedRect = el.getBoundingClientRect();
-        }
-        if (combinedRect) {
-            const rect = combinedRect;
+        const targetElement = step.element ? document.querySelector(step.element) : null;
+        if (targetElement) {
+            const rect = targetElement.getBoundingClientRect();
             tourHighlightBox.style.width = `${rect.width + 10}px`;
             tourHighlightBox.style.height = `${rect.height + 10}px`;
             tourHighlightBox.style.top = `${rect.top - 5}px`;
@@ -514,21 +517,8 @@ function showTourStep(index) {
 
 function positionPopover(rect, position) {
     const popoverRect = tourPopover.getBoundingClientRect();
-    const spacing = 12;
-    const margin = 8;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const spacing = 15;
     let top, left;
-
-    // 如果指定 bottom 但下方空间不够，自动翻转到 top
-    if (position === 'bottom' && rect.bottom + spacing + popoverRect.height > vh - margin) {
-        position = 'top';
-    }
-    // 如果指定 top 但上方空间不够，自动翻转到 bottom
-    if (position === 'top' && rect.top - spacing - popoverRect.height < margin) {
-        position = 'bottom';
-    }
-
     switch (position) {
         case 'top':
             top = rect.top - popoverRect.height - spacing;
@@ -547,23 +537,21 @@ function positionPopover(rect, position) {
             left = rect.right + spacing;
             break;
         default:
+            top = '50%';
+            left = '50%';
             tourPopover.style.transform = 'translate(-50%, -50%)';
-            tourPopover.style.top = '50%';
-            tourPopover.style.left = '50%';
+            tourPopover.style.top = top;
+            tourPopover.style.left = left;
             return;
     }
-
-    // 水平边界保护
-    if (left < margin) left = margin;
-    if (left + popoverRect.width > vw - margin) {
-        left = vw - popoverRect.width - margin;
+    if (top < 10) top = 10;
+    if (left < 10) left = 10;
+    if (left + popoverRect.width > window.innerWidth - 10) {
+        left = window.innerWidth - popoverRect.width - 10;
     }
-    // 垂直边界保护
-    if (top < margin) top = margin;
-    if (top + popoverRect.height > vh - margin) {
-        top = vh - popoverRect.height - margin;
+    if (top + popoverRect.height > window.innerHeight - 10) {
+        top = window.innerHeight - popoverRect.height - 10;
     }
-
     tourPopover.style.top = `${top}px`;
     tourPopover.style.left = `${left}px`;
     tourPopover.style.transform = 'none';
@@ -917,3 +905,5 @@ function setupTutorialListeners() {
         });
     }
 }
+
+
