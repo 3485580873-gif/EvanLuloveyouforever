@@ -1297,35 +1297,3 @@ function initMoodListeners() {
         });
     }
 }
-
-// ═══ 情侣空间「心情手账」tab 集成补丁（从 chat-main 迁移）═══
-// 供 moments.js 的 csSwitchTab('mood') 调用：切到心情手账 tab 时渲染日历
-window._moodInit = function() {
-    renderMoodCalendar();
-};
-
-// 回收站 overlay 开关（情侣空间心情手账右上角垃圾桶按钮）
-document.addEventListener('DOMContentLoaded', function() {
-    const trashBtn = document.getElementById('cs-mood-trash-btn');
-    const trashOverlay = document.getElementById('cs-mood-trash-overlay');
-    const trashClose = document.getElementById('cs-mood-trash-close');
-    if (trashBtn && trashOverlay && !trashBtn.dataset.initialized) {
-        trashBtn.dataset.initialized = 'true';
-        trashBtn.addEventListener('click', () => {
-            renderMoodTrashList();
-            trashOverlay.style.display = 'flex';
-        });
-    }
-    if (trashClose && trashOverlay && !trashClose.dataset.initialized) {
-        trashClose.dataset.initialized = 'true';
-        trashClose.addEventListener('click', () => {
-            trashOverlay.style.display = 'none';
-        });
-    }
-    if (trashOverlay && !trashOverlay.dataset.initialized) {
-        trashOverlay.dataset.initialized = 'true';
-        trashOverlay.addEventListener('click', (e) => {
-            if (e.target === trashOverlay) trashOverlay.style.display = 'none';
-        });
-    }
-});
