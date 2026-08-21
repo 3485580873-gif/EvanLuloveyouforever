@@ -196,7 +196,7 @@
  */
 (function() {
     var KEY = 'keepaliveAudioEnabled';
-    var SRC = 'assets/audio/silence.wav';
+    var SRC = 'assets/audio/silence.mp3';
     var _audio = null;
     var _audioCtx = null;
     var _oscNode = null;
@@ -204,6 +204,8 @@
     var _unlockBound = false;
     var _positionTimer = null;
     var _keepaliveStartTime = Date.now();
+    // 进度条总时长：必须与音频实际时长一致，否则 iOS 控制中心两个时钟冲突乱跳
+    var _DURATION = 28800; // 8 小时（silence.mp3）
     function _get() { return localStorage.getItem(KEY) === 'true'; }
     // ── 引擎1：静音循环音频（媒体会话载体）──
     function _createAudio() {
@@ -215,6 +217,17 @@
         _audio.muted = false;
         _audio.setAttribute('playsinline', '');
         _audio.setAttribute('webkit-playsinline', '');
+        // 兼容性回退：若 iOS 无法解码 MP3（16kHz MPEG-2），回退到 600 秒 WAV
+        _audio.addEventListener('error', function () {
+            if (_audio.src && _audio.src.indexOf('silence.mp3') !== -1) {
+                try {
+                    _audio.src = 'assets/audio/silence.wav';
+                    _DURATION = 600;
+                    _audio.load();
+                    if (_get()) _audio.play().catch(function(){});
+                } catch (e) {}
+            }
+        });
         _audio.addEventListener('play', function(){ _updateMediaSession('playing'); });
         _audio.addEventListener('pause', function(){ _updateMediaSession('paused'); });
         // 音频中断自动恢复
@@ -302,15 +315,15 @@
     }
 
     // 让控制中心进度条/时间真实走动，不再显示 --:--
-    // 注意：duration 必须与 silence.wav 实际时长一致（600 秒），
+    // 注意：duration 必须与 silence.mp3 实际时长一致（28800 秒 = 8 小时），
     // 否则 iOS 控制中心内部 currentTime 与 setPositionState 两个时钟冲突导致时间乱跳。
+    // 8 小时 = 用户睡觉整夜不关也不需要重新循环。
     function _updatePositionState() {
         try {
             if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
-            var DURATION = 600;
-            var position = Math.floor(((Date.now() - _keepaliveStartTime) / 1000) % DURATION);
+            var position = Math.floor(((Date.now() - _keepaliveStartTime) / 1000) % _DURATION);
             navigator.mediaSession.setPositionState({
-                duration: DURATION,
+                duration: _DURATION,
                 playbackRate: 1,
                 position: position
             });

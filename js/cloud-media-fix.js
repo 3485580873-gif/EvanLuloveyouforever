@@ -1,16 +1,21 @@
 /**
- * cloud-media-fix.js — 修复「oss:// 云端引用图片显示空白」问题
+ * cloud-media-fix.js — 修复「oss:// 云端引用图片/背景显示空白」问题
  *
- * 背景：表情包/图片迁移到阿里云 OSS 后，存储值从 base64 变成内部引用
- *       "oss://media/<sid>/<category>/<id>.<ext>"。Evan 原站的表情选择器、
- *       表情库、消息渲染等代码都是直接把该值赋给 <img src>，
+ * 背景：表情包/图片/背景迁移到阿里云 OSS 后，存储值从 base64 变成内部引用
+ *       "oss://media/<sid>/<category>/<id>.<ext>"。Evan 原站所有渲染代码
+ *       都是直接把该值赋给 <img src> 或 style.backgroundImage / CSS 变量，
  *       浏览器不认识 oss:// 协议 → 加载失败 → 显示空白/裂图。
  *
- * 方案：全局兜底，把 <img src="oss://..."> 与 CSS 背景 url(oss://...) 自动解析成可显示的 blob URL。
- *   - MutationObserver 主动扫描（覆盖 display:none / 未触发 error 的元素）
- *   - error 事件委托兜底（覆盖各种动态插入的 <img>）
+ * 覆盖场景：
+ *   1. <img src="oss://...">（表情选择器、表情库、消息图片、背景缩略图等）
+ *   2. CSS 变量 --chat-bg-image = url(oss://...)（聊天主背景）
+ *   3. element.style.backgroundImage = url(oss://...)（主题头部背景、卡片背景、黑胶封面等）
+ *
+ * 机制：
+ *   - MutationObserver 监听 document.documentElement（根），src/style 变化即时修复
+ *   - 轮询兜底（常驻，每 2s 一次，成本极低）
+ *   - error 事件委托兜底
  *   - 解析前先换 1x1 透明占位图，避免白闪
- *   - 轮询修复 --chat-bg-image CSS 变量里的 oss:// 背景引用（聊天背景）
  */
 (function () {
     'use strict';
@@ -21,6 +26,21 @@
         return typeof v === 'string' && v.indexOf('oss://') === 0;
     }
 
+    // 从 url(oss://...) 或裸 oss://... 字符串中提取引用
+    function _extractOssRef(str) {
+        if (!str || typeof str !== 'string') return null;
+        var m = str.match(/url\(\s*["']?(oss:\/\/[^)"']+)/);
+        if (m) return m[1];
+        m = str.match(/(^|[^a-zA-Z0-9])(oss:\/\/[^\s"'()]+)/);
+        if (m) return m[2];
+        return null;
+    }
+
+    function _getCloudMedia() {
+        return window.CloudMedia && typeof window.CloudMedia.fetchUrl === 'function' ? window.CloudMedia : null;
+    }
+
+    // ── 1) <img src="oss://..."> ──
     function _resolve(img) {
         if (!img || img.tagName !== 'IMG') return;
         if (img.getAttribute('data-cloud-fix') === '1') return;
@@ -29,17 +49,15 @@
         img.setAttribute('data-cloud-fix', '1');
         img.src = PLACEHOLDER;
 
-        var CM = window.CloudMedia;
-        if (!CM || typeof CM.fetchUrl !== 'function') {
+        var CM = _getCloudMedia();
+        if (!CM) {
             img.removeAttribute('data-cloud-fix');
             img.classList.add('cloud-media-error');
             return;
         }
         CM.fetchUrl(ref).then(function (url) {
-            if (img.isConnected || img.getAttribute('data-cloud-fix') === '1') {
+            if (img.getAttribute('data-cloud-fix') === '1') {
                 img.src = url;
-                img.classList.remove('cloud-media-pending');
-                img.classList.remove('cloud-media-loading');
                 img.classList.add('cloud-media-loaded');
             }
             img.removeAttribute('data-cloud-fix');
@@ -49,24 +67,18 @@
         });
     }
 
-    function _scan(root) {
-        var imgs = (root || document).querySelectorAll('img[src^="oss://"]');
-        for (var i = 0; i < imgs.length; i++) _resolve(imgs[i]);
-    }
-
-    // 修复 CSS 背景变量 --chat-bg-image 中的 oss:// 引用（聊天背景图）
-    // applyBackground() 会把存储值写成 url(oss://media/xxx)，CSS 无法加载 oss:// 协议 → 背景空白
-    function _fixCssBackground() {
+    // ── 2) CSS 变量 --chat-bg-image（聊天主背景）──
+    // applyBackground() 会把存储值写成 url(oss://media/xxx)
+    function _fixCssVariable() {
         var doc = document.documentElement;
         if (!doc) return;
-        var v = doc.style.getPropertyValue('--chat-bg-image');
-        if (!v || v.indexOf('oss://') === -1) return;
-        var m = v.match(/url\(\s*["']?(oss:\/\/[^)"']+)/);
-        if (!m) return;
-        var ref = m[1];
+        var v = doc.style.getPropertyValue('--chat-bg-image') || '';
+        if (v.indexOf('oss://') === -1) return;
+        var ref = _extractOssRef(v);
+        if (!ref) return;
         if (doc.getAttribute('data-bg-fixing') === ref) return; // 正在解析，跳过
-        var CM = window.CloudMedia;
-        if (!CM || typeof CM.fetchUrl !== 'function') return;
+        var CM = _getCloudMedia();
+        if (!CM) return;
         doc.setAttribute('data-bg-fixing', ref);
         CM.fetchUrl(ref).then(function (url) {
             doc.removeAttribute('data-bg-fixing');
@@ -80,14 +92,40 @@
         });
     }
 
-    // 兜底：CSS 变量是 applyBackground() 随时可能写入的，轮询修复
-    var _bgFixCount = 0;
-    var _bgFixTimer = setInterval(function () {
-        _fixCssBackground();
-        if (++_bgFixCount > 120) clearInterval(_bgFixTimer); // 最多 3 分钟
-    }, 1500);
+    // ── 3) 元素内联 style.backgroundImage = url(oss://...) ──
+    // 主题头部背景(features.js)、卡片背景、黑胶封面(listeners.js)、onboarding 引导等
+    function _fixElementStyle(el) {
+        if (!el || !el.style) return;
+        var bg = el.style.backgroundImage || '';
+        if (bg.indexOf('oss://') === -1) return;
+        var ref = _extractOssRef(bg);
+        if (!ref) return;
+        if (el.getAttribute('data-bg-fixing-el') === ref) return; // 正在解析
+        var CM = _getCloudMedia();
+        if (!CM) return;
+        el.setAttribute('data-bg-fixing-el', ref);
+        CM.fetchUrl(ref).then(function (url) {
+            el.removeAttribute('data-bg-fixing-el');
+            var cur = el.style.backgroundImage || '';
+            if (cur.indexOf(ref) !== -1) {
+                el.style.backgroundImage = cur.replace(ref, url);
+            }
+        }).catch(function () {
+            el.removeAttribute('data-bg-fixing-el');
+            el.classList.add('cloud-media-error');
+        });
+    }
 
-    // 1) error 事件委托：浏览器加载 oss:// 协议必然失败，捕获后解析
+    // ── 全量扫描 ──
+    function _scanAll() {
+        var imgs = document.querySelectorAll('img[src^="oss://"]');
+        for (var i = 0; i < imgs.length; i++) _resolve(imgs[i]);
+        _fixCssVariable();
+        var els = document.querySelectorAll('[style*="oss://"]');
+        for (var j = 0; j < els.length; j++) _fixElementStyle(els[j]);
+    }
+
+    // error 事件委托：浏览器加载 oss:// 协议必然失败，捕获后解析
     document.addEventListener('error', function (e) {
         var t = e.target;
         if (t && t.tagName === 'IMG' && _isOssRef(t.getAttribute('src'))) {
@@ -95,11 +133,11 @@
         }
     }, true);
 
-    // 2) MutationObserver：主动发现新增/改 src 的 <img> 以及背景样式变化
     function _start() {
-        _scan(document);
-        _fixCssBackground();
+        _scanAll();
         if ('MutationObserver' in window) {
+            // 必须观察 document.documentElement（根），因为 --chat-bg-image 设置在 html 上，
+            // 只观察 body 子树会漏掉 html 的 style 变化
             var observer = new MutationObserver(function (mutations) {
                 var needScan = false;
                 for (var i = 0; i < mutations.length; i++) {
@@ -107,28 +145,23 @@
                     if (m.type === 'attributes' && m.attributeName === 'src') {
                         _resolve(m.target);
                     } else if (m.type === 'attributes' && m.attributeName === 'style') {
-                        _fixCssBackground();
+                        _fixCssVariable();
+                        _fixElementStyle(m.target);
                     } else if (m.addedNodes && m.addedNodes.length) {
                         needScan = true;
                     }
                 }
-                if (needScan) _scan(document);
+                if (needScan) _scanAll();
             });
-            observer.observe(document.body || document.documentElement, {
+            observer.observe(document.documentElement, {
                 childList: true,
                 subtree: true,
                 attributes: true,
                 attributeFilter: ['src', 'style']
             });
-        } else {
-            // 兜底：不支持 MutationObserver 的环境定时扫描
-            var count = 0;
-            var iv = setInterval(function () {
-                _scan(document);
-                _fixCssBackground();
-                if (++count > 30) clearInterval(iv);
-            }, 2000);
         }
+        // 常驻轮询兜底（成本极低）：覆盖 observer 漏掉的场景（如 display:none 元素、跨域 iframe 等）
+        setInterval(_scanAll, 2000);
     }
 
     if (document.readyState === 'loading') {
