@@ -523,6 +523,7 @@ html[data-theme="dark"] #partner-timezone-text {
     <input type="file" id="my-sticker-quick-upload" class="file-input" accept="image/*" multiple>
 </div>
     </div>
+</div>
 
 
     <div class="modal" id="edit-modal" style="z-index:3000;">
@@ -2799,6 +2800,8 @@ html[data-theme="dark"] #partner-timezone-text {
 /* 深色模式下过渡动效换成深色背景，跟随系统 data-theme="dark"，不改动上面浅色模式那行原有代码 */
 html[data-theme="dark"] #cs-transition-overlay{background:radial-gradient(circle at 50% 36%,rgba(45,45,45,.95),rgba(30,30,30,.9) 30%,rgba(18,18,18,.98) 72%),#121212;}
 </style>
+<!-- ═══════════════════════════════════════
+     情侣空间 HTML 注入
 ═══════════════════════════════════════ -->
 <div id="cs-transition-overlay">
   <div class="cs-trans-inner">
@@ -2842,7 +2845,7 @@ html[data-theme="dark"] #cs-transition-overlay{background:radial-gradient(circle
     </svg>
   </div>
 </div>
-<div id="couple-space-page">
+<div id="couple-space-page" style="display:none;">
 
     <!-- 顶部操作栏 -->
     <div class="cs-topbar" id="cs-topbar" style="position:relative;">
