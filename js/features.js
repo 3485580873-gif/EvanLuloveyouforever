@@ -302,10 +302,12 @@
     }
 
     // 让控制中心进度条/时间真实走动，不再显示 --:--
+    // 注意：duration 必须与 silence.wav 实际时长一致（600 秒），
+    // 否则 iOS 控制中心内部 currentTime 与 setPositionState 两个时钟冲突导致时间乱跳。
     function _updatePositionState() {
         try {
             if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
-            var DURATION = 3600;
+            var DURATION = 600;
             var position = Math.floor(((Date.now() - _keepaliveStartTime) / 1000) % DURATION);
             navigator.mediaSession.setPositionState({
                 duration: DURATION,
