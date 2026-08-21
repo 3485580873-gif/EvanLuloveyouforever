@@ -283,17 +283,24 @@
     function _updateMediaSession(state) {
         try {
             if (!('mediaSession' in navigator)) return;
-            if (!navigator.mediaSession.metadata) {
-                var partnerName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '陪伴中';
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: partnerName,
-                    artist: '正在陪你聊天',
-                    album: '传讯'
+            // 每次强制覆盖 metadata，防止 iOS Safari 用页面 URL/标题覆盖
+            var partnerName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '陪伴中';
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: partnerName,
+                artist: '正在陪你聊天',
+                album: '传讯'
+            });
+            // 设置播放位置状态，让 iOS 显示时间进度
+            try {
+                var dur = (_audio && _audio.duration && isFinite(_audio.duration)) ? _audio.duration : 600;
+                navigator.mediaSession.setPositionState({
+                    duration: dur,
+                    position: 0
                 });
-                navigator.mediaSession.setActionHandler('play', function () { _startAll(); });
-                navigator.mediaSession.setActionHandler('pause', function () { if (_get()) _startAll(); });
-                navigator.mediaSession.setActionHandler('stop', function () { if (_get()) _startAll(); });
-            }
+            } catch(pe) {}
+            navigator.mediaSession.setActionHandler('play', function () { _startAll(); });
+            navigator.mediaSession.setActionHandler('pause', function () { if (_get()) _startAll(); });
+            navigator.mediaSession.setActionHandler('stop', function () { if (_get()) _startAll(); });
             navigator.mediaSession.playbackState = state;
         } catch (e) {}
     }
