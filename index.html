@@ -159,6 +159,8 @@ html[data-theme="dark"] #partner-timezone-text {
     </style>
     <link rel="stylesheet" href="css/companion.css?v=202608211400">
     <link rel="stylesheet" href="css/couple-space.css?v=202608211400">
+    <link rel="stylesheet" href="css/feature-shared.css?v=202608211400">
+    <link rel="stylesheet" href="css/cinema.css?v=202608211400">
 </head>
 <body>
 <div id="splash-declaration">
@@ -339,7 +341,7 @@ html[data-theme="dark"] #partner-timezone-text {
                 <button id="daily-greeting-btn" class="action-btn" title="今日公告" onclick="reopenDailyGreeting()"><i class="fas fa-newspaper"></i></button>
                 <button id="theme-toggle" class="action-btn" title="切换主题"><i class="fas fa-moon"></i></button>
                                 <button id="companion-btn" class="action-btn" title="陪伴"><i class="fas fa-hand-holding-heart"></i></button>
-                <button id="couple-space-btn" class="action-btn" title="情侣空间" onclick="openMomentsWithTransition()"><i class="fas fa-heart"></i></button>
+                <button id="moments-header-btn" class="action-btn" title="情侣空间" onclick="openMomentsWithTransition()" style="position:relative;"><i class="fas fa-heart" style="font-size:16px;"></i><span id="moments-header-badge" style="display:none;position:absolute;top:3px;right:3px;width:7px;height:7px;background:var(--accent-color);border-radius:50%;border:1.5px solid var(--primary-bg);pointer-events:none;"></span></button>
                 <button id="settings-btn" class="action-btn" title="设置"><i class="fas fa-cog"></i></button>
             </div>
              <div class="user-info">
@@ -2753,9 +2755,12 @@ html[data-theme="dark"] #partner-timezone-text {
     <script src="js/games.js?v=202608061841"></script> 
     <script src="js/features.js?v=202608061841"></script> 
     <script src="js/data.js?v=202608061841"></script>
-    <script src="js/onboarding.js?v=202608061841"></script> 
+    <script src="js/onboarding.js?v=202608061841"></script>
+    <script src="js/features/anniversary.js?v=202608211400"></script> 
     <script src="js/listeners.js?v=202608061841"></script>
+    <script src="js/listeners-step2.js?v=202608211400"></script>
     <script src="js/listeners-voice.js?v=202608061841"></script>
+    <script src="js/listeners-sticker.js?v=202608211400"></script>
     <script src="js/app.js?v=202608061841"></script>
     <style id="cs-trans-style">
 #cs-transition-overlay{position:fixed;inset:0;z-index:1600;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.95),rgba(255,250,246,.82) 30%,rgba(245,238,232,.96) 72%),#f4eee8;opacity:0;transition:opacity 0.5s ease;pointer-events:none;}
@@ -3005,10 +3010,12 @@ function openMomentsWithTransition(){
     <script src="js/features/companion.js?v=202608211400"></script>
     <script src="js/features/companion-diary.js?v=202608211400"></script>
     <script src="js/features/moments.js?v=202608211400"></script>
+    <script src="js/features/album.js?v=202608211400"></script>
     <script src="js/cloud-sync.js?v=202608211400"></script>
     <script src="js/cloud-sync-engine.js?v=202608211400"></script>
     <script src="js/cloud-media.js?v=202608211400"></script>
     <script src="js/cloud-media-migration.js?v=202608211400"></script>
     <script src="js/cloud-sync-ui.js?v=202608211400"></script>
+    <script src="js/features/cinema.js?v=202608211400"></script>
 </body>
 </html>
