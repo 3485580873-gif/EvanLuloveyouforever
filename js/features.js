@@ -196,7 +196,7 @@
  */
 (function() {
     var KEY = 'keepaliveAudioEnabled';
-    var SRC = 'https://img.heliar.top/file/1772885159972_silence.m4a';
+    var SRC = 'assets/audio/silence.wav';
     var _audio = null;
     var _audioCtx = null;
     var _oscNode = null;
@@ -305,9 +305,10 @@
     function _updatePositionState() {
         try {
             if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
-            var position = Math.floor((Date.now() - _keepaliveStartTime) / 1000);
+            var DURATION = 3600;
+            var position = Math.floor(((Date.now() - _keepaliveStartTime) / 1000) % DURATION);
             navigator.mediaSession.setPositionState({
-                duration: 86400,
+                duration: DURATION,
                 playbackRate: 1,
                 position: position
             });
