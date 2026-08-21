@@ -202,6 +202,8 @@
     var _oscNode = null;
     var _gainNode = null;
     var _unlockBound = false;
+    var _positionTimer = null;
+    var _keepaliveStartTime = Date.now();
     function _get() { return localStorage.getItem(KEY) === 'true'; }
     // ── 引擎1：静音循环音频（媒体会话载体）──
     function _createAudio() {
@@ -295,7 +297,35 @@
                 navigator.mediaSession.setActionHandler('stop', function () { if (_get()) _startAll(); });
             }
             navigator.mediaSession.playbackState = state;
+            _updatePositionState();
         } catch (e) {}
+    }
+
+    // 让控制中心进度条/时间真实走动，不再显示 --:--
+    function _updatePositionState() {
+        try {
+            if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+            var position = Math.floor((Date.now() - _keepaliveStartTime) / 1000);
+            navigator.mediaSession.setPositionState({
+                duration: 86400,
+                playbackRate: 1,
+                position: position
+            });
+        } catch (e) {}
+    }
+
+    function _startPositionTimer() {
+        _stopPositionTimer();
+        _keepaliveStartTime = Date.now();
+        _updatePositionState();
+        _positionTimer = setInterval(_updatePositionState, 1000);
+    }
+
+    function _stopPositionTimer() {
+        if (_positionTimer) {
+            clearInterval(_positionTimer);
+            _positionTimer = null;
+        }
     }
     function _isPlaying() {
         var audioOk = _audio && !_audio.paused && !_audio.ended;
@@ -311,7 +341,7 @@
         if (sw) sw.classList.toggle('active', _get());
         if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
         if (desc) {
-            if (!_get) desc.textContent = '混合保活(媒体模式)，可同步播放其他音频';
+            if (!_get()) desc.textContent = '混合保活(媒体模式)，可同步播放其他音频';
             else if (playing) desc.textContent = '双引擎保活运行中';
             else desc.textContent = '等待页面交互启动';
         }
@@ -343,12 +373,14 @@
             });
         }
         _startWebAudio();
+        _startPositionTimer();
         _setUI(true);
     }
     // 关闭全部保活音频
     function _stopAll() {
         if (_audio) { _audio.pause(); _audio.currentTime = 0; }
         _stopWebAudio();
+        _stopPositionTimer();
         _setUI(false);
     }
     // 全局开关函数
