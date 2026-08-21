@@ -1,4 +1,5 @@
 let envelopeData = { outbox: [], inbox: [] }; 
+let _envelopeDataLoaded = false; // 只有loadEnvelopeData()成功跑完一次才会变true，saveEnvelopeData()靠这个判断能不能安全保存
 let currentEnvTab = 'outbox';
 let editingEnvId = null; 
 let editingEnvSection = null; 
@@ -6,6 +7,7 @@ let editingEnvSection = null;
 async function loadEnvelopeData() {
     const saved = await localforage.getItem(getStorageKey('envelopeData'));
     if (saved) envelopeData = saved;
+    _envelopeDataLoaded = true; // 不管读到的是真数据还是空的，这次读取本身没出错就算加载成功
     const oldPending = await localforage.getItem(getStorageKey('pending_envelope'));
     if (oldPending && envelopeData.outbox.length === 0) {
         envelopeData.outbox.push({
@@ -18,9 +20,16 @@ async function loadEnvelopeData() {
         await localforage.removeItem(getStorageKey('pending_envelope'));
         saveEnvelopeData();
     }
+    // 刚加载完信件数据，顺手刷新一下小红点——覆盖"上次会话就有未读信件，
+    // 这次重新打开app"的情况，不用等用户真的点开信箱才会算一次
+    if (typeof renderEnvelopeLists === 'function') { try { renderEnvelopeLists(); } catch(e) {} }
 }
 
 function saveEnvelopeData() {
+    if (!_envelopeDataLoaded) {
+        console.warn('[envelope] 本次会话还没有确认加载成功过信箱数据，为了避免覆盖历史记录，跳过这次保存');
+        return;
+    }
     localforage.setItem(getStorageKey('envelopeData'), envelopeData);
 }
 
@@ -50,42 +59,30 @@ async function checkEnvelopeStatus() {
             newReplyLetter = inboxLetter;
             changed = true;
             playSound('message');
-            // 本地已经在 App 开着的时候把回信生成出来了，取消掉之前登记的后端推送，避免用户已经看到了还收到一条迟到的通知
-            if (window.pushNotify) window.pushNotify.cancel('envelope_reply_' + letter.id);
         }
     });
     if (changed) {
         saveEnvelopeData();
         if (newReplyLetter) showEnvelopeReplyPopup(newReplyLetter);
+        if (typeof renderEnvelopeLists === 'function') { try { renderEnvelopeLists(); } catch(e) {} }
     }
 
-    // 梦角主动来信检查
-    await checkPartnerInitiatedLetter();
+    // 梦角主动来信检查已移至 moments.js 的共享触发器（_checkPartnerInitiatedAction）
 }
 
-async function checkPartnerInitiatedLetter() {
-    const COOLDOWN_MIN = 12 * 60 * 60 * 1000;
-    const COOLDOWN_MAX = 24 * 60 * 60 * 1000;
-    const PROB = 0.70;
-    const KEY = getStorageKey('partnerLetterNextTime');
-
-    const nextTimeRaw = await localforage.getItem(KEY);
-    const now = Date.now();
-
-    if (nextTimeRaw !== null && now < nextTimeRaw) return;
-
-    if (Math.random() >= PROB) {
-        // 未触发，设下次检查窗口（下次启动时重新随机）
-        const cooldown = COOLDOWN_MIN + Math.random() * (COOLDOWN_MAX - COOLDOWN_MIN);
-        await localforage.setItem(KEY, now + cooldown);
+// 生成梦角主动来信（由 moments.js 的共享触发器调用，不含冷却逻辑）
+window._generatePartnerLetter = function() {
+    // 字卡池是空的（一条有效字卡都没有），生成不出正常内容，会拼出一堆undefined——
+    // 这种情况下直接不发这封信，等用户配好字卡之后自然会恢复正常
+    const hasUsableReplies = Array.isArray(customReplies) && customReplies.some(function(r) { return typeof r === 'string' && r.trim(); });
+    if (!hasUsableReplies) {
+        console.warn('[envelope] 字卡池为空，跳过本次梦角主动来信');
         return;
     }
-
-    // 触发：生成梦角主动来信（与回信逻辑相同，从字卡池随机抽取）
     const content = generateEnvelopeReplyText();
-    const letterId = 'partner_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+    const now = Date.now();
     const inboxLetter = {
-        id: letterId,
+        id: 'partner_' + now + '_' + Math.random().toString(36).substr(2, 4),
         refId: null,
         originalContent: null,
         content,
@@ -95,32 +92,9 @@ async function checkPartnerInitiatedLetter() {
     };
     envelopeData.inbox.push(inboxLetter);
     saveEnvelopeData();
-
-    // 设冷却，下次最早 12~24 小时后再触发
-    const cooldown = COOLDOWN_MIN + Math.random() * (COOLDOWN_MAX - COOLDOWN_MIN);
-    await localforage.setItem(KEY, now + cooldown);
-
     showEnvelopeReplyPopup(inboxLetter);
-}
-
-// 定时检查：每 6 小时检查一次信封状态和主动来信
-setInterval(() => {
-    if (typeof checkEnvelopeStatus === 'function') {
-        checkEnvelopeStatus().catch(e => console.warn('envelope interval check error:', e));
-    }
-}, 6 * 60 * 60 * 1000);
-
-// 页面从后台切回前台时也检查一次（iOS Safari 后台挂起回来后补发）
-if (typeof document !== 'undefined' && document.addEventListener) {
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && typeof checkEnvelopeStatus === 'function') {
-            // 稍微延迟一下，等页面完全恢复
-            setTimeout(() => {
-                checkEnvelopeStatus().catch(e => console.warn('envelope visibility check error:', e));
-            }, 1000);
-        }
-    });
-}
+    if (typeof renderEnvelopeLists === 'function') { try { renderEnvelopeLists(); } catch(e) {} }
+};
 
 function showEnvelopeReplyPopup(letter) {
     const existing = document.getElementById('envelope-reply-popup');
@@ -148,12 +122,12 @@ function showEnvelopeReplyPopup(letter) {
 const APPEARANCE_PANEL_TITLES = {
     'theme': '主题配色', 'font': '字体设置', 'background': '聊天背景',
     'bubble': '气泡样式', 'avatar': '聊天头像', 'css': '自定义CSS',
-    'font-bg': '背景 & 字体', 'bubble-css': '气泡 & CSS'
+    'font-bg': '背景 & 陪伴', 'bubble-css': '字体 & 气泡'
 };
 window.showAppearancePanel = function(panel) {
     const panelMap = {
-        'font-bg': ['font', 'background'],
-        'bubble-css': ['bubble', 'css']
+        'font-bg': ['background'],
+        'bubble-css': ['font', 'bubble', 'css']
     };
     document.getElementById('appearance-nav-grid').style.display = 'none';
     var unBtn = document.getElementById('update-notice-btn');
@@ -173,6 +147,10 @@ window.showAppearancePanel = function(panel) {
         if (target) target.style.display = 'block';
     }
     if (panel === 'bubble' || panel === 'bubble-css') { setTimeout(() => { if (typeof window.updateBubblePreviewFn === 'function') window.updateBubblePreviewFn(); }, 50); }
+    // 打开「背景 & 陪伴」时刷新日记背景画廊
+    if (panel === 'font-bg' || panel === 'background') {
+        setTimeout(() => { if (typeof window.renderDiaryBgGallery === 'function') window.renderDiaryBgGallery(); }, 50);
+    }
 };
 window.hideAppearancePanel = function() {
     document.getElementById('appearance-nav-grid').style.display = 'grid';
@@ -449,45 +427,22 @@ window.closeEnvViewModal = function() {
 };
 
 window.replyToEnvLetter = function() {
-    // 记住正在回复的原信，供撰写页顶部引用展示
-    const letters = editingEnvSection === 'outbox' ? envelopeData.outbox : envelopeData.inbox;
-    const letter = letters.find(l => l.id === editingEnvId);
-
-    // 先把撰写页内容（含引用块）准备好，再打开信封主弹窗，
-    // 避免弹窗淡入过程中内容中途切换造成的闪屏。
-    document.getElementById('env-outbox-section').style.display = 'none';
-    document.getElementById('env-inbox-section').style.display = 'none';
-    document.getElementById('env-main-close-btn').style.display = 'none';
-    document.getElementById('env-compose-title').textContent = '回复这封信';
-    document.getElementById('envelope-input').value = '';
-    document.getElementById('env-send-to-chat').checked = false;
-    document.getElementById('env-compose-form').style.display = 'block';
-    // 标记为回复模式，提示文案用"传递你的心意吧"，梦角10%概率回复
-    document.getElementById('env-compose-form').dataset.replyMode = 'true';
-    const hint = document.getElementById('env-reply-time-info');
-    if (hint) hint.textContent = '传递你的心意吧';
-
-    // 在撰写页顶部展示对方原信内容，方便对照着写回复
-    const origCtx = document.getElementById('env-compose-original-ctx');
-    const origText = document.getElementById('env-compose-original-text');
-    const origExpand = document.getElementById('env-compose-original-expand');
-    const origLabel = document.getElementById('env-compose-original-label');
-    if (origCtx && origText && letter) {
-        const pName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
-        if (origLabel) origLabel.textContent = pName + '的来信';
-        origText.textContent = letter.content;
-        origText.style.maxHeight = '80px';
-        origCtx.style.display = 'block';
-        if (origExpand) {
-            origExpand.style.display = letter.content.length > 120 ? 'block' : 'none';
-            origExpand.textContent = '展开查看全文';
-        }
-    } else if (origCtx) {
-        origCtx.style.display = 'none';
-    }
-
     hideModal(document.getElementById('envelope-view-modal'));
-    showModal(document.getElementById('envelope-modal'));
+    const envelopeModal = document.getElementById('envelope-modal');
+    showModal(envelopeModal);
+    setTimeout(() => {
+        document.getElementById('env-outbox-section').style.display = 'none';
+        document.getElementById('env-inbox-section').style.display = 'none';
+        document.getElementById('env-main-close-btn').style.display = 'none';
+        document.getElementById('env-compose-title').textContent = '回复这封信';
+        document.getElementById('envelope-input').value = '';
+        document.getElementById('env-send-to-chat').checked = false;
+        document.getElementById('env-compose-form').style.display = 'block';
+        // 标记为回复模式，提示文案用"传递你的心意吧"，梦角10%概率回复
+        document.getElementById('env-compose-form').dataset.replyMode = 'true';
+        const hint = document.getElementById('env-reply-time-info');
+        if (hint) hint.textContent = '传递你的心意吧';
+    }, 150);
 };
 
 window.deleteEnvLetter = function(event, section, id) {
@@ -513,15 +468,11 @@ window.openNewEnvelopeForm = function() {
     document.getElementById('env-compose-form').dataset.replyMode = '';
     const hint = document.getElementById('env-reply-time-info');
     if (hint) hint.textContent = '对方将在 10-24 小时内回信（8-12 句话）';
-    const origCtx = document.getElementById('env-compose-original-ctx');
-    if (origCtx) origCtx.style.display = 'none';
     document.getElementById('env-compose-form').style.display = 'block';
 };
 
 window.cancelEnvelopeCompose = function() {
     document.getElementById('env-compose-form').style.display = 'none';
-    const origCtx = document.getElementById('env-compose-original-ctx');
-    if (origCtx) origCtx.style.display = 'none';
     document.getElementById('env-main-close-btn').style.display = 'flex';
     if (currentEnvTab === 'outbox') {
         document.getElementById('env-outbox-section').style.display = 'block';
@@ -554,19 +505,6 @@ function handleSendEnvelope() {
         willReply
     });
     saveEnvelopeData();
-
-    // 就算 App 这段时间没打开，也能靠后端推送在回信到点时提醒一下
-    // （前提是用户在设置里配置并开启了推送后端，没配置的话这里会自动跳过，不影响原有逻辑）
-    if (willReply && window.pushNotify) {
-        const pName = (typeof settings !== 'undefined' && settings.partnerName) || '对方';
-        window.pushNotify.schedule(
-            'envelope_reply_' + newId,
-            Date.now() + randomHours * 60 * 60 * 1000,
-            '来信提醒',
-            pName + ' 给你回信了，点开看看吧',
-            './index.html'
-        );
-    }
 
     cancelEnvelopeCompose();
     switchEnvTab('outbox');

@@ -1,8 +1,7 @@
 /* ────────────────────────────────────────────────────────────────
- * 伪语音消息模块（不含 AI 语音合成）
+ * 首页改造 · 梦角伪语音模块
  *   - 对方文本消息 20% 概率渲染成语音条样式（下方贴原文字）
- *   - 点击语音条：播放动效（wifi弧线循环）持续 duration 秒后自动停止
- *   - 没有真实录音/AI 配音，纯视觉效果 + 下方展示原文
+ *   - 点击语音条：等待动效（三点跳动）→ 播放动效（wifi弧线循环）→ 静态
  * ──────────────────────────────────────────────────────────────── */
 (function () {
     'use strict';
@@ -32,6 +31,11 @@
     (function injectStyles() {
         const style = document.createElement('style');
         style.textContent = `
+            /* 等待状态：三点跳动 */
+            .voice-bubble.tts-loading .voice-wifi-icon { display: none; }
+            .voice-bubble.tts-loading .voice-duration { display: none; }
+            .voice-bubble.tts-loading .voice-loading-dots { display: flex; }
+
             /* 播放状态：弧线动画 */
             .voice-bubble.playing .voice-arc-mid { animation: voiceArcMid 1.6s ease-in-out infinite; }
             .voice-bubble.playing .voice-arc-out { animation: voiceArcOut 1.6s ease-in-out infinite; }
@@ -58,6 +62,27 @@
                 75%   { opacity: 0; }
                 100%  { opacity: 0; }
             }
+
+            /* 三点跳动 */
+            .voice-loading-dots {
+                display: none;
+                align-items: center;
+                gap: 4px;
+                height: 20px;
+            }
+            .voice-loading-dots span {
+                width: 5px; height: 5px;
+                border-radius: 50%;
+                background: currentColor;
+                opacity: 0.5;
+                animation: voiceDotBounce 1s ease-in-out infinite;
+            }
+            .voice-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+            .voice-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+            @keyframes voiceDotBounce {
+                0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+                40% { transform: translateY(-6px); opacity: 1; }
+            }
         `;
         document.head.appendChild(style);
     })();
@@ -73,6 +98,26 @@
     ready(function init() {
         const chatContainer = document.getElementById('chat-container');
         if (!chatContainer) return;
+
+        // ─────────── 视频通话按钮 ───────────
+        const videocallBtn = document.getElementById('videocall-btn');
+        if (videocallBtn) {
+            videocallBtn.addEventListener('click', () => {
+                if (window.callFeature && typeof window.callFeature.startCall === 'function') {
+                    // 如果通话已在进行中，恢复窗口并提示
+                    if (window.callFeature.isActive && window.callFeature.isActive()) {
+                        window.callFeature.restoreWindow && window.callFeature.restoreWindow();
+                        if (typeof showNotification === 'function') showNotification('正在进行视频通话', 'info');
+                        return;
+                    }
+                    window.callFeature.startCall(false);
+                } else {
+                    if (typeof showNotification === 'function') {
+                        showNotification('视频通话功能未就绪', 'error');
+                    }
+                }
+            });
+        }
 
         // ─────────── 监听新消息 ───────────
         const observer = new MutationObserver((mutations) => {
@@ -96,7 +141,7 @@
             if (!msgId) return;
             const msg = findMessage(msgId);
             if (!msg) return;
-            if (msg.voice || msg.image || msg.type === 'system' || msg.type === 'red-packet' || msg.type === 'dq-card' || msg.sticker) return;
+            if (msg.voice || msg.image || msg.type === 'system') return;
             if (!msg.text || !msg.text.trim()) return;
             if (msg._fakeVoiceConsidered) return;
             msg._fakeVoiceConsidered = true;
@@ -136,6 +181,9 @@
                         <path class="voice-arc-mid" d="M10 8 A 3.5 3.5 0 0 1 10 14"/>
                         <path class="voice-arc-out" d="M13 5 A 7 7 0 0 1 13 17"/>
                     </svg>
+                    <div class="voice-loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
                     <span class="voice-duration">${duration}"</span>
                 </div>
                 ${fakeText ? `<div class="voice-fake-text">${escapeHtml(fakeText)}</div>` : ''}
@@ -143,11 +191,16 @@
         }
 
         // ─────────── 当前播放状态 ───────────
+        let _currentAudio = null;
         let currentBubble = null;
 
-        function _stopCurrentPlayback() {
+        function _stopCurrentAudio() {
+            if (_currentAudio) {
+                _currentAudio.pause();
+                _currentAudio = null;
+            }
             if (currentBubble) {
-                currentBubble.classList.remove('playing');
+                currentBubble.classList.remove('playing', 'tts-loading');
                 if (currentBubble._fakeTimer) {
                     clearTimeout(currentBubble._fakeTimer);
                     currentBubble._fakeTimer = null;
@@ -156,37 +209,29 @@
             }
         }
 
-        // ─────────── 点击语音条：优先用真实 AI 语音播放，没配置就播放假动效 ───────────
-        let _currentAudio = null;
+        // ─────────── 点击语音条 ───────────
         document.body.addEventListener('click', async (e) => {
-            // 长按刚触发了操作条（收藏/删除等），这次点击是长按结束时冒出来的，不要再当成"点击播放"
-            if (window._voiceLongPressJustFired) return;
-
             // 点击语音条本身或字卡文字都触发
-            const voiceEl = e.target.closest('.voice-bubble') ||
+            const voiceEl = e.target.closest('.voice-bubble') || 
                             (e.target.closest('.voice-fake-text') && e.target.closest('.message'));
             if (!voiceEl) return;
 
+            // 找到实际的voice-bubble（可能是点字卡区域触发的）
             const messageEl = e.target.closest('.message');
             const bubble = messageEl ? messageEl.querySelector('.voice-bubble') : e.target.closest('.voice-bubble');
             if (!bubble) return;
 
-            if (currentBubble === bubble && (bubble.classList.contains('playing') || bubble.classList.contains('tts-loading'))) {
-                _stopCurrentPlayback();
-                if (_currentAudio) { try { _currentAudio.pause(); } catch (e2) {} _currentAudio = null; }
+            if (bubble.classList.contains('tts-loading')) return;
+
+            if (currentBubble === bubble && bubble.classList.contains('playing')) {
+                _stopCurrentAudio();
                 return;
             }
 
-            _stopCurrentPlayback();
-            if (_currentAudio) { try { _currentAudio.pause(); } catch (e2) {} _currentAudio = null; }
+            _stopCurrentAudio();
 
             const duration = Number(bubble.dataset.duration) || 3;
             const msgId = bubble.dataset.msgId;
-
-            // 语音条被点击，说明用户确实要听语音了，这时候才去加载 TTS 模块
-            if (typeof window._loadVoiceTTS === 'function') {
-                try { await window._loadVoiceTTS(); } catch (e2) { console.warn('[voice-tts] 懒加载失败:', e2); }
-            }
 
             // ── 有 TTS 配置：走真实语音 ──
             if (window.voiceTTS && window.voiceTTS.isTtsReady() && msgId) {
@@ -197,7 +242,8 @@
                     currentBubble = bubble;
                     bubble.classList.add('tts-loading');
 
-                    // 在用户点击的瞬间创建 Audio 并静音播放一帧，让浏览器记住"这是用户交互触发的"
+                    // 在用户点击的瞬间创建 Audio 并静音播放一帧
+                    // 目的是让浏览器记住「这是用户交互触发的」
                     const audio = new Audio();
                     audio.volume = 0;
                     audio.play().catch(() => {});
@@ -209,9 +255,11 @@
                         bubble.classList.remove('tts-loading');
                         bubble.classList.add('playing');
 
+                        // 复用同一个 Audio 对象，保持用户交互上下文
                         audio.volume = 1;
                         audio.src = audioUrl;
                         audio.load();
+                        // 应用用户设置的语速（变速不变调）
                         if (window.voiceTTS && window.voiceTTS.applyPlaybackSettings) {
                             window.voiceTTS.applyPlaybackSettings(audio);
                         }

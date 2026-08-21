@@ -4,17 +4,13 @@ function renderStatsContent() {
             const partnerMessages = messages.filter(msg =>
                 msg.sender !== 'user' && msg.sender !== null &&
                 msg.text &&
-                msg.type !== 'system' &&
-                msg.type !== 'red-packet' &&
-                msg.type !== 'dq-card'
+                msg.type !== 'system'
             );
             
             const myMessages = messages.filter(msg =>
                 msg.sender === 'user' &&
                 msg.text &&
-                msg.type !== 'system' &&
-                msg.type !== 'red-packet' &&
-                msg.type !== 'dq-card'
+                msg.type !== 'system'
             );
 
             if (partnerMessages.length === 0 && myMessages.length === 0) {
@@ -830,19 +826,13 @@ function renderFavorites() {
             month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit'
         }) : '';
-        const content = (function () {
-            if (msg.text) return msg.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            if (msg.image) return `<img src="${msg.image}" style="max-width:100%;max-height:180px;border-radius:8px;display:block;margin-top:4px;cursor:pointer;" onclick="if(typeof viewImage==='function')viewImage('${msg.image.replace(/'/g,'\\\'')}')" loading="lazy">`;
-            if (msg.sticker) return `<img src="${msg.sticker}" style="max-width:100px;max-height:100px;border-radius:8px;display:block;margin-top:4px;">`;
-            if (msg.voice) {
-                const voiceBtn = `<div class="fav-voice-btn" data-msg-id="${msg.id}" data-fake-text="${(msg.voice.fakeText||'').replace(/"/g,'&quot;')}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(var(--accent-color-rgb),0.1);border-radius:20px;cursor:pointer;"><svg viewBox="0 0 22 22" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-color);flex-shrink:0;"><circle cx="6" cy="11" r="1.3" fill="currentColor" stroke="none"/><path d="M10 8 A 3.5 3.5 0 0 1 10 14"/><path d="M13 5 A 7 7 0 0 1 13 17"/></svg><span style="font-size:12px;color:var(--accent-color);">${msg.voice.duration || 0}"</span></div>`;
-                const voiceText = msg.voice.fakeText ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${String(msg.voice.fakeText).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '';
-                return voiceBtn + voiceText;
-            }
-            if (msg.type === 'red-packet') return `<div style="color:var(--text-secondary);"><i class="fas fa-money-bill-wave"></i> 转账消息</div>`;
-            if (msg.type === 'dq-card') return `<div style="color:var(--text-secondary);"><i class="fas fa-clipboard-list"></i> 梦向问卷</div>`;
-            return '';
-        })();
+        const content = msg.text
+            ? msg.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            : msg.image
+                ? `<img src="${msg.image}" style="max-width:100%;max-height:180px;border-radius:8px;display:block;margin-top:4px;cursor:pointer;" onclick="if(typeof viewImage==='function')viewImage('${msg.image.replace(/'/g,'\\\'')}')" loading="lazy">`
+                : msg.voice
+                    ? `<div class="fav-voice-btn" data-msg-id="${msg.id}" data-fake-text="${(msg.voice.fakeText||'').replace(/"/g,'&quot;')}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(var(--accent-color-rgb),0.1);border-radius:20px;cursor:pointer;"><svg viewBox="0 0 22 22" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-color);flex-shrink:0;"><circle cx="6" cy="11" r="1.3" fill="currentColor" stroke="none"/><path d="M10 8 A 3.5 3.5 0 0 1 10 14"/><path d="M13 5 A 7 7 0 0 1 13 17"/></svg><span style="font-size:12px;color:var(--accent-color);">${msg.voice.duration || 0}"</span></div>${msg.voice.fakeText ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${msg.voice.fakeText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}`
+                    : '';
         const avatarEl = isUser
             ? (typeof DOMElements !== 'undefined' ? DOMElements.me.avatar : null)
             : (typeof DOMElements !== 'undefined' ? DOMElements.partner.avatar : null);
@@ -883,6 +873,17 @@ function renderFavorites() {
                 msg.favorited = false;
                 if (typeof throttledSaveData === 'function') throttledSaveData();
                 if (typeof showNotification === 'function') showNotification('已取消收藏', 'success', 1500);
+                // 同步更新聊天里对应消息的星星按钮状态
+                const chatWrapper = document.querySelector(`.message-wrapper[data-msg-id="${id}"], .message-wrapper[data-id="${id}"]`);
+                if (chatWrapper) {
+                    const favBtn = chatWrapper.querySelector('.favorite-action-btn');
+                    if (favBtn) {
+                        favBtn.classList.remove('favorited');
+                        favBtn.title = '收藏';
+                        const icon = favBtn.querySelector('i');
+                        if (icon) { icon.className = 'far fa-star'; }
+                    }
+                }
                 renderFavorites();
             }
         });
@@ -923,28 +924,40 @@ function renderFavorites() {
             try {
                 let audioUrl = null;
 
-                // 先查持久化缓存（有缓存则直接播，不依赖 TTS 配置）
+                // 先查 IndexedDB 持久化缓存（有缓存则直接播，不依赖 TTS 配置）
                 try {
-                    const base64 = await localforage.getItem(`favAudio_${msgId}`);
-                    if (base64 && typeof base64 === 'string') {
-                        const binary = atob(base64);
-                        const bytes = new Uint8Array(binary.length);
-                        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                        const blob = new Blob([bytes], { type: 'audio/mpeg' });
-                        audioUrl = URL.createObjectURL(blob);
+                    // 阶段四：键名带 SESSION_ID 前缀；值可以是 base64 或 oss:// 引用
+                    const key = window.favAudioKey ? window.favAudioKey(msgId) : `favAudio_${msgId}`;
+                    let stored = await localforage.getItem(key);
+                    // 兼容旧键名（无 SESSION_ID 前缀）
+                    if (!stored) {
+                        stored = await localforage.getItem(`favAudio_${msgId}`);
+                    }
+                    if (stored && typeof stored === 'string') {
+                        if (stored.startsWith('oss://')) {
+                            // 云端引用：fetch blob URL
+                            if (window.CloudMedia) {
+                                const blobUrl = await window.CloudMedia.fetchUrl(stored);
+                                audioUrl = blobUrl;
+                            }
+                        } else {
+                            // 老格式：裸 base64
+                            const binary = atob(stored);
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+                            audioUrl = URL.createObjectURL(blob);
+                        }
                     }
                 } catch (e) {}
 
-                // 没有缓存才需要 TTS，此时才去懒加载、检查配置是否就绪
+                // 没有缓存才需要 TTS，此时检查配置是否就绪
                 if (!audioUrl) {
                     if (!fakeText) {
                         btn.dataset.playing = '0';
                         btn.style.opacity = '1';
                         if (_favCurrentBtn === btn) { _favCurrentBtn = null; }
                         return;
-                    }
-                    if (typeof window._loadVoiceTTS === 'function') {
-                        try { await window._loadVoiceTTS(); } catch (e) { console.warn('[voice-tts] 懒加载失败:', e); }
                     }
                     if (!window.voiceTTS || !window.voiceTTS.isTtsReady()) {
                         if (typeof showNotification === 'function') showNotification('请先在聊天设置里配置真实语音', 'info');
@@ -1378,7 +1391,15 @@ function initComboMenu() {
     function makeStickerItem(src, onClick) {
         const item = document.createElement('div');
         item.className = 'sticker-grid-item';
-        item.innerHTML = `<img src="${src}" loading="lazy">`;
+        // 阶段三B：识别 oss:// 走懒加载
+        const isCloud = typeof src === 'string' && src.indexOf('oss://') === 0;
+        item.innerHTML = `<img loading="lazy">`;
+        const imgEl = item.querySelector('img');
+        if (isCloud) {
+            if (window.CloudMedia) window.CloudMedia.bindLazyImage(imgEl, src);
+        } else {
+            imgEl.src = src;
+        }
         item.onclick = (e) => { e.stopPropagation(); onClick(); };
         return item;
     }
@@ -1387,8 +1408,15 @@ function initComboMenu() {
         const item = document.createElement('div');
         item.className = 'sticker-grid-item';
         item.style.position = 'relative';
-        item.innerHTML = `<img src="${src}" loading="lazy"><div class="sticker-delete-btn" title="删除"><i class="fas fa-times"></i></div>`;
-        item.querySelector('img').onclick = (e) => { e.stopPropagation(); onClick(); };
+        const isCloud = typeof src === 'string' && src.indexOf('oss://') === 0;
+        item.innerHTML = `<img loading="lazy"><div class="sticker-delete-btn" title="删除"><i class="fas fa-times"></i></div>`;
+        const imgEl = item.querySelector('img');
+        if (isCloud) {
+            if (window.CloudMedia) window.CloudMedia.bindLazyImage(imgEl, src);
+        } else {
+            imgEl.src = src;
+        }
+        imgEl.onclick = (e) => { e.stopPropagation(); onClick(); };
         item.querySelector('.sticker-delete-btn').onclick = (e) => { e.stopPropagation(); onDelete(); };
         return item;
     }
@@ -1409,14 +1437,20 @@ function initComboMenu() {
         grid.className = 'sticker-grid-view';
         myStickerLibrary.forEach((src, idx) => {
             const item = makeDeletableStickerItem(src, () => {
-                window._pendingChatSticker = src;
-                const _prev = document.getElementById('chat-sticker-preview');
-                const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = src; _prev.style.display = 'block'; }
+                addMessage({ id: Date.now(), sender: 'user', text: '', timestamp: new Date(), image: src, status: 'sent', type: 'normal' });
+                playSound('send');
                 picker.classList.remove('active');
-                const input = document.getElementById('message-input');
-                if (input) input.focus();
-            }, () => {
+                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+                setTimeout(simulateReply, settings.replyDelayMin + Math.random() * delayRange);
+            }, async () => {
+                // 阶段三B：如果是云端引用，先删云端（失败不阻塞）
+                if (window.CloudMedia && typeof src === 'string' && src.indexOf('oss://') === 0) {
+                    try {
+                        await window.CloudMedia.delete(src);
+                    } catch (err) {
+                        console.warn('[cloud-media] 云端删除失败', err);
+                    }
+                }
                 myStickerLibrary.splice(idx, 1);
                 localforage.setItem(getStorageKey('myStickerLibrary'), myStickerLibrary);
                 showNotification('✓ 已删除', 'success');
@@ -1443,13 +1477,11 @@ function initComboMenu() {
         grid.className = 'sticker-grid-view';
         stickerLibrary.forEach(src => {
             const item = makeStickerItem(src, () => {
-                window._pendingChatSticker = src;
-                const _prev = document.getElementById('chat-sticker-preview');
-                const _img  = document.getElementById('chat-sticker-preview-img');
-                if (_prev && _img) { _img.src = src; _prev.style.display = 'block'; }
+                addMessage({ id: Date.now(), sender: 'user', text: '', timestamp: new Date(), image: src, status: 'sent', type: 'normal' });
+                playSound('send');
                 picker.classList.remove('active');
-                const input = document.getElementById('message-input');
-                if (input) input.focus();
+                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+                setTimeout(simulateReply, settings.replyDelayMin + Math.random() * delayRange);
             });
             grid.appendChild(item);
         });
@@ -1468,14 +1500,15 @@ function initComboMenu() {
         customBtn.innerHTML = '<i class="fas fa-pen"></i> 自定义动作';
         customBtn.onclick = (e) => {
             e.stopPropagation();
-            window._editingPokeIndex = -1;
-            window._editingPokeSource = null;
             picker.classList.remove('active');
+            if (DOMElements.pokeModal.input) {
+                DOMElements.pokeModal.input.value = settings.myPokeText || '';
+            }
             showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
         };
         wrapper.appendChild(customBtn);
 
-        const defaultPresets = [
+        const userPresets = [
             "拍了拍对方的头",
             "戳了戳对方的脸颊",
             "抱住了对方",
@@ -1484,88 +1517,34 @@ function initComboMenu() {
             "看着对方发呆"
         ];
 
-        // 优先用 quickPokes（快捷拍一拍，独立于字卡库），没有再用默认预设
-        const pokeList = (Array.isArray(quickPokes) && quickPokes.length > 0)
-            ? quickPokes.slice(0, 8)
-            : defaultPresets;
-
         const title = document.createElement('div');
         title.style.fontSize = '12px';
         title.style.color = 'var(--text-secondary)';
         title.style.marginBottom = '5px';
-        title.innerText = (Array.isArray(quickPokes) && quickPokes.length > 0) ? '我的快捷拍一拍' : '快捷动作';
+        title.innerText = '快捷动作';
         wrapper.appendChild(title);
 
-        pokeList.forEach((text, i) => {
-            const cleanText = (typeof window._sanitizePokeTextForDisplay === 'function')
-                ? window._sanitizePokeTextForDisplay(text)
-                : text;
+        userPresets.forEach(text => {
             const item = document.createElement('div');
             item.className = 'poke-quick-item';
-            item.innerText = cleanText;
-            item.style.userSelect = 'none';
-            item.style.webkitUserSelect = 'none';
-            item.style.webkitTouchCallout = 'none';
-
-            // 是否可长按编辑/删除：只有真正来自 quickPokes 的条目才能编辑，
-            // 没有自定义内容时显示的默认预设动作不支持编辑/删除
-            const isRealQuickPoke = Array.isArray(quickPokes) && quickPokes.length > 0;
-
-            let pokeLongPressFired = false;
-            if (isRealQuickPoke) {
-                let pokeLongPressTimer = null;
-                let pokeStartX = 0, pokeStartY = 0;
-                const POKE_LONG_PRESS_MS = 500;
-                const POKE_MOVE_CANCEL = 8;
-                const clearPokeLongPressTimer = () => {
-                    if (pokeLongPressTimer) { clearTimeout(pokeLongPressTimer); pokeLongPressTimer = null; }
-                };
-                item.addEventListener('contextmenu', (e) => e.preventDefault());
-                item.addEventListener('pointerdown', (e) => {
-                    if (e.pointerType === 'mouse' && e.button !== 0) return;
-                    pokeLongPressFired = false;
-                    pokeStartX = e.clientX;
-                    pokeStartY = e.clientY;
-                    clearPokeLongPressTimer();
-                    pokeLongPressTimer = setTimeout(() => {
-                        pokeLongPressTimer = null;
-                        pokeLongPressFired = true;
-                        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e2) {}
-                        if (typeof window._openQuickPokeMenu === 'function') window._openQuickPokeMenu(item, i);
-                    }, POKE_LONG_PRESS_MS);
-                });
-                item.addEventListener('pointermove', (e) => {
-                    if (!pokeLongPressTimer) return;
-                    const dx = Math.abs(e.clientX - pokeStartX);
-                    const dy = Math.abs(e.clientY - pokeStartY);
-                    if (dx > POKE_MOVE_CANCEL || dy > POKE_MOVE_CANCEL) clearPokeLongPressTimer();
-                });
-                item.addEventListener('pointerup', clearPokeLongPressTimer);
-                item.addEventListener('pointerleave', clearPokeLongPressTimer);
-                item.addEventListener('pointercancel', clearPokeLongPressTimer);
-            }
-
+            item.innerText = text;
             item.onclick = (e) => {
                 e.stopPropagation();
-                if (pokeLongPressFired) { pokeLongPressFired = false; return; }
                 addMessage({
                     id: Date.now(),
-                    text: _formatPokeText(`${settings.myName} ${cleanText}`), 
+                    text: _formatPokeText(`${settings.myName} ${text}`), 
                     timestamp: new Date(),
                     type: 'system' 
                 });
                 picker.classList.remove('active');
                 
-                const delayRange = (settings.replyDelayMax || 3000) - (settings.replyDelayMin || 800);
-                const randomDelay = (settings.replyDelayMin || 800) + Math.random() * delayRange;
-                setTimeout(simulateReply, randomDelay);
+                setTimeout(simulateReply, 1500);
             };
             wrapper.appendChild(item);
         });
 
         contentArea.appendChild(wrapper);
     }
-    window.renderUserPokeMenu = renderUserPokeMenu;
 }
 
 (function() {

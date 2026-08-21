@@ -184,225 +184,100 @@
     setTimeout(function(){ _applyHeader(); _syncUI(); }, 1500);
 })();
 
-/* ===== 后台保活 · 双引擎版（playback播放模式，后台优先级更高） =====
- * 解决：切到抖音等音频App后，保活被系统挂起、消息延迟
- * 核心改动：audioSession.type = 'playback' 媒体播放模式，后台权限高于ambient
- * 兼容方案：保留mixWithOthers=true，不会强制暂停其他音乐/短视频
- * 原理：
- *   1. playback媒体模式 + mixWithOthers混音共存，后台保活优先级更高
- *   2.  标签 + MediaSession 注册媒体控制器
- *   3. Web Audio 20Hz无声振荡器双重保活兜底
- *   4. 2秒巡检+页面/焦点/触摸多场景自动恢复
- */
 (function() {
     var KEY = 'keepaliveAudioEnabled';
-    var SRC = 'https://img.heliar.top/file/1772885159972_silence.m4a';
+    var SRC = 'assets/audio/silence.mp3';
     var _audio = null;
-    var _audioCtx = null;
-    var _oscNode = null;
-    var _gainNode = null;
     var _unlockBound = false;
+
     function _get() { return localStorage.getItem(KEY) === 'true'; }
-    // ── 引擎1：静音循环音频（媒体会话载体）──
+
     function _createAudio() {
         if (_audio) return _audio;
         _audio = new Audio(SRC);
-        _audio.loop = true;
+        _audio.loop   = true;
         _audio.volume = 0.01;
         _audio.preload = 'auto';
-        _audio.muted = false;
-        _audio.setAttribute('playsinline', '');
-        _audio.setAttribute('webkit-playsinline', '');
-        _audio.addEventListener('play', function(){ _updateMediaSession('playing'); });
-        _audio.addEventListener('pause', function(){ _updateMediaSession('paused'); });
-        // 音频中断自动恢复
-        _audio.addEventListener('interruptionbegin', function(){});
-        _audio.addEventListener('interruptionend', function(e){
-            if (e && e.data && e.data.shouldResume && _get()) {
-                _audio.play().catch(function(){});
-            }
-        });
+        _audio.addEventListener('play',  function(){ _setUI(true);  });
+        _audio.addEventListener('pause', function(){ _setUI(false); });
+        window._debugKeepaliveAudio = _audio;
         return _audio;
     }
-    // ── 引擎2：Web Audio超低无声振荡器兜底保活 ──
-    function _createWebAudio() {
-        try {
-            if (_audioCtx) return _audioCtx;
-            var Ctx = window.AudioContext || window.webkitAudioContext;
-            if (!Ctx) return null;
-            _audioCtx = new Ctx();
-            _oscNode = _audioCtx.createOscillator();
-            _gainNode = _audioCtx.createGain();
-            _gainNode.gain.value = 0.0001;
-            _oscNode.frequency.value = 20;
-            _oscNode.connect(_gainNode);
-            _gainNode.connect(_audioCtx.destination);
-            _oscNode.start();
-            _audioCtx.onstatechange = function() {
-                if (_audioCtx.state === 'suspended' && _get()) {
-                    _audioCtx.resume().catch(function(){});
-                }
-            };
-            return _audioCtx;
-        } catch (e) {
-            return null;
-        }
-    }
-    function _startWebAudio() {
-        try {
-            var ctx = _createWebAudio();
-            if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
-        } catch (e) {}
-    }
-    function _stopWebAudio() {
-        try {
-            if (_audioCtx && _audioCtx.state === 'running') _audioCtx.suspend().catch(function(){});
-        } catch (e) {}
-    }
-    function _isWebAudioRunning() {
-        return _audioCtx && _audioCtx.state === 'running';
-    }
-    // ── 关键：playback媒体播放模式，允许和其他App混音 ──
-    function _setupAudioSession() {
-        try {
-            if ('audioSession' in navigator) {
-                // 区别旧版ambient：这里是playback播放模式，系统后台优先级更高
-                navigator.audioSession.type = 'playback';
-                // 开启混音，不会打断抖音/网易云等其他音频
-                if ('mixWithOthers' in navigator.audioSession) {
-                    navigator.audioSession.mixWithOthers = true;
-                }
-                // 不压低其他App音量
-                if ('duckOthers' in navigator.audioSession) {
-                    navigator.audioSession.duckOthers = false;
-                }
-            }
-        } catch (e) {}
-    }
-    // ── 注册系统媒体控制中心 ──
-    function _updateMediaSession(state) {
-        try {
-            if (!('mediaSession' in navigator)) return;
-            if (!navigator.mediaSession.metadata) {
-                var partnerName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '陪伴中';
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: partnerName,
-                    artist: '正在陪你聊天',
-                    album: '传讯'
-                });
-                navigator.mediaSession.setActionHandler('play', function () { _startAll(); });
-                navigator.mediaSession.setActionHandler('pause', function () { if (_get()) _startAll(); });
-                navigator.mediaSession.setActionHandler('stop', function () { if (_get()) _startAll(); });
-            }
-            navigator.mediaSession.playbackState = state;
-        } catch (e) {}
-    }
-    function _isPlaying() {
-        var audioOk = _audio && !_audio.paused && !_audio.ended;
-        var webOk = _isWebAudioRunning();
-        return audioOk || webOk;
-    }
-    // UI状态同步
+
     function _setUI(playing) {
-        var dot = document.getElementById('keepalive-dot');
+        var dot  = document.getElementById('keepalive-dot');
         var desc = document.getElementById('keepalive-audio-desc');
-        var sw = document.getElementById('keepalive-audio-switch');
-        var row = document.getElementById('keepalive-bar-row');
-        if (sw) sw.classList.toggle('active', _get());
-        if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
-        if (desc) {
-            if (!_get) desc.textContent = '混合保活(媒体模式)，可同步播放其他音频';
-            else if (playing) desc.textContent = '双引擎保活运行中';
-            else desc.textContent = '等待页面交互启动';
+        var sw   = document.getElementById('keepalive-audio-switch');
+        var row  = document.getElementById('keepalive-bar-row');
+
+        if (sw) {
+            sw.classList.toggle('active', _get());
+            var toggleRow = document.getElementById('keepalive-audio-toggle');
+            if (toggleRow) toggleRow.classList.toggle('active', _get());
         }
-        if (row) row.style.display = _get() ? 'flex' : 'none';
-        document.querySelectorAll('.keepalive-wave-bar').forEach(b => {
-            b.style.animationPlayState = playing ? 'running' : 'paused';
-        });
+        if (dot) {
+            dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
+        }
+        if (desc) {
+            if (!_get())      desc.textContent = '保持后台运行，不错过ta的消息';
+            else if (playing) desc.textContent = '运行中 · 页面已保活';
+            else              desc.textContent = '等待交互后启动…';
+        }
+        if (row)  row.style.display = _get() ? 'flex' : 'none';
+        var bars = document.querySelectorAll('.keepalive-wave-bar');
+        bars.forEach(function(b){ b.style.animationPlayState = playing ? 'running' : 'paused'; });
     }
-    // 启动双音频引擎
-    function _startAll() {
-        _setupAudioSession();
+
+    function _start() {
         var a = _createAudio();
-        var playPromise = a.play();
-        if (playPromise && playPromise.then) {
-            playPromise.catch(function(){
+        var p = a.play();
+        if (p && p.then) {
+            p.catch(function(){
+                _setUI(false);
                 if (!_unlockBound) {
                     _unlockBound = true;
-                    function unlock() {
-                        if (_get()) {
-                            _setupAudioSession();
-                            a.play().catch(function(){});
-                            _startWebAudio();
-                        }
-                        _unlockBound = false;
-                    }
-                    document.addEventListener('touchstart', unlock, { once:true, passive:true });
-                    document.addEventListener('click', unlock, { once:true });
+                    function unlock(){ if(_get()) a.play().catch(function(){}); _unlockBound=false; }
+                    document.addEventListener('touchstart', unlock, { once:true });
+                    document.addEventListener('click',      unlock, { once:true });
                 }
             });
         }
-        _startWebAudio();
-        _setUI(true);
     }
-    // 关闭全部保活音频
-    function _stopAll() {
+
+    function _stop() {
         if (_audio) { _audio.pause(); _audio.currentTime = 0; }
-        _stopWebAudio();
         _setUI(false);
     }
-    // 全局开关函数
+
     window._toggleKeepaliveAudio = function() {
         var next = !_get();
         localStorage.setItem(KEY, String(next));
         if (next) {
-            _startAll();
-            if (typeof showNotification === 'function') showNotification('保活已开启(媒体播放模式) 🎵', 'success', 2000);
+            _start();
+            if (typeof showNotification === 'function') showNotification('保活音频已开启 🎵', 'success', 2000);
+            // 立即更新开关颜色，不等待异步 play() 返回
+            _setUI(true);
         } else {
-            _stopAll();
-            if (typeof showNotification === 'function') showNotification('保活已关闭', 'info', 1500);
+            _stop();
+            if (typeof showNotification === 'function') showNotification('保活音频已关闭', 'info', 1500);
+            _setUI(false);
         }
     };
-    // 2秒一次巡检，自动恢复被暂停的音频
-    setInterval(function(){
-        if (!_get()) return;
-        _setupAudioSession();
-        if (_audio && _audio.paused) _audio.play().catch(function(){});
-        if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume().catch(function(){});
-        var playing = _isPlaying();
-        var dot = document.getElementById('keepalive-dot');
-        if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
-    }, 2000);
-    // 切回页面恢复
+
     document.addEventListener('visibilitychange', function(){
-        if (_get() && document.visibilityState === 'visible') {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
+        if (_get() && document.visibilityState === 'visible' && _audio && _audio.paused) {
+            _audio.play().catch(function(){});
         }
     });
-    // 窗口获得焦点恢复
-    window.addEventListener('focus', function(){
-        if (_get()) {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
-        }
-    });
-    // 触摸/点击解锁播放（iOS浏览器兼容）
-    document.addEventListener('touchstart', function(){
-        if (_get()) {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
-        }
-    }, { passive: true });
-    // 页面加载初始化
+
     document.addEventListener('DOMContentLoaded', function(){
         _setUI(false);
-        if (_get()) setTimeout(_startAll, 800);
+        if (_get()) _start();
     });
-    setTimeout(function(){ if (_get()) _startAll(); }, 2000);
+    setTimeout(function(){
+        _setUI(_get() && !!_audio && !_audio.paused);
+        if (_get() && (!_audio || _audio.paused)) _start();
+    }, 1800);
 })();
 
 (function() {
@@ -481,15 +356,42 @@
         out.innerHTML = html;
     };
 
+    // 选日期直接跳转——不看聊天内容，只看这一天有没有消息，有就跳到当天第一条
+    window._jumpToDate = function() {
+        var inp = document.getElementById('msg-jump-date');
+        if (!inp || !inp.value) {
+            if (typeof showNotification === 'function') showNotification('请先选择日期', 'info');
+            return;
+        }
+        if (typeof messages === 'undefined' || !messages || !messages.length) {
+            if (typeof showNotification === 'function') showNotification('暂无聊天记录', 'info');
+            return;
+        }
+        var targetDateStr = new Date(inp.value + 'T00:00:00').toDateString();
+        var found = messages.find(function(m) { return new Date(m.timestamp).toDateString() === targetDateStr; });
+        if (!found) {
+            if (typeof showNotification === 'function') showNotification('这天没有聊天记录', 'info');
+            return;
+        }
+        window._scrollToMsg(found.id);
+    };
+
     window._scrollToMsg = function(id) {
-        var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]');
+        var el = document.querySelector('[data-id="'+id+'"]') || document.querySelector('[data-message-id="'+id+'"]') || document.querySelector('[data-msg-id="'+id+'"]');
+        function closeStatsModal() {
+            var m = document.getElementById('stats-modal');
+            if (m && typeof hideModal==='function') setTimeout(function(){ hideModal(m); }, 350);
+        }
         if (el) {
             el.scrollIntoView({behavior:'smooth',block:'center'});
             el.style.transition='background .3s ease';
             el.style.background='rgba(var(--accent-color-rgb),.14)';
             setTimeout(function(){ el.style.background=''; }, 1800);
-            var m = document.getElementById('stats-modal');
-            if (m && typeof hideModal==='function') setTimeout(function(){ hideModal(m); }, 350);
+            closeStatsModal();
+        } else if (typeof window._jumpToMessage==='function' && window._jumpToMessage(id)) {
+            // 消息不在当前渲染范围内（可能是很久以前的），走"定位到某条消息"这条路，
+            // 只渲染目标消息附近一小段，不会因为聊天记录长就卡顿
+            closeStatsModal();
         } else {
             if (typeof showNotification==='function') showNotification('消息不在当前视图中','info',2000);
         }
@@ -575,18 +477,36 @@ function showEmojiTab() {
     stickerLibrary.forEach(src => {
         const item = document.createElement('div');
         item.className = 'picker-item';
-        item.innerHTML = `<img src="${src}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
+        // 阶段三B：识别 oss:// 走懒加载
+        const isCloud = typeof src === 'string' && src.indexOf('oss://') === 0;
+        item.innerHTML = `<img style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
+        const imgEl = item.querySelector('img');
+        if (isCloud) {
+            if (window.CloudMedia) window.CloudMedia.bindLazyImage(imgEl, src);
+        } else {
+            imgEl.src = src;
+        }
         item.onclick = () => {
             if (isBatchMode) {
                 batchMessages.push({ id: Date.now() + batchMessages.length, text: '', image: src });
                 updateBatchPreview();
                 showNotification('已添加到批量发送', 'success', 1200);
             } else {
-                // 将表情包放入输入框预览区，与文字配套发送，也可单独发送
-                window.setChatStickerPreview(src);
-                document.getElementById('user-sticker-picker').classList.remove('active');
-                const input = document.getElementById('message-input');
-                if (input) input.focus();
+                addMessage({
+                    id: Date.now(),
+                    sender: 'user',
+                    text: '',
+                    timestamp: new Date(),
+                    image: src,
+                    status: 'sent',
+                    type: 'normal'
+                });
+                playSound('send');
+                
+                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+                const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+                if (window._pendingReplyTimer) clearTimeout(window._pendingReplyTimer);
+                window._pendingReplyTimer = setTimeout(() => { window._pendingReplyTimer = null; simulateReply(); }, randomDelay);
             }
             document.getElementById('user-sticker-picker').classList.remove('active');
         };
@@ -601,69 +521,15 @@ function showPokeTab() {
     area.style.flexDirection = 'column';
     area.style.gap = '8px';
     
-    if (!Array.isArray(quickPokes)) quickPokes = [];
-    const quickPokeItems = quickPokes;
-    const isEditMode = window._pokeEditMode === true;
-
-    // 顶部标题栏 + 管理按钮
-    const header = document.createElement('div');
-    header.style.cssText = `
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 4px;
-        margin-bottom: 4px;
-    `;
-    const title = document.createElement('span');
-    title.textContent = '快捷拍一拍';
-    title.style.cssText = `
-        font-size: 12px;
-        color: var(--text-secondary);
-        font-weight: 600;
-        letter-spacing: 0.3px;
-    `;
-    const manageBtn = document.createElement('button');
-    manageBtn.innerHTML = isEditMode
-        ? '<i class="fas fa-check"></i> 完成'
-        : '<i class="fas fa-sliders-h"></i> 管理';
-    manageBtn.style.cssText = `
-        padding: 5px 10px;
-        background: transparent;
-        border: 1px solid rgba(var(--accent-color-rgb), 0.2);
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 12px;
-        color: var(--accent-color);
-        font-weight: 500;
-        transition: all 0.15s;
-        font-family: var(--font-family);
-    `;
-    manageBtn.onclick = function() {
-        window._pokeEditMode = !isEditMode;
-        showPokeTab();
-    };
-    header.appendChild(title);
-    header.appendChild(manageBtn);
-    area.appendChild(header);
-
-    quickPokeItems.forEach((pokeText, index) => {
+    const quickPokes = customPokes.slice(0, 6);
+    
+    quickPokes.forEach(pokeText => {
         const cleanPokeText = (typeof window._sanitizePokeTextForDisplay === 'function')
             ? window._sanitizePokeTextForDisplay(pokeText)
             : pokeText;
-        const itemWrap = document.createElement('div');
-        itemWrap.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            width: 100%;
-            animation: pokeItemIn 0.2s ease-out;
-            animation-delay: ${index * 0.03}s;
-            animation-fill-mode: both;
-        `;
         const btn = document.createElement('button');
         btn.textContent = cleanPokeText;
         btn.style.cssText = `
-            flex: 1;
             padding: 10px 14px;
             background: linear-gradient(135deg, var(--secondary-bg), rgba(var(--accent-color-rgb),0.04));
             border: 1px solid rgba(var(--accent-color-rgb),0.15);
@@ -674,13 +540,7 @@ function showPokeTab() {
             transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
             color: var(--text-primary);
             font-family: var(--font-family);
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
+            width: 100%;
         `;
         btn.addEventListener('mouseover', () => {
             btn.style.background = 'linear-gradient(135deg, rgba(var(--accent-color-rgb),0.12), rgba(var(--accent-color-rgb),0.06))';
@@ -692,131 +552,23 @@ function showPokeTab() {
             btn.style.borderColor = 'rgba(var(--accent-color-rgb),0.15)';
             btn.style.transform = '';
         });
-
-        // 长按快捷拍一拍 → 弹出编辑/删除小菜单（和聊天气泡长按的操作方式一致）
-        // 阻止系统自带的长按选字/复制菜单一起弹出来打架
-        btn.addEventListener('contextmenu', (e) => e.preventDefault());
-        if (!isEditMode) {
-            let pokeLongPressTimer = null;
-            let pokeLongPressFired = false;
-            let pokeStartX = 0, pokeStartY = 0;
-            const POKE_LONG_PRESS_MS = 500;
-            const POKE_MOVE_CANCEL = 8;
-
-            const clearPokeLongPressTimer = () => {
-                if (pokeLongPressTimer) { clearTimeout(pokeLongPressTimer); pokeLongPressTimer = null; }
-            };
-            btn.addEventListener('pointerdown', (e) => {
-                if (e.pointerType === 'mouse' && e.button !== 0) return;
-                pokeLongPressFired = false;
-                pokeStartX = e.clientX;
-                pokeStartY = e.clientY;
-                clearPokeLongPressTimer();
-                pokeLongPressTimer = setTimeout(() => {
-                    pokeLongPressTimer = null;
-                    pokeLongPressFired = true;
-                    try { if (navigator.vibrate) navigator.vibrate(15); } catch (e2) {}
-                    _openQuickPokeMenu(btn, index);
-                }, POKE_LONG_PRESS_MS);
+        btn.onclick = () => {
+            addMessage({
+                id: Date.now(), 
+                text: _formatPokeText(`${settings.myName} ${cleanPokeText}`), 
+                timestamp: new Date(), 
+                type: 'system'
             });
-            btn.addEventListener('pointermove', (e) => {
-                if (!pokeLongPressTimer) return;
-                const dx = Math.abs(e.clientX - pokeStartX);
-                const dy = Math.abs(e.clientY - pokeStartY);
-                if (dx > POKE_MOVE_CANCEL || dy > POKE_MOVE_CANCEL) clearPokeLongPressTimer();
-            });
-            btn.addEventListener('pointerup', clearPokeLongPressTimer);
-            btn.addEventListener('pointerleave', clearPokeLongPressTimer);
-            btn.addEventListener('pointercancel', clearPokeLongPressTimer);
-
-            btn.onclick = () => {
-                if (isEditMode) return;
-                if (pokeLongPressFired) { pokeLongPressFired = false; return; }
-                addMessage({
-                    id: Date.now(), 
-                    text: _formatPokeText(`${settings.myName} ${cleanPokeText}`), 
-                    timestamp: new Date(), 
-                    type: 'system'
-                });
-                document.getElementById('user-sticker-picker').classList.remove('active');
-                const delayRange = settings.replyDelayMax - settings.replyDelayMin;
-                const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
-                setTimeout(simulateReply, randomDelay);
-            };
-        } else {
-            btn.onclick = () => {
-                if (isEditMode) return;
-            };
-        }
-        itemWrap.appendChild(btn);
-
-        // 编辑模式下显示编辑和删除按钮
-        if (isEditMode) {
-            const editBtn = document.createElement('button');
-            editBtn.innerHTML = '<i class="fas fa-pen"></i>';
-            editBtn.title = '编辑';
-            editBtn.style.cssText = `
-                width: 36px;
-                height: 36px;
-                flex-shrink: 0;
-                background: rgba(var(--accent-color-rgb), 0.1);
-                border: 1px solid rgba(var(--accent-color-rgb), 0.2);
-                border-radius: 10px;
-                cursor: pointer;
-                color: var(--accent-color);
-                font-size: 13px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.15s;
-            `;
-            editBtn.onclick = function(e) {
-                e.stopPropagation();
-                var inputEl = DOMElements.pokeModal.input;
-                if (inputEl) inputEl.value = pokeText;
-                var quickRadio = document.getElementById('poke-save-quick');
-                var libRadio = document.getElementById('poke-save-library');
-                if (quickRadio) quickRadio.checked = true;
-                if (libRadio) libRadio.checked = false;
-                window._editingPokeIndex = index;
-                window._editingPokeSource = 'quick';
-                document.getElementById('user-sticker-picker').classList.remove('active');
-                showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
-            };
-            const delBtn = document.createElement('button');
-            delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            delBtn.title = '删除';
-            delBtn.style.cssText = `
-                width: 36px;
-                height: 36px;
-                flex-shrink: 0;
-                background: rgba(255, 80, 80, 0.08);
-                border: 1px solid rgba(255, 80, 80, 0.2);
-                border-radius: 10px;
-                cursor: pointer;
-                color: #ff5050;
-                font-size: 13px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.15s;
-            `;
-            delBtn.onclick = function(e) {
-                e.stopPropagation();
-                if (!confirm('确定删除这个快捷拍一拍吗？')) return;
-                quickPokes.splice(index, 1);
-                if (typeof throttledSaveData === 'function') throttledSaveData();
-                showPokeTab();
-            };
-            itemWrap.appendChild(editBtn);
-            itemWrap.appendChild(delBtn);
-        }
-
-        area.appendChild(itemWrap);
+            document.getElementById('user-sticker-picker').classList.remove('active');
+            const delayRange = settings.replyDelayMax - settings.replyDelayMin;
+            const randomDelay = settings.replyDelayMin + Math.random() * delayRange;
+            setTimeout(simulateReply, randomDelay);
+        };
+        area.appendChild(btn);
     });
     
     const customBtn = document.createElement('button');
-    customBtn.innerHTML = '<i class="fas fa-plus"></i> 自定义拍一拍';
+    customBtn.innerHTML = '<i class="fas fa-edit"></i> 自定义拍一拍';
     customBtn.style.cssText = `
         padding: 11px 14px;
         background: linear-gradient(135deg, var(--accent-color), rgba(var(--accent-color-rgb),0.8));
@@ -829,149 +581,17 @@ function showPokeTab() {
         width: 100%;
         letter-spacing: 0.3px;
         margin-top: 4px;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.25);
-        font-family: var(--font-family);
+        box-shadow: 0 4px 14px rgba(var(--accent-color-rgb), 0.25);
     `;
     customBtn.onclick = () => {
-        window._editingPokeIndex = -1;
-        window._editingPokeSource = null;
         document.getElementById('user-sticker-picker').classList.remove('active');
+        if (DOMElements.pokeModal.input) {
+            DOMElements.pokeModal.input.value = settings.myPokeText || '';
+        }
         showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
     };
     area.appendChild(customBtn);
-
-    if (!document.getElementById('poke-tab-style')) {
-        var s = document.createElement('style');
-        s.id = 'poke-tab-style';
-        s.textContent = `
-            @keyframes pokeItemIn {
-                from { opacity: 0; transform: translateY(6px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            @keyframes pokeMenuIn {
-                from { opacity: 0; transform: scale(0.92) translateY(4px); }
-                to { opacity: 1; transform: scale(1) translateY(0); }
-            }
-        `;
-        document.head.appendChild(s);
-    }
 }
-
-// 长按快捷拍一拍弹出的编辑/删除小菜单
-function _closeQuickPokeMenu() {
-    const existing = document.getElementById('quick-poke-context-menu');
-    if (existing) existing.remove();
-    document.removeEventListener('pointerdown', _quickPokeMenuOutsideHandler, true);
-}
-
-function _quickPokeMenuOutsideHandler(e) {
-    const menu = document.getElementById('quick-poke-context-menu');
-    if (menu && !menu.contains(e.target)) {
-        _closeQuickPokeMenu();
-    }
-}
-
-function _openQuickPokeMenu(anchorEl, index) {
-    _closeQuickPokeMenu();
-    const rect = anchorEl.getBoundingClientRect();
-    const menu = document.createElement('div');
-    menu.id = 'quick-poke-context-menu';
-    menu.style.cssText = `
-        position: fixed;
-        z-index: 10001;
-        background: var(--secondary-bg);
-        border: 1px solid rgba(var(--accent-color-rgb),0.2);
-        border-radius: 12px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.28);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        min-width: 120px;
-        font-family: var(--font-family);
-        animation: pokeMenuIn 0.15s cubic-bezier(0.4,0,0.2,1);
-    `;
-
-    const menuHeightEstimate = 88;
-    let top = rect.top - menuHeightEstimate - 8;
-    if (top < 8) top = Math.min(rect.bottom + 8, window.innerHeight - menuHeightEstimate - 8);
-    let left = rect.left;
-    const maxLeft = window.innerWidth - 128 - 8;
-    if (left > maxLeft) left = maxLeft;
-    if (left < 8) left = 8;
-    menu.style.top = `${Math.max(8, top)}px`;
-    menu.style.left = `${left}px`;
-
-    const editItem = document.createElement('button');
-    editItem.innerHTML = '<i class="fas fa-pen"></i> 编辑';
-    editItem.style.cssText = `
-        padding: 11px 16px;
-        background: none;
-        border: none;
-        border-bottom: 1px solid rgba(var(--accent-color-rgb),0.12);
-        text-align: left;
-        cursor: pointer;
-        font-size: 13px;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-family: var(--font-family);
-    `;
-    editItem.onclick = (e) => {
-        e.stopPropagation();
-        _closeQuickPokeMenu();
-        const inputEl = DOMElements.pokeModal.input;
-        if (inputEl) inputEl.value = quickPokes[index];
-        const quickRadio = document.getElementById('poke-save-quick');
-        const libRadio = document.getElementById('poke-save-library');
-        if (quickRadio) quickRadio.checked = true;
-        if (libRadio) libRadio.checked = false;
-        window._editingPokeIndex = index;
-        window._editingPokeSource = 'quick';
-        document.getElementById('user-sticker-picker').classList.remove('active');
-        if (typeof window._syncPokeModalSaveLabel === 'function') window._syncPokeModalSaveLabel();
-        showModal(DOMElements.pokeModal.modal, DOMElements.pokeModal.input);
-    };
-
-    const delItem = document.createElement('button');
-    delItem.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
-    delItem.style.cssText = `
-        padding: 11px 16px;
-        background: none;
-        border: none;
-        text-align: left;
-        cursor: pointer;
-        font-size: 13px;
-        color: #ff5050;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-family: var(--font-family);
-    `;
-    delItem.onclick = (e) => {
-        e.stopPropagation();
-        _closeQuickPokeMenu();
-        if (!confirm('确定删除这个快捷拍一拍吗？')) return;
-        quickPokes.splice(index, 1);
-        if (typeof throttledSaveData === 'function') throttledSaveData();
-        // 优先刷新真正在用的那个快捷拍一拍菜单（"+"号选项卡里的），
-        // 找不到的话再退回刷新旧版的 showPokeTab（如果它存在）
-        if (typeof window.renderUserPokeMenu === 'function') window.renderUserPokeMenu();
-        else if (typeof showPokeTab === 'function') showPokeTab();
-    };
-
-    menu.appendChild(editItem);
-    menu.appendChild(delItem);
-    document.body.appendChild(menu);
-
-    setTimeout(() => {
-        document.addEventListener('pointerdown', _quickPokeMenuOutsideHandler, true);
-    }, 0);
-}
-window._openQuickPokeMenu = _openQuickPokeMenu;
-window._closeQuickPokeMenu = _closeQuickPokeMenu;
-
         function initCoreListeners() {
 
 
@@ -1145,18 +765,66 @@ window._closeQuickPokeMenu = _closeQuickPokeMenu;
                 sendBtn.addEventListener('click',
                     () => {
                         if (currentImageData) {
+                            const messageId = Date.now();
+                            let imageField = currentImageData;
+                            let uploadStatus = null;
+
+                            const isBase64Img = typeof currentImageData === 'string' && currentImageData.indexOf('data:image') === 0;
+                            const cloudReady = !!(window.CloudMedia && window.CloudSync && window.CloudSync.isConnected());
+                            if (isBase64Img && cloudReady) {
+                                const taskId = 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                                imageField = 'pending://' + taskId;
+                                uploadStatus = 'uploading';
+                                window.CloudMedia.queueUpload(currentImageData, 'chat-images', {
+                                    taskId: taskId,
+                                    messageId: messageId,
+                                    onSuccess: async (result) => {
+                                        const target = messages.find(m => String(m.id) === String(messageId));
+                                        if (!target) return;
+                                        target.image = result.url;
+                                        delete target.uploadStatus;
+                                        try { throttledSaveData(); } catch (e) {}
+                                        try {
+                                            const wrapper = document.querySelector('.message-wrapper[data-id="' + messageId + '"]');
+                                            if (!wrapper) return;
+                                            const wrap = wrapper.querySelector('.message-image-pending-wrap');
+                                            if (!wrap) return;
+                                            const img = wrap.querySelector('img');
+                                            const parent = wrap.parentNode;
+                                            if (!img || !parent) return;
+                                            let blobUrl = null;
+                                            try {
+                                                blobUrl = window.CloudMedia ? await window.CloudMedia.fetchUrl(result.url) : null;
+                                            } catch (fetchErr) {
+                                                console.warn('[cloud-media] 上传完拉图失败，继续显示本地图', fetchErr);
+                                            }
+                                            img.removeAttribute('data-pending-ref');
+                                            img.setAttribute('onclick', "viewImage('" + result.url + "')");
+                                            if (blobUrl) {
+                                                img.src = blobUrl;
+                                            } else {
+                                                img.src = '';
+                                                img.setAttribute('data-lazy-cloud-ref', result.url);
+                                                if (window.CloudMedia) window.CloudMedia.bindLazyImage(img, result.url);
+                                            }
+                                            parent.replaceChild(img, wrap);
+                                        } catch (e) { console.warn('[cloud-media] 局部更新失败', e); }
+                                    }
+                                });
+                            }
 
                             addMessage({
-                                id: Date.now(),
+                                id: messageId,
                                 sender: 'user',
                                 text: '',
                                 timestamp: new Date(),
-                                image: currentImageData,
+                                image: imageField,
                                 status: 'sent',
                                 favorited: false,
                                 note: null,
                                 replyTo: currentReplyTo,
-                                type: 'normal'
+                                type: 'normal',
+                                uploadStatus: uploadStatus
                             });
                             playSound('send');
                             currentReplyTo = null;
@@ -1942,22 +1610,8 @@ window.updateDynamicNames = function() {
         var continueBtn = document.getElementById('continue-btn');
         if (continueBtn) continueBtn.title = '让' + pName + '继续说';
 
-        var envInfo = document.querySelector('.env-send-info');
-        if (envInfo) {
-            var textNodes = Array.from(envInfo.childNodes).filter(n => n.nodeType === 3);
-            textNodes.forEach(function(n) {
-                if (n.textContent.includes('对方将在') || n.textContent.includes('小时内回信')) {
-                    n.textContent = pName + ' 将在 10-24 小时内回信（8-12 句话）';
-                }
-            });
-        }
-
-        setDgLabel('dg-section-label-partner', pName + ' 今日状态');
-        setDgLabel('dg-weather-label', pName + ' 的天气');
-        setDgLabel('dg-status-label', pName + ' 的状态');
-
         var envInfoSpan = document.getElementById('env-reply-time-info');
-        if (envInfoSpan) envInfoSpan.textContent = pName + ' 将在 10-24 小时内回信（8-12 句话）';
+        if (envInfoSpan) envInfoSpan.textContent = '传递你的心意吧';
 
         var pokeInput = document.getElementById('poke-input');
         if (pokeInput) pokeInput.placeholder = '例如：拍了拍"' + pName + '"的肩膀';
@@ -2012,34 +1666,6 @@ window.reopenDailyGreeting = function() {
     } catch(e) {}
 };
 
-// 公告栏数据变化时自动刷新显示（无需重新进入网站）
-(function() {
-    var _dgKeys = ['dg_custom_data','dg_status_pool','dailyGreetingShown'];
-    var _dgWeatherPrefix = 'customWeather_';
-
-    // 页面重新获得焦点时，自动刷新公告栏数据
-    window.addEventListener('focus', function() {
-        if (typeof _buildDailyGreeting === 'function') {
-            try { _buildDailyGreeting(); } catch(e) {}
-        }
-    });
-
-    // 同一浏览器其他标签页修改公告数据时，实时刷新
-    window.addEventListener('storage', function(e) {
-        if (!e.key) return;
-        var shouldRefresh = false;
-        for (var i = 0; i < _dgKeys.length; i++) {
-            if (e.key === _dgKeys[i]) { shouldRefresh = true; break; }
-        }
-        if (!shouldRefresh && e.key.indexOf(_dgWeatherPrefix) === 0) {
-            shouldRefresh = true;
-        }
-        if (shouldRefresh && typeof _buildDailyGreeting === 'function') {
-            try { _buildDailyGreeting(); } catch(e) {}
-        }
-    });
-})();
-
 window.tryShowDailyGreeting = function() {
     try {
         if (localStorage.getItem('dailyGreetingShown') === new Date().toDateString()) return;
@@ -2065,75 +1691,3 @@ window.tryShowDailyGreeting = function() {
         if (modal) modal.classList.remove('hidden');
     } catch(e) { console.warn('Daily greeting show error:', e); }
 };
-
-
-
-// ════════════════════════════════════════════════════════
-// 头像拍一拍
-// 双击聊天消息列表里对方头像 → 抖动 + 触发拍一拍
-// 动词在聊天设置→功能→拍一拍 里可自定义（settings.myPokeText）
-// 与表情包里的拍一拍tab互相独立，两者都保留
-// ════════════════════════════════════════════════════════
-(function () {
-    'use strict';
-
-    function ready(fn) {
-        if (document.readyState !== 'loading') {
-            setTimeout(fn, 80);
-        } else {
-            document.addEventListener('DOMContentLoaded', () => setTimeout(fn, 80));
-        }
-    }
-
-    ready(function init() {
-        const chatContainer = document.getElementById('chat-container') || document.getElementById('messages-container') || document.body;
-
-        // 双击接收消息里的头像 → 拍一拍
-        chatContainer.addEventListener('dblclick', (e) => {
-            const avatarEl = e.target.closest('.message-avatar');
-            if (!avatarEl) return;
-            // 只响应对方发的消息里的头像
-            const wrapper = avatarEl.closest('.message-wrapper');
-            if (!wrapper || !wrapper.classList.contains('received')) return;
-            triggerAvatarPoke(avatarEl);
-        });
-
-        function triggerAvatarPoke(avatarEl) {
-            // 头像抖动动画
-            if (avatarEl) {
-                avatarEl.classList.remove('poking');
-                void avatarEl.offsetWidth; // reflow
-                avatarEl.classList.add('poking');
-                setTimeout(() => avatarEl.classList.remove('poking'), 600);
-            }
-
-            const myName      = (typeof settings !== 'undefined' && settings.myName)      ? settings.myName      : '我';
-            const partnerName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '对方';
-            const verb        = (typeof settings !== 'undefined' && settings.myPokeText)  ? settings.myPokeText  : '拍了拍';
-            let pokeText = `${myName} ${verb} ${partnerName}`;
-            if (typeof window._sanitizePokeTextForDisplay === 'function') {
-                pokeText = window._sanitizePokeTextForDisplay(pokeText);
-            }
-            const finalText = (typeof window._formatPokeText === 'function')
-                ? window._formatPokeText(pokeText)
-                : pokeText;
-
-            if (typeof addMessage !== 'function') return;
-            addMessage({
-                id: Date.now(),
-                text: finalText,
-                timestamp: new Date(),
-                type: 'system'
-            });
-
-            if (typeof playSound === 'function') playSound('poke');
-
-            // 触发对方已读并回消息（和表情包里的拍一拍一样）
-            if (typeof simulateReply === 'function' && typeof settings !== 'undefined') {
-                const range = (settings.replyDelayMax || 3000) - (settings.replyDelayMin || 800);
-                const delay = (settings.replyDelayMin || 800) + Math.random() * range;
-                setTimeout(simulateReply, delay);
-            }
-        }
-    });
-})();

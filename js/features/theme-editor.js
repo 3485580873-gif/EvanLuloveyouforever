@@ -745,4 +745,3 @@ function populateThemeSelector() {
             }
             renderThemeSchemesList();
         }
-

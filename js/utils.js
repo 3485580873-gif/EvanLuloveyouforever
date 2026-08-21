@@ -1,4 +1,4 @@
-        function safeGetItem(key) {
+function safeGetItem(key) {
             try { return localStorage.getItem(key); }
             catch (e) { console.error('Error getting item:', e); return null; }
         }
@@ -131,9 +131,52 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
             } catch(e) {}
         };
 
-        const playSound = (type) => {
+        // 暴露停止音效函数，供邀请等场景手动调用
+        window.stopCurrentSound = stopCurrentSound;
+
+        const playSound = (type, loopOverride) => {
             if (!settings.soundEnabled) return;
             stopCurrentSound();
+
+            // =============== 邀请类音效（独立路径，播放 mp3 文件） ===============
+            const INVITE_TYPES = ['invite_study', 'invite_work', 'invite_exercise', 'invite_sleep', 'invite_videocall'];
+            if (INVITE_TYPES.indexOf(type) !== -1) {
+                try {
+                    // 配置：每种邀请的预设 / 自定义 URL 设置 key
+                    const inviteKey = {
+                        invite_study:     { preset: 'inviteStudySoundPreset',     custom: 'inviteStudyCustomSoundUrl',     defaultFile: 'assets/audio/invite_study.mp3' },
+                        invite_work:      { preset: 'inviteWorkSoundPreset',      custom: 'inviteWorkCustomSoundUrl',      defaultFile: 'assets/audio/invite_work.mp3' },
+                        invite_exercise:  { preset: 'inviteExerciseSoundPreset',  custom: 'inviteExerciseCustomSoundUrl',  defaultFile: 'assets/audio/invite_exercise.mp3' },
+                        invite_sleep:     { preset: 'inviteSleepSoundPreset',     custom: 'inviteSleepCustomSoundUrl',     defaultFile: 'assets/audio/invite_sleep.mp3' },
+                        invite_videocall: { preset: 'inviteVideocallSoundPreset', custom: 'inviteVideocallCustomSoundUrl', defaultFile: 'assets/audio/invite_videocall.mp3' }
+                    }[type];
+
+                    if (!inviteKey) return;
+
+                    const preset = settings[inviteKey.preset] || 'default';
+                    if (preset === 'mute') return;
+
+                    // URL 解析顺序：自定义 URL > 内置文件
+                    const customUrl = (settings[inviteKey.custom] || '').trim();
+                    const url = customUrl || inviteKey.defaultFile;
+
+                    // 邀请音效循环播放，试听只播一次（由调用方传第二个参数 loop 控制，默认循环）
+                    const shouldLoop = (typeof loopOverride === 'undefined') ? true : !!loopOverride;
+
+                    const audio = new Audio(url);
+                    audio.volume = Math.min(1, Math.max(0, settings.soundVolume || 0.3));
+                    audio.loop = shouldLoop;
+                    _currentAudio = audio;
+                    audio.play().catch((e) => { console.warn('[playSound] invite audio play failed:', e); });
+                    if (!shouldLoop) {
+                        audio.addEventListener('ended', () => { _currentAudio = null; });
+                    }
+                } catch (e) {
+                    console.warn('[playSound] invite audio error:', e);
+                }
+                return;
+            }
+
             try {
                 // =============== 两方音效配置 ===============
                 const category = (() => {
@@ -315,17 +358,6 @@ async function applyCustomFont(url) {
     }
 }
 
-// 本地字体文件上传：ArrayBuffer -> Base64
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.byteLength; i += chunkSize) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-    }
-    return btoa(binary);
-}
-
 function applyCustomBubbleCss(cssCode) {
     const styleId = 'user-custom-bubble-style';
     let styleTag = document.getElementById(styleId);
@@ -450,7 +482,7 @@ async function importAllData(file) {
             {
                 id: 'replies',
                 label: '回复 / 拍一拍 / 氛围',
-                indexedDBNeedles: ['customReplies', 'customPokes', 'quickPokes', 'customStatuses', 'customMottos', 'customIntros', 'customEmojis', 'customReplyGroups', 'customPokeGroups', 'customStatusGroups'],
+                indexedDBNeedles: ['customReplies', 'customPokes', 'customStatuses', 'customMottos', 'customIntros', 'customEmojis', 'customReplyGroups', 'customPokeGroups', 'customStatusGroups'],
                 localStorageNeedles: ['disabledReplyItems', 'pokeSym_my', 'pokeSym_partner', 'pokeSym_my_custom', 'pokeSym_partner_custom']
             },
             {
@@ -462,7 +494,7 @@ async function importAllData(file) {
             {
                 id: 'ann',
                 label: '纪念日',
-                indexedDBNeedles: ['anniversaries'],
+                indexedDBNeedles: ['anniversaries', 'annCoverBg_', 'annMeetOverride', 'annPinnedId'],
                 localStorageNeedles: []
             },
             {
@@ -483,6 +515,30 @@ async function importAllData(file) {
                 indexedDBNeedles: [],
                 localStorageNeedles: ['dg_custom_data', 'dg_status_pool', 'weekly_fortune', 'daily_fortune'],
                 localStoragePrefixes: ['customWeather_']
+            },
+            {
+                id: 'diary',
+                label: '陪伴模式（背景 / 语音 / 白噪音 / 日记）',
+                indexedDBNeedles: ['companionData', 'companionDiary', 'companionDiaryBg', 'companionDiaryBgGallery'],
+                localStorageNeedles: []
+            },
+            {
+                id: 'tts',
+                label: '真实语音配置',
+                indexedDBNeedles: ['favAudio_', '_favAudio_'],
+                localStorageNeedles: ['voiceTtsConfig']
+            },
+            {
+                id: 'moments',
+                label: '动态',
+                indexedDBNeedles: ['momentsData', 'csSpaceSettings', 'csWallpaper', 'csWallpaperGallery'],
+                localStorageNeedles: []
+            },
+            {
+                id: 'cinema',
+                label: '电影院',
+                indexedDBNeedles: ['_cinemaAppt', '_cinemaWatchlist', '_cinemaHistory', '_cinemaNego', '_cinemaPartnerInvite'],
+                localStorageNeedles: []
             }
         ];
 

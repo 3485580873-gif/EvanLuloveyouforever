@@ -6,7 +6,6 @@
     const KEY_SIZE     = 'callWindowSize';
     const KEY_PILL_POS = 'callPillPos';
     const BG_LF_KEY    = 'callBgImageData';
-    const KEY_LIVE_SESSION = 'callLiveSession'; // 闪退/刷新恢复用：通话进行中定期写入的快照
 
     const S = {
         enabled:         localStorage.getItem(KEY_ENABLED) !== 'false',
@@ -28,8 +27,6 @@
         connectingTimer: null,
         randomCallTimer: null,
         isPartnerCall:   false,
-        heartbeatTimer:  null,
-        partnerHangupTimer: null,
     };
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -184,18 +181,18 @@
 #call-window-body{
     position:relative;z-index:10;
     flex:1;display:flex;flex-direction:column;
-    align-items:center;justify-content:flex-start;
-    gap:8px;padding:24px 12px 4px;
+    align-items:center;justify-content:center;
+    gap:10px;padding:4px 12px;
 }
 .call-av-wrap{
     position:relative;
-    width:52px;height:52px;
+    width:68px;height:68px;  
     flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
 }
 .call-av-pulse{
     position:absolute;
-    top:-8px;left:-8px;right:-8px;bottom:-8px;
+    top:-10px;left:-10px;right:-10px;bottom:-10px;
     border-radius:50%;
     border:1.5px solid rgba(255,255,255,.22);
     animation:cAp 2.5s ease-in-out infinite;
@@ -203,38 +200,39 @@
 }
 .call-av-pulse2{
     position:absolute;
-    top:-14px;left:-14px;right:-14px;bottom:-14px;
+    top:-18px;left:-18px;right:-18px;bottom:-18px;
     border-radius:50%;
     border:1px solid rgba(255,255,255,.09);
     animation:cAp 2.5s ease-in-out infinite .65s;
     pointer-events:none;
 }
 .call-avatar{
-    width:52px;height:52px;
+    width:68px;height:68px;
     border-radius:50%;
     background:var(--accent-color,#e0698a);
-    border:2px solid rgba(255,255,255,.28);
+    border:2.5px solid rgba(255,255,255,.28);
     overflow:hidden;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 4px 16px rgba(0,0,0,.4);
-    position:relative;z-index:1;
+    box-shadow:0 6px 22px rgba(0,0,0,.4);
+    position:relative;z-index:1;  
     flex-shrink:0;
 }
 .call-avatar img{width:100%;height:100%;object-fit:cover;}
-.call-avatar i{font-size:20px;color:rgba(255,255,255,.82);}
+.call-avatar i{font-size:26px;color:rgba(255,255,255,.82);}
 
 .call-name{
-    font-size:14px;font-weight:600;color:#4a3540;
+    font-size:16px;font-weight:700;color:#fff;
+    text-shadow:0 2px 8px rgba(0,0,0,.5);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     max-width:88%;text-align:center;
 }
-.call-wave{display:flex;align-items:center;gap:3px;height:14px;}
-.call-wave span{width:2.5px;border-radius:3px;background:rgba(255,255,255,.5);animation:cWv .85s ease-in-out infinite;}
-.call-wave span:nth-child(1){height:5px;animation-delay:0s;}
-.call-wave span:nth-child(2){height:10px;animation-delay:.1s;}
-.call-wave span:nth-child(3){height:14px;animation-delay:.2s;}
-.call-wave span:nth-child(4){height:10px;animation-delay:.3s;}
-.call-wave span:nth-child(5){height:5px;animation-delay:.4s;}
+.call-wave{display:flex;align-items:center;gap:3px;height:18px;}
+.call-wave span{width:3px;border-radius:3px;background:rgba(255,255,255,.5);animation:cWv .85s ease-in-out infinite;}
+.call-wave span:nth-child(1){height:6px;animation-delay:0s;}
+.call-wave span:nth-child(2){height:13px;animation-delay:.1s;}
+.call-wave span:nth-child(3){height:18px;animation-delay:.2s;}
+.call-wave span:nth-child(4){height:13px;animation-delay:.3s;}
+.call-wave span:nth-child(5){height:6px;animation-delay:.4s;}
 
 #call-connecting-state .call-av-wrap{
     width:68px;height:68px;
@@ -283,10 +281,6 @@
 #call-window.immersive #call-immersive-btn{opacity:.35 !important;pointer-events:all !important;}
 #call-window.immersive #call-immersive-btn:hover{opacity:1 !important;}
 
-#call-window.hide-avatar #call-window-body{opacity:0 !important;pointer-events:none !important;}
-#call-window.hide-avatar #call-connecting-state{opacity:0 !important;pointer-events:none !important;}
-#call-window.hide-avatar .call-overlay{opacity:0.3 !important;}
-
 #call-resize-handle{
     position:absolute;bottom:-2px;right:-2px;z-index:99901;
     width:22px;height:22px;cursor:se-resize;
@@ -320,13 +314,10 @@
 #call-mini-pill{
     position:fixed;bottom:82px;right:16px;z-index:99901;
     display:none;align-items:center;gap:9px;
-    background: rgba(252, 224, 232, 0.5) !important;
-    backdrop-filter: blur(14px) !important;
-    -webkit-backdrop-filter: blur(14px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-    border-radius: 30px !important;
-    padding:8px 14px 8px 10px;
+    background:rgba(10,18,38,.92);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:30px;padding:8px 14px 8px 10px;
+    box-shadow:0 8px 28px rgba(0,0,0,.4);
     cursor:grab;color:#fff;user-select:none;touch-action:none;
 }
 #call-mini-pill:active{cursor:grabbing;}
@@ -339,8 +330,8 @@
 .call-mini-av img{width:100%;height:100%;object-fit:cover;}
 .call-mini-av i{font-size:12px;color:rgba(255,255,255,.82);}
 .call-mini-info{display:flex;flex-direction:column;gap:1px;}
-.call-mini-name{font-size:12px;font-weight:600;line-height:1.1;color:#4a3540;}
-.call-mini-time{font-size:11px;color:rgba(74,53,64,.6);font-variant-numeric:tabular-nums;font-weight:500;}
+.call-mini-name{font-size:12px;font-weight:600;line-height:1.1;}
+.call-mini-time{font-size:11px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;font-weight:500;}
 .call-mini-dot{width:6px;height:6px;border-radius:50%;background:#4caf50;box-shadow:0 0 5px #4caf50;animation:cBl 1.6s ease-in-out infinite alternate;flex-shrink:0;}
 .call-mini-hangup{
     width:30px;height:30px;border-radius:50%;border:none;
@@ -428,7 +419,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         <span class="call-timer-txt" id="call-timer-display">00:00</span>
       </div>
       <div class="call-top-btns">
-        <button class="call-top-btn" id="call-hide-avatar-btn" title="隐藏头像"><i class="fas fa-user-slash"></i></button>
         <button class="call-top-btn" id="call-size-preset-toggle" title="调整大小"><i class="fas fa-expand-alt"></i></button>
         <button class="call-top-btn" id="call-minimize-btn" title="最小化"><i class="fas fa-minus"></i></button>
       </div>
@@ -513,26 +503,8 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             : `${String(m).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
     }
     const getAvSrc = () => {
-        // 1. 优先找 img 标签
         const img = document.querySelector('#partner-avatar img,[id*="partner-avatar"] img,.partner-avatar img');
-        if (img && img.src) return img.src;
-        // 2. 从头像容器的 backgroundImage 提取
-        const containers = document.querySelectorAll('#partner-avatar, #partner-avatar-container, .avatar-container .avatar');
-        for (const el of containers) {
-            const bg = getComputedStyle(el).backgroundImage;
-            if (bg && bg !== 'none') {
-                const m = bg.match(/url\(["']?(.+?)["']?\)/);
-                if (m && m[1]) return m[1];
-            }
-        }
-        // 3. 从 settings / localStorage 里找
-        try {
-            const s = window.settings;
-            if (s && (s.partnerAvatar || s.avatarUrl)) return s.partnerAvatar || s.avatarUrl;
-            const saved = localStorage.getItem('partnerAvatar') || localStorage.getItem('avatar');
-            if (saved) return saved;
-        } catch (e) {}
-        return null;
+        return img ? img.src : null;
     };
     const getName = () => window.settings?.partnerName || document.getElementById('partner-name')?.textContent.trim() || '对方';
 
@@ -552,7 +524,50 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         const b = document.getElementById('call-mini-timer');
         if (a) a.textContent = t;
         if (b) b.textContent = t;
+        // 闪退恢复用：节流写盘心跳
+        tryHeartbeatCallSession();
         S.timerRAF = requestAnimationFrame(tick);
+    }
+
+    // ─── 通话闪退恢复：live session 持久化 ─────────────
+    function getCallSessionKey() {
+        return (typeof getStorageKey === 'function')
+            ? getStorageKey('callLiveSession')
+            : (window.APP_PREFIX || 'CHAT_APP_V3_') + 'callLiveSession';
+    }
+    let _lastCallHeartbeatTs = 0;
+    function writeCallSession() {
+        try {
+            const payload = {
+                startTs: S.startTime || Date.now(),
+                heartbeatTs: Date.now(),
+                isPartnerCall: !!S.isPartnerCall,
+                bgImage: S.bgImage || null,
+                immersive: !!S.immersive,
+                minimized: !!S.minimized
+            };
+            localforage.setItem(getCallSessionKey(), payload).catch(() => {});
+            _lastCallHeartbeatTs = Date.now();
+        } catch (e) {}
+    }
+    function tryHeartbeatCallSession() {
+        if (!S.startTime) return; // 连接中阶段不写心跳
+        if (Date.now() - _lastCallHeartbeatTs < 10000) return; // 10秒节流
+        writeCallSession();
+    }
+    function clearCallSession() {
+        try {
+            // 用扫描方式删除所有 callLiveSession 相关 key
+            localforage.keys().then(function(keys) {
+                const targets = keys.filter(function(k) {
+                    return k.indexOf('callLiveSession') !== -1;
+                });
+                Promise.all(targets.map(function(k) {
+                    return localforage.removeItem(k).catch(function() {});
+                }));
+            }).catch(function() {});
+        } catch (e) {}
+        _lastCallHeartbeatTs = 0;
     }
 
     function applyBg() {
@@ -584,153 +599,24 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         pill.style.right  = 'auto'; pill.style.bottom = 'auto';
     }
 
-    const CALL_EVENT_QUEUE_KEY = 'callEventQueue';
-
-    function flushCallEventQueue() {
-        let queue = [];
-        try {
-            const raw = localStorage.getItem(CALL_EVENT_QUEUE_KEY);
-            if (raw) queue = JSON.parse(raw);
-        } catch (e) { queue = []; }
-        if (!queue || !queue.length) return;
-        if (typeof window._addCallEvent !== 'function') return;
-
-        const remaining = [];
-        for (const ev of queue) {
-            try {
-                window._addCallEvent(ev.icon, ev.label, ev.detail);
-            } catch (e) {
-                remaining.push(ev);
-            }
-        }
-        try {
-            if (remaining.length) {
-                localStorage.setItem(CALL_EVENT_QUEUE_KEY, JSON.stringify(remaining));
-            } else {
-                localStorage.removeItem(CALL_EVENT_QUEUE_KEY);
-            }
-        } catch (e) {}
-    }
-
-    function enqueueCallEvent(icon, label, detail) {
-        let queue = [];
-        try {
-            const raw = localStorage.getItem(CALL_EVENT_QUEUE_KEY);
-            if (raw) queue = JSON.parse(raw);
-        } catch (e) { queue = []; }
-        if (!Array.isArray(queue)) queue = [];
-        queue.push({ icon, label, detail, ts: Date.now() });
-        try {
-            localStorage.setItem(CALL_EVENT_QUEUE_KEY, JSON.stringify(queue));
-        } catch (e) {}
-    }
-
     function sendCallEvent(icon, label, detail) {
         if (typeof window._addCallEvent === 'function') {
-            try {
-                window._addCallEvent(icon, label, detail);
-                return;
-            } catch (e) {
-                // 调用失败也走队列
-            }
+            window._addCallEvent(icon, label, detail);
+        } else {
+            let tries = 0;
+            const t = setInterval(() => {
+                if (typeof window._addCallEvent === 'function') {
+                    clearInterval(t);
+                    window._addCallEvent(icon, label, detail);
+                }
+                if (++tries > 25) clearInterval(t);
+            }, 200);
         }
-        // 先入持久化队列，确保不会丢
-        enqueueCallEvent(icon, label, detail);
-        // 然后尝试等 _addCallEvent 出现后立即发送
-        let tries = 0;
-        const t = setInterval(() => {
-            if (typeof window._addCallEvent === 'function') {
-                clearInterval(t);
-                flushCallEventQueue();
-                return;
-            }
-            // 最多等 30 秒，等不到也没关系，队列已经持久化了
-            // 页面下次加载 / core.js 就绪时会自动补发
-            if (++tries > 60) clearInterval(t);
-        }, 500);
     }
 
     function sendCallMsg(dur) {
-        // 之前这里有个"时长<2秒不记录"的门槛，本意是防误触，
-        // 但副作用是：只要电话接通后很快被挂断，聊天记录里就完全没有痕迹，
-        // 看起来像这通电话根本没发生过。这里改成只要真正接通过（dur>0）就一定记录。
-        if (dur <= 0) return;
+        if (dur < 2000) return;
         sendCallEvent('fa-video', '视频通话已结束', fmt(dur));
-    }
-
-    // ──────────────────────────────────────────────────────────────
-    // 通话崩溃恢复：通话进行中定期把状态写到 localStorage；
-    // 如果页面闪退/被刷新，重新打开时能检测到这份"未正常挂断"的
-    // 快照，弹窗询问用户要继续通话还是直接挂断。
-    // ──────────────────────────────────────────────────────────────
-    function writeCallSession() {
-        try {
-            localStorage.setItem(KEY_LIVE_SESSION, JSON.stringify({
-                active: true,
-                startTime: S.startTime,
-                isPartnerCall: S.isPartnerCall,
-                savedAt: Date.now()
-            }));
-            console.log('[通话恢复][写入]', new Date().toLocaleTimeString(), 'startTime=', S.startTime);
-        } catch (e) {
-            console.warn('[通话恢复][写入失败]', e);
-        }
-    }
-    function clearCallSession(reason) {
-        console.log('[通话恢复][清除快照] 原因=', reason || '未标注', new Date().toLocaleTimeString());
-        try { localStorage.removeItem(KEY_LIVE_SESSION); } catch (e) {}
-    }
-    function startHeartbeat() {
-        stopHeartbeat();
-        writeCallSession();
-        S.heartbeatTimer = setInterval(writeCallSession, 2000);
-
-        // 通话中：一定概率对方在 10~120 秒后主动挂断
-        // 之前是 1%，只在接通/恢复那一刻掷一次骰子，一整通电话基本很难撞上，
-        // 调到 8% 让这个效果更容易被实际见到；也可以用 /测试对方挂断 手动强制触发验证
-        clearTimeout(S.partnerHangupTimer);
-        const _hangupRoll = Math.random();
-        const PARTNER_HANGUP_CHANCE = 0.03;
-        if (_hangupRoll < PARTNER_HANGUP_CHANCE) {
-            const hangupDelay = 10000 + Math.random() * 110000;
-            console.log('[通话恢复][随机挂断] 命中' + Math.round(PARTNER_HANGUP_CHANCE * 100) + '%，将在', Math.round(hangupDelay/1000), '秒后自动挂断');
-            S.partnerHangupTimer = setTimeout(doPartnerHangup, hangupDelay);
-        } else {
-            console.log('[通话恢复][随机挂断] 本次未命中（几率' + Math.round(PARTNER_HANGUP_CHANCE * 100) + '%）');
-        }
-    }
-
-    // 对方主动挂断的具体执行逻辑：从随机定时器触发
-    function doPartnerHangup() {
-        if (!S.active) return;
-        const dur = S.elapsed;
-        // 先停止通话状态
-        S.active = false; S.startTime = null;
-        cancelAnimationFrame(S.timerRAF);
-        clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
-        stopHeartbeat();
-        clearCallSession('随机对方主动挂断');
-        ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
-            const e = document.getElementById(id);
-            if (e) { e.classList.remove('visible'); if (id === 'call-window') e.classList.remove('immersive'); }
-        });
-        const body2 = document.getElementById('call-window-body');
-        const conn2 = document.getElementById('call-connecting-state');
-        if (body2) body2.style.display = '';
-        if (conn2) conn2.classList.remove('visible');
-        S.immersive = false;
-        const iBtn2 = document.getElementById('call-immersive-btn');
-        if (iBtn2) { iBtn2.classList.remove('active'); iBtn2.querySelector('i').className = 'fas fa-eye-slash'; }
-        localStorage.setItem(KEY_POS,  JSON.stringify(S.pos));
-        localStorage.setItem(KEY_SIZE, JSON.stringify(S.size));
-        // 发送对方主动挂断的聊天记录（区别标识）
-        sendCallEvent('fa-video', '对方有事忙，主动结束了通话', fmt(dur));
-        if (typeof showNotification === 'function')
-            showNotification(`${getName()} 主动挂断了通话`, 'info', 3000);
-    }
-    function stopHeartbeat() {
-        if (S.heartbeatTimer) { console.log('[通话恢复][心跳停止]', new Date().toLocaleTimeString()); clearInterval(S.heartbeatTimer); S.heartbeatTimer = null; }
-        clearTimeout(S.partnerHangupTimer); S.partnerHangupTimer = null;
     }
 
     function startCall(isPartner) {
@@ -759,7 +645,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             S.connectingTimer = setTimeout(() => {
                 if (!S.active) return;
                 S.active = false;
-                S.minimized = false;
                 cancelAnimationFrame(S.timerRAF);
                 const winEl = document.getElementById('call-window');
                 if (winEl) { winEl.classList.remove('visible'); winEl.classList.remove('immersive'); }
@@ -767,9 +652,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 if (connEl) connEl.classList.remove('visible');
                 const bodyEl = document.getElementById('call-window-body');
                 if (bodyEl) bodyEl.style.display = '';
-                document.getElementById('call-mini-pill')?.classList.remove('visible');
-                document.getElementById('call-incoming-overlay')?.classList.remove('visible');
-                clearCallSession('未接听自动结束');
                 const rejectLabels = [
                     getName() + ' 未接听',
                     getName() + ' 正在忙，无法接听',
@@ -787,8 +669,9 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
                 S.startTime = Date.now();
                 if (conn) conn.classList.remove('visible');
                 if (body) body.style.display = '';
+                // 通话接通：立即写入第一次心跳
+                writeCallSession();
                 tick();
-                startHeartbeat();
             }, 1400 + Math.random() * 1400);
         }
     }
@@ -799,8 +682,9 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         S.active = false; S.startTime = null;
         cancelAnimationFrame(S.timerRAF);
         clearTimeout(S.connectingTimer); clearTimeout(S.incomingTimer);
-        stopHeartbeat();
-        clearCallSession('正常挂断(endCall)');
+
+        // 清除闪退恢复用的 live session
+        clearCallSession();
 
         ['call-window','call-mini-pill','call-incoming-overlay'].forEach(id => {
             const e = document.getElementById(id);
@@ -825,16 +709,28 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
 
     function showIncomingCall() {
         if (!S.enabled || S.active) return;
+        if (typeof window._cinemaShouldBlockInterruptions === 'function' && window._cinemaShouldBlockInterruptions()) return; // 观影中/快到观影时间不弹通话邀请
         const ov = document.getElementById('call-incoming-overlay');
         if (!ov) return;
         fillAv('call-inc-avatar'); fillNm('call-inc-name');
         ov.classList.add('visible');
         clearTimeout(S.incomingTimer);
 
-        // 浏览器系统级通知：即使不在这个标签页/锁屏了，也能收到"来电"提醒
-        if (typeof window._sendPartnerNotification === 'function') {
-            window._sendPartnerNotification(getName() + ' 请求视频通话', getName() + ' 打视频给你了，点击返回接听');
-        }
+        // 播放视频通话邀请音效
+        try {
+            if (typeof playSound === 'function') playSound('invite_videocall');
+        } catch (e) { console.warn('[call] invite sound error:', e); }
+
+        // 后台推送通知（仅当页面在后台 + 用户开启了通知）
+        try {
+            if (typeof window._sendPartnerNotification === 'function') {
+                const partnerName = getName();
+                window._sendPartnerNotification(
+                    partnerName + ' 正在邀请你视频通话',
+                    '快接听吧 📹'
+                );
+            }
+        } catch (e) { console.warn('[call] invite notification error:', e); }
 
         const autoRejectChance = 0.30;
         if (Math.random() < autoRejectChance) {
@@ -842,6 +738,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             S.incomingTimer = setTimeout(() => {
                 if (!ov.classList.contains('visible')) return;
                 ov.classList.remove('visible');
+                try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
                 const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
                 const partnerName = getName();
                 const rejectLabels = [
@@ -857,26 +754,18 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             S.incomingTimer = setTimeout(() => {
                 if (!ov.classList.contains('visible')) return;
                 ov.classList.remove('visible');
+                try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
                 const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
                 sendCallEvent('fa-phone-slash', `${myName}未接听 ${getName()} 的来电`, null);
-            }, 22000);
+            }, 60000);
         }
     }
 
     function scheduleRandomCall() {
-        clearInterval(S.randomCallTimer);
+        // v2.5: 随机来电已合并到 companion.js 统一调度（50% 陪伴邀请 / 50% 通话）
+        // 这里禁用,避免重复触发
         clearTimeout(S.randomCallTimer);
-        if (!S.enabled) return;
-        // 原来是"一次性等 15~60 分钟，到点后 25% 概率触发一次来电"，
-        // 相当于平均每 1~4 小时才有一次来电判定。
-        // 问题是：手机切到后台之后，这种长达几十分钟的定时器基本撑不到触发那一刻
-        // 就被系统暂停掉了，导致"来电"这件事经常根本没发生过、更别说弹通知。
-        // 改成每 60 秒检查一次、每次只有很小概率触发，整体频率跟原来大致相当，
-        // 但因为单次等待时间短很多，更容易在系统偶尔"喘息"的间隙里被执行到，
-        // 提高来电真正被触发、进而弹出系统通知的概率。
-        S.randomCallTimer = setInterval(() => {
-            if (S.enabled && !S.active && Math.random() < 0.0076) showIncomingCall();
-        }, 60 * 1000);
+        return;
     }
 
     function minimizeWindow() {
@@ -899,18 +788,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         if (btn) {
             btn.classList.toggle('active', S.immersive);
             btn.querySelector('i').className = S.immersive ? 'fas fa-eye' : 'fas fa-eye-slash';
-        }
-    }
-
-    function toggleHideAvatar() {
-        const win = document.getElementById('call-window');
-        if (!win) return;
-        const isHidden = win.classList.toggle('hide-avatar');
-        const btn = document.getElementById('call-hide-avatar-btn');
-        if (btn) {
-            btn.classList.toggle('active', isHidden);
-            btn.querySelector('i').className = isHidden ? 'fas fa-user' : 'fas fa-user-slash';
-            btn.title = isHidden ? '显示头像' : '隐藏头像';
         }
     }
 
@@ -1017,12 +894,15 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         document.getElementById('call-inc-reject')?.addEventListener('click', () => {
             document.getElementById('call-incoming-overlay')?.classList.remove('visible');
             clearTimeout(S.incomingTimer);
+            try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
             const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
             sendCallEvent('fa-phone-slash', `${myName}拒绝了 ${getName()} 的通话`, null);
         });
         document.getElementById('call-inc-accept')?.addEventListener('click', () => {
             document.getElementById('call-incoming-overlay')?.classList.remove('visible');
-            clearTimeout(S.incomingTimer); startCall(true);
+            clearTimeout(S.incomingTimer);
+            try { if (typeof window.stopCurrentSound === 'function') window.stopCurrentSound(); } catch(e) {}
+            startCall(true);
         });
 
         document.getElementById('call-hangup-btn')?.addEventListener('click', endCall);
@@ -1033,7 +913,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             if (!S.pillDragged) restoreWindow();
         });
         document.getElementById('call-immersive-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleImmersive(); });
-        document.getElementById('call-hide-avatar-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleHideAvatar(); });
         document.getElementById('call-window')?.addEventListener('click', e => {
             if (S.immersive && !e.target.closest('#call-immersive-btn')) toggleImmersive();
         });
@@ -1074,151 +953,11 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
             const collapsedCallBtn = document.getElementById('collapsed-call-btn');
             if (collapsedCallBtn) collapsedCallBtn.style.display = S.enabled ? '' : 'none';
             if (!S.enabled && S.active) endCall();
-            S.enabled ? scheduleRandomCall() : clearInterval(S.randomCallTimer);
+            S.enabled ? scheduleRandomCall() : clearTimeout(S.randomCallTimer);
         });
 
         initDrag(); initPillDrag(); initResize();
     }
-
-    function resumeCallFromSession(session) {
-        console.log('[通话恢复][恢复通话] 开始恢复，session=', session);
-        S.active = true;
-        S.isPartnerCall = !!session.isPartnerCall;
-        S.startTime = session.startTime || Date.now();
-        S.minimized = false;
-        S.immersive = false;
-        document.getElementById('call-window')?.classList.remove('immersive');
-
-        ['call-inc-avatar', 'call-conn-avatar', 'call-win-avatar', 'call-mini-av'].forEach(fillAv);
-        ['call-conn-name', 'call-win-name', 'call-mini-name'].forEach(fillNm);
-        applyBg(); positionWindow();
-
-        const win  = document.getElementById('call-window');
-        const body = document.getElementById('call-window-body');
-        const conn = document.getElementById('call-connecting-state');
-        if (win)  win.classList.add('visible');
-        if (conn) conn.classList.remove('visible');
-        if (body) body.style.display = '';
-
-        cancelAnimationFrame(S.timerRAF);
-        tick();
-        startHeartbeat();
-
-        if (typeof showNotification === 'function') showNotification('通话已恢复', 'success', 2000);
-    }
-
-    function showCallRecoverDialog(session) {
-        // 避免重复弹出
-        if (document.getElementById('call-recover-overlay')) return;
-
-        const AUTO_REJECT_SECONDS = 15; // 15 秒内没有点"继续通话"或"挂断"，默认按"挂断"处理
-
-        const overlay = document.createElement('div');
-        overlay.id = 'call-recover-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);';
-
-        const box = document.createElement('div');
-        box.style.cssText = 'width:min(84vw,320px);background:var(--secondary-bg,#fff);border-radius:18px;padding:22px 20px 18px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:center;';
-        box.innerHTML = `
-            <div style="font-size:32px;margin-bottom:10px;">📞</div>
-            <div style="font-size:16px;font-weight:700;color:var(--text-primary,#222);margin-bottom:6px;">检测到未挂断的通话</div>
-            <div style="font-size:13px;color:var(--text-secondary,#888);line-height:1.6;margin-bottom:10px;">
-                网页可能发生了闪退或被刷新，通话没有正常结束。<br>要继续这通电话，还是直接挂断？
-            </div>
-            <div id="call-recover-countdown" style="font-size:11px;color:var(--text-secondary,#999);margin-bottom:14px;">${AUTO_REJECT_SECONDS} 秒内不操作将自动挂断</div>
-            <div style="display:flex;gap:10px;">
-                <button type="button" id="call-recover-hangup-btn" style="flex:1;padding:11px 0;border:none;border-radius:12px;background:var(--message-received-bg,#f0f0f0);color:var(--text-primary,#333);font-size:14px;font-weight:600;cursor:pointer;pointer-events:auto;">挂断</button>
-                <button type="button" id="call-recover-continue-btn" style="flex:1;padding:11px 0;border:none;border-radius:12px;background:var(--accent-color,#07c160);color:#fff;font-size:14px;font-weight:600;cursor:pointer;pointer-events:auto;">继续通话</button>
-            </div>
-        `;
-        overlay.appendChild(box);
-        document.body.appendChild(overlay);
-
-        // 直接在真实插入 DOM 之后的元素上绑定事件，避免"按钮点了没反应"的问题
-        const hangupBtn     = overlay.querySelector('#call-recover-hangup-btn');
-        const continueBtn   = overlay.querySelector('#call-recover-continue-btn');
-        const countdownEl   = overlay.querySelector('#call-recover-countdown');
-
-        function closeDialog() {
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }
-
-        // 补一条跟正常挂断一样的通话记录，避免这通电话在聊天记录里凭空消失
-        function doHangup(reasonLabel) {
-            const dur = session && session.startTime ? (Date.now() - session.startTime) : 0;
-            clearCallSession(reasonLabel);
-            closeDialog();
-            if (dur > 0) {
-                sendCallEvent('fa-video', '视频通话已结束', fmt(dur));
-            }
-            if (typeof showNotification === 'function') showNotification('已挂断', 'info', 1800);
-        }
-
-        let remainingSeconds = AUTO_REJECT_SECONDS;
-        const countdownInterval = setInterval(() => {
-            remainingSeconds -= 1;
-            if (countdownEl) countdownEl.textContent = `${Math.max(remainingSeconds, 0)} 秒内不操作将自动挂断`;
-            if (remainingSeconds <= 0) clearInterval(countdownInterval);
-        }, 1000);
-        const autoRejectTimer = setTimeout(() => {
-            console.log('[通话恢复] 弹窗超时未操作，默认按"挂断"处理');
-            doHangup('恢复弹窗-超时未操作(默认拒绝)');
-        }, AUTO_REJECT_SECONDS * 1000);
-
-        function cancelAutoReject() {
-            clearTimeout(autoRejectTimer);
-            clearInterval(countdownInterval);
-        }
-
-        if (hangupBtn) {
-            hangupBtn.addEventListener('click', function (e) {
-                e.preventDefault(); e.stopPropagation();
-                cancelAutoReject();
-                doHangup('恢复弹窗-点了挂断');
-            });
-        }
-        if (continueBtn) {
-            continueBtn.addEventListener('click', function (e) {
-                e.preventDefault(); e.stopPropagation();
-                cancelAutoReject();
-                clearCallSession('恢复弹窗-点了继续(即将由resumeCallFromSession重新写入)');
-                closeDialog();
-                resumeCallFromSession(session);
-            });
-        }
-    }
-
-    function checkAndResumeCall() {
-        let raw = null;
-        try { raw = localStorage.getItem(KEY_LIVE_SESSION); } catch (e) {}
-        console.log('[通话恢复][检测] raw=', raw);
-        if (!raw) { console.log('[通话恢复][检测] 没有找到快照，不弹窗'); return; }
-        let session = null;
-        try { session = JSON.parse(raw); } catch (e) { console.warn('[通话恢复][检测] JSON解析失败', e); }
-        if (!session || !session.active || !session.startTime) {
-            console.log('[通话恢复][检测] session无效', session);
-            clearCallSession('checkAndResumeCall-session无效');
-            return;
-        }
-        // 超过 30 分钟没回来，说明用户不太可能是想"继续通话"了（比如隔了几个小时甚至一整晚），
-        // 弹"继续通话"的窗口没有意义。但之前这里是直接清掉快照、什么都不做——
-        // 相当于这通电话在聊天记录里完全消失，看起来就像"对方挂电话但没留下任何痕迹"。
-        // 改成：用最后一次心跳时间（savedAt）倒推出通话大致维持了多久，补记一条正常的
-        // "通话已结束"记录，再清快照，这样至少能看到这通电话真实发生过、大概打了多久。
-        const idleMs = Date.now() - (session.savedAt || 0);
-        console.log('[通话恢复][检测] session有效，距离上次心跳', Math.round(idleMs / 1000), '秒');
-        if (idleMs > 30 * 60 * 1000) {
-            console.log('[通话恢复][检测] 超过30分钟，视为已结束，不弹窗');
-            const dur = (session.savedAt || session.startTime) - session.startTime;
-            clearCallSession('checkAndResumeCall-超过30分钟');
-            if (dur > 0) sendCallEvent('fa-video', '视频通话已结束', fmt(dur));
-            return;
-        }
-        console.log('[通话恢复][检测] 准备弹出恢复窗口');
-        showCallRecoverDialog(session);
-    }
-
-
 
     window.callFeature = { startCall, endCall, showIncomingCall, restoreWindow, minimizeWindow, isActive: () => S.active };
 
@@ -1227,24 +966,6 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
         injectHTML();
         bindEvents();
         loadBg();
-        checkAndResumeCall();
-
-        // 页面加载后持续检测 _addCallEvent 是否就绪，
-        // 一旦就绪就把 localStorage 队列里所有没发出去的通话记录补发出去。
-        // （iOS 后台杀进程后页面重载时特别重要，确保通话记录不会凭空消失）
-        const tryFlushQueue = () => {
-            if (typeof window._addCallEvent === 'function') {
-                flushCallEventQueue();
-                return true;
-            }
-            return false;
-        };
-        if (!tryFlushQueue()) {
-            let qTries = 0;
-            const qTimer = setInterval(() => {
-                if (tryFlushQueue() || ++qTries > 120) clearInterval(qTimer);
-            }, 500);
-        }
 
         const late = () => {
             injectToolbarBtn();
@@ -1272,4 +993,51 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     }
 
     init();
+
+    // v2.5: 暴露给 companion.js 用于统一来电调度
+    window._callModule = {
+        showIncomingCall: () => {
+            if (S.enabled && !S.active) showIncomingCall();
+        },
+        isEnabled: () => S.enabled,
+
+        // 闪退恢复用
+        getCallSessionKey: getCallSessionKey,
+        clearCallSession: clearCallSession,
+        // 直接恢复一个通话（不弹来电、不弹窗，直接进入通话页面）
+        resumeFromSession: function(session) {
+            if (!session || !S.enabled) return false;
+            if (S.active) return false; // 已经在通话中，不打扰
+            try {
+                S.active = true;
+                S.startTime = session.startTs;  // 沿用真实开始时间，时长自动接续
+                S.elapsed = Date.now() - session.startTs;
+                S.minimized = !!session.minimized;
+                S.isPartnerCall = !!session.isPartnerCall;
+                S.immersive = !!session.immersive;
+                if (session.bgImage) S.bgImage = session.bgImage;
+
+                document.getElementById('call-window')?.classList.remove('immersive');
+                ['call-inc-avatar','call-conn-avatar','call-win-avatar','call-mini-av'].forEach(fillAv);
+                ['call-conn-name','call-win-name','call-mini-name'].forEach(fillNm);
+                applyBg(); positionWindow();
+
+                const win  = document.getElementById('call-window');
+                const body = document.getElementById('call-window-body');
+                const conn = document.getElementById('call-connecting-state');
+                if (win)    win.classList.add('visible');
+                if (conn)   conn.classList.remove('visible'); // 跳过"连接中"
+                if (body)   body.style.display = '';
+
+                if (session.immersive && win) win.classList.add('immersive');
+
+                // 重新启动 tick
+                tick();
+                return true;
+            } catch (e) {
+                console.warn('[call] resume failed', e);
+                return false;
+            }
+        }
+    };
 })();
