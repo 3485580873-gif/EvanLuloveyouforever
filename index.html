@@ -157,6 +157,8 @@ html[data-theme="dark"] #partner-timezone-text {
     text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
 }
     </style>
+    <link rel="stylesheet" href="css/companion.css?v=202608211400">
+    <link rel="stylesheet" href="css/couple-space.css?v=202608211400">
 </head>
 <body>
 <div id="splash-declaration">
@@ -336,6 +338,8 @@ html[data-theme="dark"] #partner-timezone-text {
                 <button id="group-chat-btn" class="action-btn" title="群聊设置"><i class="fas fa-users"></i></button>
                 <button id="daily-greeting-btn" class="action-btn" title="今日公告" onclick="reopenDailyGreeting()"><i class="fas fa-newspaper"></i></button>
                 <button id="theme-toggle" class="action-btn" title="切换主题"><i class="fas fa-moon"></i></button>
+                                <button id="companion-btn" class="action-btn" title="陪伴"><i class="fas fa-hand-holding-heart"></i></button>
+                <button id="couple-space-btn" class="action-btn" title="情侣空间" onclick="openMomentsWithTransition()"><i class="fas fa-heart"></i></button>
                 <button id="settings-btn" class="action-btn" title="设置"><i class="fas fa-cog"></i></button>
             </div>
              <div class="user-info">
@@ -2753,5 +2757,258 @@ html[data-theme="dark"] #partner-timezone-text {
     <script src="js/listeners.js?v=202608061841"></script>
     <script src="js/listeners-voice.js?v=202608061841"></script>
     <script src="js/app.js?v=202608061841"></script>
+    <style id="cs-trans-style">
+#cs-transition-overlay{position:fixed;inset:0;z-index:1600;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.95),rgba(255,250,246,.82) 30%,rgba(245,238,232,.96) 72%),#f4eee8;opacity:0;transition:opacity 0.5s ease;pointer-events:none;}
+#cs-transition-overlay.cs-trans-show{display:flex;pointer-events:all;}
+#cs-transition-overlay.cs-trans-visible{opacity:1;}
+#cs-transition-overlay .cs-trans-inner{width:min(480px,88vw);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+#cs-transition-overlay svg{width:82%;height:auto;overflow:visible;}
+#cs-transition-overlay .cs-lp{transform-origin:220px 240px;animation:csLeftMove 6s cubic-bezier(.2,.75,.2,1) infinite;}
+#cs-transition-overlay .cs-rp{transform-origin:580px 240px;animation:csRightMove 6s cubic-bezier(.2,.75,.2,1) infinite;}
+#cs-transition-overlay .cs-lf,#cs-transition-overlay .cs-rf{transform-box:fill-box;transform-origin:center;animation:csSquash 6s ease-in-out infinite;}
+#cs-transition-overlay .cs-heart{transform-box:fill-box;transform-origin:center;opacity:0;animation:csHeartPop 6s cubic-bezier(.2,.9,.25,1.25) infinite;}
+#cs-transition-overlay .cs-spark{transform-box:fill-box;transform-origin:center;opacity:0;animation:csSparkle 6s ease-out infinite;}
+    </style>
+    <div id="cs-transition-overlay">
+  <div class="cs-trans-inner">
+    <svg viewBox="0 0 800 480" role="img" aria-label="两个圆相遇并出现爱心">
+      <defs>
+        <linearGradient id="csGLeft" x1="0" y1="0" x2="1" y2="1"><stop id="csStopL1" offset="0" stop-color="#ffd9d2"/><stop id="csStopL2" offset="1" stop-color="#ff9f9d"/></linearGradient>
+        <linearGradient id="csGRight" x1="0" y1="0" x2="1" y2="1"><stop id="csStopR1" offset="0" stop-color="#d9e8ff"/><stop id="csStopR2" offset="1" stop-color="#a8c4ff"/></linearGradient>
+        <linearGradient id="csGHeart" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7e91"/><stop offset="1" stop-color="#ff4f72"/></linearGradient>
+        <filter id="csShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="13" stdDeviation="13" flood-color="#8f6a62" flood-opacity=".18"/></filter>
+      </defs>
+      <ellipse cx="400" cy="364" rx="205" ry="28" fill="#c6aba2" opacity=".12"/>
+      <circle class="cs-halo" cx="400" cy="222" r="92" fill="none" stroke="#ff9aad" stroke-width="8" opacity="0"/>
+      <g class="cs-lp" filter="url(#csShadow)">
+        <g class="cs-lf">
+          <circle cx="300" cy="240" r="90" fill="url(#csGLeft)"/>
+          <circle cx="271" cy="230" r="8" fill="#624e4e" class="cs-eyes"/><circle cx="329" cy="230" r="8" fill="#624e4e" class="cs-eyes"/>
+          <path d="M285 265 Q300 278 315 265" fill="none" stroke="#624e4e" stroke-width="7" stroke-linecap="round"/>
+          <ellipse class="cs-blush" cx="253" cy="257" rx="18" ry="10" fill="#ff6f88" opacity="0"/><ellipse class="cs-blush" cx="347" cy="257" rx="18" ry="10" fill="#ff6f88" opacity="0"/>
+          <circle cx="267" cy="209" r="12" fill="#fff" opacity=".23"/>
+        </g>
+      </g>
+      <g class="cs-rp" filter="url(#csShadow)">
+        <g class="cs-rf">
+          <circle cx="500" cy="240" r="90" fill="url(#csGRight)"/>
+          <circle cx="471" cy="230" r="8" fill="#4e5870" class="cs-eyes"/><circle cx="529" cy="230" r="8" fill="#4e5870" class="cs-eyes"/>
+          <path d="M485 265 Q500 278 515 265" fill="none" stroke="#4e5870" stroke-width="7" stroke-linecap="round"/>
+          <ellipse class="cs-blush" cx="453" cy="257" rx="18" ry="10" fill="#ff7f9a" opacity="0"/><ellipse class="cs-blush" cx="547" cy="257" rx="18" ry="10" fill="#ff7f9a" opacity="0"/>
+          <circle cx="467" cy="209" r="12" fill="#fff" opacity=".28"/>
+        </g>
+      </g>
+      <g class="cs-heart" filter="url(#csShadow)">
+        <path d="M400 306 C370 283 344 258 344 224 C344 194 366 175 391 175 C408 175 421 184 430 198 C439 184 452 175 469 175 C494 175 516 194 516 224 C516 258 490 283 460 306 L430 332 Z" fill="url(#csGHeart)" transform="translate(-30,-4) scale(.7)"/>
+        <circle cx="385" cy="196" r="9" fill="#fff" opacity=".3"/>
+      </g>
+      <g fill="#ff8da1">
+        <path class="cs-spark s1" d="M400 115 l7 15 16 7-16 7-7 16-7-16-16-7 16-7z"/>
+        <path class="cs-spark s2" d="M310 150 l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+        <path class="cs-spark s3" d="M490 150 l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+        <path class="cs-spark s4" d="M400 360 l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+      </g>
+    </svg>
+  </div>
+</div>
+    <div id="couple-space-page">
+
+    <!-- 顶部操作栏 -->
+    <div class="cs-topbar" id="cs-topbar" style="position:relative;">
+        <button class="cs-icon-btn" onclick="closeCoupleSpace()"><i class="fas fa-chevron-left"></i></button>
+        <span class="cs-topbar-feed-title" id="cs-topbar-feed-title"></span>
+        <button class="cs-icon-btn" style="margin-left:auto;" onclick="window.openCsSettings&&window.openCsSettings()"><i class="fas fa-cog"></i></button>
+    </div>
+
+    <!-- 头像 + tab pills 可移动容器（feed tab 时搬入滚动区，其他 tab 时固定在此） -->
+    <div id="cs-outer-header">
+        <div class="cs-couple-section">
+            <div class="cs-couple-row">
+                <div class="cs-big-av" id="cs-bav-partner"><i class="fas fa-user" style="font-size:36px;color:var(--text-secondary,#aaa);"></i></div>
+                <div class="cs-hb-wrap">
+                    <svg viewBox="0 0 140 44" xmlns="http://www.w3.org/2000/svg" class="cs-hb-svg">
+                        <polyline points="0,22 18,22 26,8 34,36 42,12 50,30 58,22 80,22 88,8 96,36 104,14 112,28 120,22 140,22"
+                            fill="none" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="cs-big-av" id="cs-bav-me"><i class="fas fa-user" style="font-size:36px;color:var(--text-secondary,#aaa);"></i></div>
+            </div>
+            <div class="cs-days-text">相识 <span class="cs-days-num" id="cs-days-num">---</span> 天</div>
+        </div>
+        <div class="cs-pills-wrap">
+            <div class="cs-pills">
+                <button class="cs-pill cs-pill-on" id="csp-feed"    onclick="csSwitchTab('feed')"   title="动态"><span class="cs-pill-icon"></span></button>
+                <button class="cs-pill"             id="csp-album"   onclick="csSwitchTab('album')"  title="相册"><span class="cs-pill-icon"></span></button>
+                <button class="cs-pill"             id="csp-mood"    onclick="csSwitchTab('mood')"   title="心情手账"><span class="cs-pill-icon"></span></button>
+                <button class="cs-pill"             id="csp-ann"     onclick="csSwitchTab('ann')"    title="纪念日"><span class="cs-pill-icon"></span></button>
+                <button class="cs-pill"             id="csp-cinema"  onclick="csSwitchTab('cinema')" title="电影院"><span class="cs-pill-icon"></span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 内容区 -->
+    <div class="cs-content">
+
+        <div class="cs-panel cs-panel-active" id="cs-panel-feed">
+            <!-- 动态 section header -->
+            <div class="cs-feed-hd">
+                <span class="cs-feed-hd-title">动态</span>
+                <button class="cs-icon-btn cs-bell-btn" id="cs-bell-btn" onclick="window._mOpenBell()">
+                    <i class="fas fa-bell"></i>
+                    <span class="cs-bell-dot" id="cs-bell-dot" style="display:none;"></span>
+                </button>
+            </div>
+            <!-- 发帖输入行 -->
+            <div class="cs-compose-row" onclick="openCsCompose()">
+                <i class="fas fa-pencil-alt cs-compose-icon"></i>
+                <span class="cs-compose-ph">今天想记录什么？</span>
+                <div class="cs-compose-plus">+</div>
+            </div>
+            <!-- 帖子列表 -->
+            <div id="cs-feed-list"></div>
+            <div style="height:20px;"></div>
+        </div>
+
+        <div class="cs-panel" id="cs-panel-album">
+            <!-- 子tab -->
+            <div class="al-subtabs">
+                <button class="al-subtab on" id="al-st-albums" onclick="window._alBackToList()">相册</button>
+                <button class="al-subtab"    id="al-st-trash"  onclick="window._alOpenTrash()">回收站</button>
+            </div>
+            <!-- 视图：相册列表 -->
+            <div id="al-view-list" class="al-view" style="display:flex;">
+                <div id="al-list-grid" class="al-albums-grid"></div>
+            </div>
+            <!-- 视图：图片网格 -->
+            <div id="al-view-grid" class="al-view" style="display:none;">
+                <div class="al-grid-topbar">
+                    <button class="al-back-btn" onclick="window._alBackToList()"><i class="fas fa-chevron-left"></i></button>
+                    <span id="al-grid-title" class="al-grid-title"></span>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <button class="al-sel-btn" id="al-sel-btn" onclick="window._alToggleSelectMode()">选择</button>
+                        <button class="al-upload-btn" id="al-upload-btn" onclick="document.getElementById('al-upload-input').click()"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div id="al-grid-body" class="al-grid-body"></div>
+                <!-- 批量选择操作栏 -->
+                <div id="al-select-bar" class="al-select-bar" style="display:none;">
+                    <span id="al-sel-count" class="al-sel-count">点击照片选择</span>
+                    <button id="al-sel-all" class="al-sel-all" onclick="window._alSelectAll()">全选</button>
+                    <button id="al-sel-del" class="al-sel-del" onclick="window._alDeleteSelected()" disabled>删除</button>
+                </div>
+                <input type="file" id="al-upload-input" multiple accept="image/*" style="display:none;" onchange="window._alUploadToAlbum(window._alCurrentAlbumId,this)">
+            </div>
+            <!-- 视图：回收站 -->
+            <div id="al-view-trash" class="al-view" style="display:none;">
+                <div id="al-trash-body" class="al-grid-body"></div>
+                <div id="al-trash-tip-bar" class="al-trash-tip" style="display:none;">照片将在删除后 30 天自动清除</div>
+            </div>
+        </div>
+        <div class="cs-panel" id="cs-panel-mood">
+            <!-- 标题栏 -->
+            <div class="cs-mood-hd">
+                <span class="cs-mood-hd-title">心情手账</span>
+                <button class="cs-icon-btn" id="cs-mood-trash-btn" title="回收站">
+                    <i class="fas fa-recycle"></i>
+                </button>
+            </div>
+            <!-- 日历卡片 -->
+            <div class="cs-mood-card" id="cs-mood-cal-card">
+                <div id="mood-calendar-view" class="mood-view-section">
+                    <div class="calendar-header">
+                        <button class="calendar-nav-btn" id="prev-month"><i class="fas fa-chevron-left"></i></button>
+                        <div class="current-month-label" id="calendar-month-label">--</div>
+                        <button class="calendar-nav-btn" id="next-month"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid"></div>
+                </div>
+            </div>
+            <!-- 统计卡片 -->
+            <div class="cs-mood-card" style="margin-top:10px;">
+                <div id="mood-stats-container"></div>
+            </div>
+            <div style="height:20px;"></div>
+        </div>
+        <div class="cs-panel" id="cs-panel-ann">
+            <div class="cs-ann-hd">
+                <span class="cs-ann-hd-title">重要日</span>
+                <button class="cs-icon-btn" id="cs-ann-add-btn" title="添加纪念日">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div id="ann-list-container"></div>
+
+            <!-- 纪念日详情页（在 panel 内绝对定位覆盖） -->
+            <div class="ann-detail-page" id="ann-detail-page">
+                <div class="ann-detail-topbar">
+                    <button class="cs-icon-btn" onclick="window.closeAnnDetail()">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="ann-detail-edit-btn" onclick="window._annEditFromDetail()">编辑</button>
+                </div>
+                <div class="ann-detail-body" id="ann-detail-body"></div>
+            </div>
+        </div>
+        <div class="cs-panel" id="cs-panel-cinema">
+            <!-- 内容由 cinema.js 动态填充 -->
+        </div>
+
+        <!-- 档案页（全屏覆盖，陪伴日记风格）
+             注意：故意放在 #cs-panel-cinema 外面（.cs-content 的直接子元素），
+             因为 cinema.js 每次渲染都会用 panel.innerHTML 整体重写面板内容，
+             如果这个档案页节点放在里面会被连带清空，导致按钮点了没反应 -->
+        <div class="cinema-archive-page" id="cinema-archive-page">
+            <div class="cinema-archive-tabs">
+                <button class="cs-icon-btn cinema-archive-back-btn" onclick="window._cinemaCloseArchive()">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="cinema-archive-tab active" id="cinema-tab-history">影评</button>
+                <button class="cinema-archive-tab" id="cinema-tab-watchlist">心愿单</button>
+            </div>
+            <div class="cinema-archive-content" id="cinema-archive-content">
+                <div class="cinema-archive-empty">暂无记录</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 发帖悬浮按钮 FAB（动态 tab 专用） -->
+    <button id="cs-feed-fab" onclick="openCsCompose()" title="发动态">
+        <i class="fas fa-plus"></i>
+    </button>
+
+</div>
+    <div class="cd-pages" id="cd-pages" style="display:none;"></div>
+    <script>
+function openMomentsWithTransition(){
+
+  var ov=document.getElementById('cs-transition-overlay');
+  if(!ov){openMomentsModal();return;}
+  ov.classList.add('cs-trans-show');
+  requestAnimationFrame(function(){requestAnimationFrame(function(){ov.classList.add('cs-trans-visible');});});
+  setTimeout(function(){
+    var page=document.getElementById('couple-space-page');
+    if(page){page.style.transition='none';}
+    openMomentsModal();
+    setTimeout(function(){if(page){page.style.transition='';} },150);
+  },3700);
+  setTimeout(function(){
+    ov.classList.remove('cs-trans-visible');
+    setTimeout(function(){ov.classList.remove('cs-trans-show');},500);
+  },4000);
+}
+</script>
+    <script src="js/features/companion.js?v=202608211400"></script>
+    <script src="js/features/companion-diary.js?v=202608211400"></script>
+    <script src="js/features/moments.js?v=202608211400"></script>
+    <script src="js/cloud-sync.js?v=202608211400"></script>
+    <script src="js/cloud-sync-engine.js?v=202608211400"></script>
+    <script src="js/cloud-media.js?v=202608211400"></script>
+    <script src="js/cloud-media-migration.js?v=202608211400"></script>
+    <script src="js/cloud-sync-ui.js?v=202608211400"></script>
 </body>
 </html>
