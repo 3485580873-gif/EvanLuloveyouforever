@@ -204,6 +204,8 @@
     var _unlockBound = false;
     var _positionTimer = null;
     var _keepaliveStartTime = Date.now();
+    // 用户主动暂停标志：在控制中心按了暂停/停止后，巡检不再自动复活音频
+    var _userPaused = false;
     // 进度条总时长：必须与音频实际时长一致，否则 iOS 控制中心两个时钟冲突乱跳
     var _DURATION = 28800; // 8 小时（silence.mp3）
     function _get() { return localStorage.getItem(KEY) === 'true'; }
@@ -305,9 +307,21 @@
                     artist: '正在陪你聊天',
                     album: '传讯'
                 });
-                navigator.mediaSession.setActionHandler('play', function () { _startAll(); });
-                navigator.mediaSession.setActionHandler('pause', function () { if (_get()) _startAll(); });
-                navigator.mediaSession.setActionHandler('stop', function () { if (_get()) _startAll(); });
+                navigator.mediaSession.setActionHandler('play', function () { _userPaused = false; _startAll(); });
+                // 用户在控制中心按「暂停」：真正暂停，巡检不再自动复活
+                navigator.mediaSession.setActionHandler('pause', function () {
+                    _userPaused = true;
+                    if (_audio) _audio.pause();
+                    _stopWebAudio();
+                    _stopPositionTimer();
+                    _setUI(false);
+                });
+                // 用户在控制中心按「停止」：彻底关闭保活（同步关闭开关状态）
+                navigator.mediaSession.setActionHandler('stop', function () {
+                    localStorage.setItem(KEY, 'false');
+                    _userPaused = true;
+                    _stopAll();
+                });
             }
             navigator.mediaSession.playbackState = state;
             _updatePositionState();
@@ -397,6 +411,13 @@
         if (_audio) { _audio.pause(); _audio.currentTime = 0; }
         _stopWebAudio();
         _stopPositionTimer();
+        // 清掉 iOS 控制中心的媒体卡片
+        try {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = null;
+                navigator.mediaSession.playbackState = 'none';
+            }
+        } catch (e) {}
         _setUI(false);
     }
     // 全局开关函数
@@ -404,6 +425,7 @@
         var next = !_get();
         localStorage.setItem(KEY, String(next));
         if (next) {
+            _userPaused = false;
             _startAll();
             if (typeof showNotification === 'function') showNotification('保活已开启(媒体播放模式) 🎵', 'success', 2000);
         } else {
@@ -415,14 +437,15 @@
     setInterval(function(){
         if (!_get()) return;
         _setupAudioSession();
-        if (_audio && _audio.paused) _audio.play().catch(function(){});
+        if (_audio && _audio.paused && !_userPaused) _audio.play().catch(function(){});
         if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume().catch(function(){});
         var playing = _isPlaying();
         var dot = document.getElementById('keepalive-dot');
         if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
     }, 2000);
-    // 切回页面恢复
+    // 切回页面恢复（回到页面视为用户想要保活继续，解除主动暂停锁定）
     document.addEventListener('visibilitychange', function(){
+        if (document.visibilityState === 'visible') _userPaused = false;
         if (_get() && document.visibilityState === 'visible') {
             _setupAudioSession();
             if (_audio && _audio.paused) _audio.play().catch(function(){});
@@ -431,14 +454,20 @@
     });
     // 窗口获得焦点恢复
     window.addEventListener('focus', function(){
+        _userPaused = false;
         if (_get()) {
             _setupAudioSession();
             if (_audio && _audio.paused) _audio.play().catch(function(){});
             _startWebAudio();
         }
     });
+    // 真正关闭/离开页面时：停止保活音频并清除控制中心卡片。
+    // 注意：锁屏、切到后台不触发 pagehide，不影响整夜保活；
+    // localStorage 开关状态保留，下次打开页面若开关仍为开会自动恢复。
+    window.addEventListener('pagehide', function(){ _stopAll(); });
     // 触摸/点击解锁播放（iOS浏览器兼容）
     document.addEventListener('touchstart', function(){
+        _userPaused = false;
         if (_get()) {
             _setupAudioSession();
             if (_audio && _audio.paused) _audio.play().catch(function(){});
