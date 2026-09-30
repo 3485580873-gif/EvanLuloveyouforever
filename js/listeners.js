@@ -879,8 +879,8 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
 
                     // 中文字体普遍 5-20MB，超限直接拒绝，避免转 base64 过程中
                     // 内存暴涨卡死页面（iOS Safari 对单条 localforage 数据也有配额限制）
-                    if (file.size > 15 * 1024 * 1024) {
-                        showNotification('字体文件过大（>15MB），请精简后再上传', 'error');
+                    if (file.size > 25 * 1024 * 1024) {
+                        showNotification('字体文件过大（>25MB），请精简后再上传', 'error');
                         localFontInput.value = '';
                         return;
                     }
