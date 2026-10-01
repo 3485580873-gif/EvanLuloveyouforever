@@ -582,7 +582,7 @@
     // ========== 系统随机发红包 ==========
 
     // 特殊金额池（单位：元，转分时 * 100）
-    var SPECIAL_AMOUNTS = [5.2, 52, 520, 5200, 13.14, 1314];
+    var SPECIAL_AMOUNTS = [5.2, 52, 520, 5200, 13.14, 1314, 1.22, 3.24, 131.4, 1223.24, 5203.24, 5200, 1314, 5200, 1225203.24];
 
     // 单日发送计数器
     var _lastRPSendDate = '';
@@ -603,12 +603,12 @@
         var isFestival = festivals.length > 0;
         var festival = isFestival ? festivals[0] : null;
 
-        // 触发概率：平日 5%，节日 80%
-        var chance = isFestival ? 0.8 : 0.05;
+        // 触发概率：统一 5%，不再区分节日
+        var chance = 0.05;
         if (Math.random() > chance) return false;
 
-        // 决定金额：节日90% / 平日40% 使用特殊金额
-        var useSpecial = Math.random() < (isFestival ? 0.9 : 0.4);
+        // 决定金额：3% 使用特殊金额
+        var useSpecial = Math.random() < 0.03;
         var amount;
         if (useSpecial) {
             var specialYuan = SPECIAL_AMOUNTS[Math.floor(Math.random() * SPECIAL_AMOUNTS.length)];
@@ -632,14 +632,8 @@
         transferData.systemBalance -= amount;
 
         // 留言
-        var message;
-        if (isFestival && festival) {
-            var msgs = festival.messages;
-            message = msgs[Math.floor(Math.random() * msgs.length)];
-        } else {
-            var normalMsgs = ['转账给你', '新年快乐', '大吉大利', '好运连连', '辛苦了~', '买杯奶茶'];
-            message = normalMsgs[Math.floor(Math.random() * normalMsgs.length)];
-        }
+        var normalMsgs = ['转账给你', '大吉大利', '好运连连', '辛苦了~', '买杯奶茶', '给你发个红包~', '小小心意'];
+        var message = normalMsgs[Math.floor(Math.random() * normalMsgs.length)];
 
         // 创建记录
         var record = {
@@ -677,9 +671,7 @@
 
         // 通知
         if (typeof window.showNotification === 'function') {
-            var notifyMsg = isFestival
-                ? festival.name + '红包来啦! &yen;' + fmt(amount)
-                : '收到一个红包 &yen;' + fmt(amount);
+            var notifyMsg = '收到一个红包 &yen;' + fmt(amount);
             window.showNotification(notifyMsg, 'success');
         }
 
