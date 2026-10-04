@@ -199,7 +199,7 @@
                     '<div style="text-align:center;padding:20px 0 24px;">' +
                         '<div style="display:flex;align-items:baseline;justify-content:center;gap:2px;">' +
                             '<span style="font-size:28px;font-weight:500;color:var(--text-primary,#1a1a1a);">&yen;</span>' +
-                            '<input type="number" placeholder="0.00" step="0.01" min="0.01" id="rp-send-amount" style="width:180px;font-size:42px;font-weight:700;border:none;outline:none;text-align:center;background:none;color:var(--text-primary,#1a1a1a);border-bottom:2px solid var(--border-color,#e8e8e8);padding-bottom:4px;transition:border-color 0.2s;" />' +
+                            '<input type="number" placeholder="0.01" max="1500000" step="0.01" min="0.01" id="rp-send-amount" style="width:180px;font-size:42px;font-weight:700;border:none;outline:none;text-align:center;background:none;color:var(--text-primary,#1a1a1a);border-bottom:2px solid var(--border-color,#e8e8e8);padding-bottom:4px;transition:border-color 0.2s;" />' +
                         '</div>' +
                         '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary,#888);">余额: &yen;' + fmt(transferData.myBalance) + '</div>' +
                     '</div>' +
@@ -240,7 +240,7 @@
         // 金额输入校验
         amountInput.oninput = function () {
             var val = parseFloat(amountInput.value);
-            var valid = val && val > 0 && val * 100 <= transferData.myBalance;
+            var valid = val && val > 0 && val * 100 <= Math.min(transferData.myBalance, 150000000);
             submitBtn.disabled = !valid;
             submitBtn.style.opacity = valid ? '1' : '0.4';
         };
@@ -252,6 +252,7 @@
         submitBtn.onclick = function () {
             var amount = Math.round(parseFloat(amountInput.value) * 100);
             if (!amount || amount <= 0) return;
+            if (amount > 150000000) { if (typeof window.showNotification === 'function') window.showNotification('单笔转账不能超过150万元', 'error'); return; }
             if (amount > transferData.myBalance) {
                 if (typeof window.showNotification === 'function') window.showNotification('余额不足', 'warning');
                 return;
@@ -614,17 +615,23 @@
             var specialYuan = SPECIAL_AMOUNTS[Math.floor(Math.random() * SPECIAL_AMOUNTS.length)];
             amount = Math.round(specialYuan * 100); // 转为分
         } else {
-            // 80%在0-200元内随机，20%在0-余额内随机
+            // 80%在0-200元内随机，20%在0-余额内随机，单笔不超过150万
             var maxBalance = Math.floor(transferData.systemBalance / 100); // 余额（元）
+            var CAP = 1500000; // 150万元上限
             if (maxBalance <= 0) return false;
             if (Math.random() < 0.8) {
-                var max200 = Math.min(200, maxBalance);
-                amount = Math.floor(Math.random() * (max200 * 100)) + 1; // 0.01~200元
+                var max200 = Math.min(200, maxBalance, CAP);
+                amount = max200 > 0 ? Math.floor(Math.random() * (max200 * 100) + 1) : 1;
             } else {
-                amount = Math.floor(Math.random() * transferData.systemBalance) + 1;
+                var capCents = CAP * 100;
+                var maxRand = Math.min(transferData.systemBalance, capCents);
+                amount = maxRand > 0 ? Math.floor(Math.random() * (maxRand + 1)) : 1;
             }
         }
 
+        // 硬上限：单笔不超过150万
+        if (amount < 1) amount = 1;
+        if (amount > 150000000) amount = 150000000;
         // 检查系统余额
         if (transferData.systemBalance < amount) return false;
 
