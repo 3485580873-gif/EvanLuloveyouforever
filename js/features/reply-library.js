@@ -29,6 +29,7 @@ let _batchSelectedIndices = new Set();
 let _batchModeActive = false;
 let _batchModeTarget = 'custom'; // 'custom' or 'stickers' (depends on currentSubTab when batch mode enabled)
 let _searchVisible = false;
+let _sortByColor = false; // 字卡分组：按颜色排序（相同颜色分组相邻）
 let _searchQuery = '';
 let _searchDebounceTimer = null;
 let _activeGroupFilter = null; 
@@ -406,6 +407,9 @@ function _renderModernToolbar() {
             ${hasGroupSupport ? `
             <button class="toolbar-icon-btn" id="tb-groups-btn" title="分组管理">
                 ${ICONS.folder}
+            </button>
+            <button class="toolbar-icon-btn ${_sortByColor ? 'active' : ''}" id="tb-sort-color-btn" title="按颜色排序（相同颜色的分组排在一起）">
+                ${ICONS.palette}
             </button>` : ''}
             <button class="toolbar-icon-btn" id="tb-dedup-btn" title="一键去重">
                 ${ICONS.dedup}
@@ -471,6 +475,10 @@ function _renderModernToolbar() {
     }
 
     if (hasGroupSupport) toolbar.querySelector('#tb-groups-btn')?.addEventListener('click', _showGroupManager);
+    if (hasGroupSupport) toolbar.querySelector('#tb-sort-color-btn')?.addEventListener('click', () => {
+        _sortByColor = !_sortByColor;
+        renderReplyLibrary();
+    });
     const tbBatch = toolbar.querySelector('#tb-batch-btn');
     if (tbBatch) {
         tbBatch.onclick = () => {
@@ -565,7 +573,8 @@ function _renderCardViewWithGroups(list, items) {
         }
 
         const inGroup = new Set();
-        groups.forEach(g => {
+        const displayGroups = _sortByColor ? _sortGroupsByColor(groups) : groups;
+        displayGroups.forEach(g => {
             const groupItems = (g.items || [])
                 .map(t => ({ text: t, idx: sourceItems.indexOf(t) }))
                 .filter(x => x.idx >= 0 && items.includes(x.text));
@@ -599,6 +608,40 @@ function _renderCardViewWithGroups(list, items) {
             _renderCardList(list, filtered, disabledSet);
         }
     }
+}
+
+// 按分组颜色排序：相同颜色的分组相邻，不同颜色按色相排列（稳定排序，保持分组内原相对顺序）
+function _sortGroupsByColor(groups) {
+    if (!groups || groups.length === 0) return groups;
+    const getHue = (hex) => {
+        hex = (hex || '#000000').replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        if (hex.length !== 6) return 0;
+        const r = parseInt(hex.substr(0, 2), 16) / 255;
+        const g = parseInt(hex.substr(2, 2), 16) / 255;
+        const b = parseInt(hex.substr(4, 2), 16) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const d = max - min;
+        if (d === 0) return 0;
+        let h;
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h = Math.round(h * 60);
+        if (h < 0) h += 360;
+        return h;
+    };
+    const arr = groups.map((g, i) => ({
+        g,
+        i,
+        hue: getHue(g.color),
+        color: (g.color || '').toLowerCase()
+    }));
+    arr.sort((a, b) => {
+        if (a.color === b.color) return a.i - b.i; // 同色相邻且保持原顺序
+        return a.hue - b.hue; // 不同颜色按色相排列
+    });
+    return arr.map(x => x.g);
 }
 
 function _renderGroupBlock(list, group, groupItems, disabledSet, isUngrouped = false) {
