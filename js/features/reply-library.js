@@ -29,7 +29,9 @@ let _batchSelectedIndices = new Set();
 let _batchModeActive = false;
 let _batchModeTarget = 'custom'; // 'custom' or 'stickers' (depends on currentSubTab when batch mode enabled)
 let _searchVisible = false;
-let _sortByColor = false; // 字卡分组：按颜色排序（相同颜色分组相邻）
+let _sortByColor = false;
+try { _sortByColor = (localStorage.getItem('rl_sortByColor') === '1'); } catch (e) {}
+// 字卡分组：按颜色排序（相同颜色分组相邻），持久化到 localStorage 跨刷新/闪退保留
 let _searchQuery = '';
 let _searchDebounceTimer = null;
 let _activeGroupFilter = null; 
@@ -477,6 +479,7 @@ function _renderModernToolbar() {
     if (hasGroupSupport) toolbar.querySelector('#tb-groups-btn')?.addEventListener('click', _showGroupManager);
     if (hasGroupSupport) toolbar.querySelector('#tb-sort-color-btn')?.addEventListener('click', () => {
         _sortByColor = !_sortByColor;
+        try { localStorage.setItem('rl_sortByColor', _sortByColor ? '1' : '0'); } catch (e) {}
         renderReplyLibrary();
     });
     const tbBatch = toolbar.querySelector('#tb-batch-btn');
