@@ -507,11 +507,6 @@ if (target.classList.contains('delete-btn')) {
 fileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
-        if (file.size > MAX_AVATAR_SIZE) {
-            showNotification('头像图片不能超过2MB', 'error');
-            return;
-        }
-
         showNotification('正在裁剪处理...', 'info', 1000);
         
         cropImageToSquare(file, 300).then(base64Data => {
@@ -1680,28 +1675,46 @@ if (_chatSettingsEl) _chatSettingsEl.addEventListener('click', () => {
                 bgInput.addEventListener('change', (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    if (file.size > 10 * 1024 * 1024) {
-                        showNotification('背景图片不能超过10MB', 'error');
-                        return;
-                    }
-                    if (file.size > 5 * 1024 * 1024) {
-                        showNotification('文件较大，正在处理中...', 'info', 2000);
-                    }
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const base64 = event.target.result;
-                        savedBackgrounds.push({
-                            id: `user-${Date.now()}`,
-                            type: file.type === 'image/gif' ? 'gif' : 'image',
-                            value: base64
+                    const isGif = file.type === 'image/gif';
+                    if (isGif) {
+                        // GIF 不压缩，但仍限制 10MB
+                        if (file.size > 10 * 1024 * 1024) {
+                            showNotification('GIF 图片不能超过10MB', 'error');
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const base64 = event.target.result;
+                            savedBackgrounds.push({
+                                id: `user-${Date.now()}`,
+                                type: 'gif',
+                                value: base64
+                            });
+                            saveBackgroundGallery();
+                            renderBackgroundGallery();
+                            applyBackground(base64);
+                            localforage.setItem(getStorageKey('chatBackground'), base64);
+                            showNotification('新背景已添加并应用', 'success');
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        // 非 GIF 图片自动压缩到 5MB 以内
+                        showNotification('正在压缩处理...', 'info', 2000);
+                        compressImageToLimit(file, 1920, 5).then(base64 => {
+                            savedBackgrounds.push({
+                                id: `user-${Date.now()}`,
+                                type: 'image',
+                                value: base64
+                            });
+                            saveBackgroundGallery();
+                            renderBackgroundGallery();
+                            applyBackground(base64);
+                            localforage.setItem(getStorageKey('chatBackground'), base64);
+                            showNotification('新背景已压缩并应用', 'success');
+                        }).catch(() => {
+                            showNotification('图片处理失败，请重试', 'error');
                         });
-                        saveBackgroundGallery();
-                        renderBackgroundGallery();
-                        applyBackground(base64);
-                        localforage.setItem(getStorageKey('chatBackground'), base64);
-                        showNotification('新背景已添加并应用', 'success');
-                    };
-                    reader.readAsDataURL(file);
+                    }
                     e.target.value = '';
                 });
             }

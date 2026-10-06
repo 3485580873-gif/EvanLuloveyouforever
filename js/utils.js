@@ -41,6 +41,49 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
     return { result, removedCount };
 }
 
+        // 通用图片压缩：按最大边长 + 体积上限渐进压缩
+        // sizeLimitMB: 目标体积上限(MB)，0 或 undefined 表示不限体积只限分辨率
+        function compressImageToLimit(file, maxSide, sizeLimitMB) {
+            const sizeLimit = sizeLimitMB ? sizeLimitMB * 1024 * 1024 : 0;
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                            let w = Math.max(1, Math.round(img.width * scale));
+                            let h = Math.max(1, Math.round(img.height * scale));
+                            let quality = 0.85;
+                            const tryCompress = (side, q) => {
+                                const s = Math.min(1, side / Math.max(img.width, img.height));
+                                const cw = Math.max(1, Math.round(img.width * s));
+                                const ch = Math.max(1, Math.round(img.height * s));
+                                const canvas = document.createElement('canvas');
+                                canvas.width = cw; canvas.height = ch;
+                                const ctx = canvas.getContext('2d');
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'high';
+                                ctx.drawImage(img, 0, 0, cw, ch);
+                                const result = canvas.toDataURL('image/jpeg', q);
+                                // 未超限或已压到最小，返回
+                                if (!sizeLimit || result.length <= sizeLimit || side <= 200) return resolve(result);
+                                // 先降质量（最低 0.4）
+                                if (q > 0.4) return tryCompress(side, +(q - 0.1).toFixed(2));
+                                // 再降分辨率
+                                return tryCompress(Math.round(side * 0.75), 0.4);
+                            };
+                            tryCompress(maxSide, quality);
+                        } catch (e) { reject(e); }
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         function cropImageToSquare(file, maxSize = 640) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -56,7 +99,25 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
                         ctx.imageSmoothingEnabled = true;
                         ctx.imageSmoothingQuality = 'high';
                         ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, maxSize, maxSize);
-                        resolve(canvas.toDataURL('image/jpeg', 0.95));
+                        const result = canvas.toDataURL('image/jpeg', 0.85);
+                        // 渐进压缩确保产物 <= 1MB
+                        if (result.length <= 1 * 1024 * 1024 || maxSize <= 128) {
+                            resolve(result);
+                            return;
+                        }
+                        const tryFit = (side, q) => {
+                            const c2 = document.createElement('canvas');
+                            c2.width = side; c2.height = side;
+                            const ctx2 = c2.getContext('2d');
+                            ctx2.imageSmoothingEnabled = true;
+                            ctx2.imageSmoothingQuality = 'high';
+                            ctx2.drawImage(img, sx, sy, minSide, minSide, 0, 0, side, side);
+                            const r = c2.toDataURL('image/jpeg', q);
+                            if (r.length <= 1 * 1024 * 1024 || side <= 128) return resolve(r);
+                            if (q > 0.4) return tryFit(side, +(q - 0.1).toFixed(2));
+                            return tryFit(Math.round(side * 0.75), 0.4);
+                        };
+                        tryFit(maxSize, 0.75);
                     };
                     img.onerror = reject;
                     img.src = e.target.result;
