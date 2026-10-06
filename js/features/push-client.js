@@ -131,6 +131,19 @@ window.pushNotify = (function () {
     } catch (e) {}
   }
 
+  // ── 同一轮"待回复"去重：避免 flush 兜底(切回前台/20s 周期)与本地 setTimeout 双触发导致重复生成一条消息 ──
+  // 这是 round 级（每轮用户发消息触发一次），不是跨轮永久锁死；用户在安排回复时会无条件重置 _replyRoundHandled。
+  window._replyRoundHandled = false;
+  window._generateReplyNow = function() {
+    try {
+      if (window._replyRoundHandled) return; // 本轮已由 flush 或本地 setTimeout 任一路处理过
+      window._replyRoundHandled = true;
+      // 清理持久化的待回复任务（无论是否配了推送后端），避免后台被杀/重启后残留导致重复弹通知或重复补齐
+      try { if (window.localforage) localforage.removeItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply'); } catch (e) {}
+      if (typeof window.simulateReply === 'function') window.simulateReply();
+    } catch (e) {}
+  };
+
   // tag: 幂等标识（比如 'envelope_reply_' + letterId），fireAtMs: 触发时间戳(ms)
   async function schedule(tag, fireAtMs, title, body, url) {
     await loadConfig();
@@ -148,8 +161,6 @@ window.pushNotify = (function () {
           await localforage.setItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply', { tag: tag, fireAt: fireAtMs });
         }
       } catch (e) {}
-      // 开启新一轮待回复：重置"已生成"哨兵，允许本轮 simulateReply 生成（flush 兜底与本地 setTimeout 重复触发时由 simulateReply 内部守卫去重）
-      if (tag === 'chat_reply_next') { try { window._pendingReplyDone = false; } catch (e) {} }
     } catch (e) {
       console.warn('[pushNotify] schedule failed', e);
     }
@@ -169,17 +180,15 @@ window.pushNotify = (function () {
     }
   }
 
-  // 待回复补齐：检查持久化的 pendingReply，若已到点且消息尚未生成，则补调 simulateReply。
-  // 与通知对齐，修复"通知有、消息无"。幂等保障：simulateReply 内部用 _pendingReplyDone 哨兵确保同一轮只生成一次，
-  // 且生成后会 cancel → 清除 pendingReply，重复调用不会重复生成。
+  // 待回复补齐：检查持久化的 pendingReply，若已到点则补调 _generateReplyNow（自带 round 去重）。
+  // 与通知对齐，修复"通知有、消息无"。基于持久化存在性触发（页面被杀重启后 _pendingPushTag 已丢失，
+  // 但 pendingReply 仍在 IndexedDB，因此切回前台/启动/20s 兜底都能补齐），不依赖内存变量，不锁死跨轮。
   function flushPendingReplies() {
     try {
-      if (window._pendingReplyDone) return; // 本轮已生成
-      if (!window._pendingPushTag) return; // 没有待回复任务
       if (!window.localforage) return;
       localforage.getItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply').then(function (p) {
         if (p && p.fireAt && Date.now() >= p.fireAt) {
-          if (typeof window.simulateReply === 'function') window.simulateReply();
+          if (typeof window._generateReplyNow === 'function') window._generateReplyNow();
         }
       }).catch(function () {});
     } catch (e) {}

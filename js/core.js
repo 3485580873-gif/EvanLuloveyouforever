@@ -1642,9 +1642,10 @@ if (!isBatchMode && type === 'system') {
             }
             if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
         }
+        window._replyRoundHandled = false; // 新一轮待回复开始：重置 round 去重（见 push-client.js 的 _generateReplyNow）
         window._pendingReplyTimer = setTimeout(() => {
             window._pendingReplyTimer = null;
-            simulateReply();
+            if (window._generateReplyNow) window._generateReplyNow(); else simulateReply();
         }, randomDelay);
         // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
         if (window.pushNotify) {
@@ -1674,7 +1675,8 @@ if (!isBatchMode && type === 'system') {
                 }
                 if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
             }
-            setTimeout(() => { simulateReply(); }, typingDelay);
+            window._replyRoundHandled = false; // 新一轮待回复开始：重置 round 去重（见 push-client.js 的 _generateReplyNow）
+            setTimeout(() => { if (window._generateReplyNow) window._generateReplyNow(); else simulateReply(); }, typingDelay);
         }, lateReplyDelay);
         // 后台推送：已读不回的延迟回复也登记一下
         if (window.pushNotify) {
@@ -1727,9 +1729,10 @@ if (!isBatchMode && type === 'normal') {
             }
             if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
         }
+        window._replyRoundHandled = false; // 新一轮待回复开始：重置 round 去重（见 push-client.js 的 _generateReplyNow）
         window._pendingReplyTimer = setTimeout(() => {
             window._pendingReplyTimer = null;
-            simulateReply();
+            if (window._generateReplyNow) window._generateReplyNow(); else simulateReply();
         }, randomDelay);
         // 后台推送：到点提醒用户对方发了新消息（页面在后台时生效）
         if (window.pushNotify) {
@@ -1759,7 +1762,8 @@ if (!isBatchMode && type === 'normal') {
                 }
                 if (DOMElements.chatContainer) DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
             }
-            setTimeout(() => { simulateReply(); }, typingDelay);
+            window._replyRoundHandled = false; // 新一轮待回复开始：重置 round 去重（见 push-client.js 的 _generateReplyNow）
+            setTimeout(() => { if (window._generateReplyNow) window._generateReplyNow(); else simulateReply(); }, typingDelay);
         }, lateReplyDelay);
         // 后台推送：已读不回的延迟回复也登记一下
         if (window.pushNotify) {
@@ -1871,7 +1875,8 @@ if (!isBatchMode && type === 'normal') {
                     '给你发来一条消息～'
                 );
             }
-            setTimeout(simulateReply, batchReplyDelay);
+            window._replyRoundHandled = false; // 新一轮待回复开始：重置 round 去重（见 push-client.js 的 _generateReplyNow）
+            setTimeout(() => { if (window._generateReplyNow) window._generateReplyNow(); else simulateReply(); }, batchReplyDelay);
             isBatchMode = false; batchMessages = [];
             DOMElements.batchBtn.classList.remove('active'); DOMElements.batchPreview.style.display = 'none';
             const placeholder = "";
@@ -1903,11 +1908,6 @@ if (!isBatchMode && type === 'normal') {
         })();
 
         window.simulateReply = function() {
-            // 幂等守卫：同一轮"待回复"只生成一条消息。
-            // 页面后台被杀时，本地 setTimeout 与 push-client 的 flush 兜底定时器都可能到点触发本函数，
-            // 若无此守卫会出现"通知有、消息生成了两条"。进入即置哨兵（JS 单线程，天然原子）。
-            if (window._pendingReplyDone) return;
-            window._pendingReplyDone = true;
             // 消息已经实际生成了，取消后台推送（避免重复通知）
             if (window.pushNotify && window._pendingPushTag) {
                 window.pushNotify.cancel(window._pendingPushTag);
