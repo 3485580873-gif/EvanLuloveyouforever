@@ -30,8 +30,28 @@ let _batchModeActive = false;
 let _batchModeTarget = 'custom'; // 'custom' or 'stickers' (depends on currentSubTab when batch mode enabled)
 let _searchVisible = false;
 let _sortByColor = false;
-try { _sortByColor = (localStorage.getItem('rl_sortByColor') === '1'); } catch (e) {}
-// 字卡分组：按颜色排序（相同颜色分组相邻），持久化到 localStorage 跨刷新/闪退保留
+let _sortByColorTouched = false; // 用户是否已手动切换过：一旦手动操作，异步读取不再覆盖，避免加载竞态把开关"弹回"
+// 字卡分组：按颜色排序（相同颜色分组相邻，红/粉系排最前），持久化到 IndexedDB(localforage) 跨刷新/闪退保留
+// 用 localforage 而非裸 localStorage：可避开 app 内 localStorage.clear()/云同步清键逻辑对 localStorage 的无差别干扰，更稳
+function _loadSortByColor() {
+    try {
+        if (window.localforage && typeof localforage.getItem === 'function') {
+            localforage.getItem('rl_sortByColor').then(function (v) {
+                if (_sortByColorTouched) return; // 用户已手动操作，尊重用户当前选择
+                var next = (v === '1' || v === 1 || v === true);
+                if (next !== _sortByColor) {
+                    _sortByColor = next;
+                    try { renderReplyLibrary(); } catch (e) {}
+                }
+            }).catch(function () {});
+        } else {
+            _sortByColor = (localStorage.getItem('rl_sortByColor') === '1');
+        }
+    } catch (e) {
+        try { _sortByColor = (localStorage.getItem('rl_sortByColor') === '1'); } catch (e2) {}
+    }
+}
+_loadSortByColor();
 let _searchQuery = '';
 let _searchDebounceTimer = null;
 let _activeGroupFilter = null; 
@@ -478,8 +498,15 @@ function _renderModernToolbar() {
 
     if (hasGroupSupport) toolbar.querySelector('#tb-groups-btn')?.addEventListener('click', _showGroupManager);
     if (hasGroupSupport) toolbar.querySelector('#tb-sort-color-btn')?.addEventListener('click', () => {
+        _sortByColorTouched = true; // 标记用户已手动操作，后续异步加载不再覆盖
         _sortByColor = !_sortByColor;
-        try { localStorage.setItem('rl_sortByColor', _sortByColor ? '1' : '0'); } catch (e) {}
+        try {
+            if (window.localforage && typeof localforage.setItem === 'function') {
+                localforage.setItem('rl_sortByColor', _sortByColor ? '1' : '0');
+            } else {
+                localStorage.setItem('rl_sortByColor', _sortByColor ? '1' : '0');
+            }
+        } catch (e) {}
         renderReplyLibrary();
     });
     const tbBatch = toolbar.querySelector('#tb-batch-btn');
@@ -613,7 +640,7 @@ function _renderCardViewWithGroups(list, items) {
     }
 }
 
-// 按分组颜色排序：相同颜色的分组相邻，不同颜色按色相排列（稳定排序，保持分组内原相对顺序）
+// 按分组颜色排序：相同颜色的分组相邻，红/粉系排最前，其余按色相排列（稳定排序，保持分组内原相对顺序）
 function _sortGroupsByColor(groups) {
     if (!groups || groups.length === 0) return groups;
     const getHue = (hex) => {
@@ -642,7 +669,11 @@ function _sortGroupsByColor(groups) {
     }));
     arr.sort((a, b) => {
         if (a.color === b.color) return a.i - b.i; // 同色相邻且保持原顺序
-        return a.hue - b.hue; // 不同颜色按色相排列
+        // 红/粉系排最前：色相落在 [330,360) ∪ [0,20) 视为红粉族，用原始 hue（0 附近）自然排前；
+        // 其余色系整体后移 360，保证红粉永远在最前且不与其余颜色穿插
+        const isRedPink = (hue) => (hue >= 330 || hue < 20);
+        const sortKey = (hue) => isRedPink(hue) ? hue : (hue + 360);
+        return sortKey(a.hue) - sortKey(b.hue);
     });
     return arr.map(x => x.g);
 }
