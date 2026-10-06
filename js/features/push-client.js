@@ -140,6 +140,16 @@ window.pushNotify = (function () {
         method: 'POST',
         body: JSON.stringify({ tag, fireAt: fireAtMs, title, body, url: url || './index.html' })
       });
+      // 关键点：把"待回复任务"持久化进 IndexedDB。
+      // 页面在后台被系统挂起/杀进程时，本地 setTimeout(simulateReply) 不会跑 → 消息不生成，
+      // 但后端推送照常到点弹通知 → 出现"通知有、消息无"。记下 fireAt，供切回前台/启动/兜底定时器补齐生成。
+      try {
+        if (window.localforage) {
+          await localforage.setItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply', { tag: tag, fireAt: fireAtMs });
+        }
+      } catch (e) {}
+      // 开启新一轮待回复：重置"已生成"哨兵，允许本轮 simulateReply 生成（flush 兜底与本地 setTimeout 重复触发时由 simulateReply 内部守卫去重）
+      if (tag === 'chat_reply_next') { try { window._pendingReplyDone = false; } catch (e) {} }
     } catch (e) {
       console.warn('[pushNotify] schedule failed', e);
     }
@@ -150,12 +160,41 @@ window.pushNotify = (function () {
     if (!config.backendUrl) return;
     try {
       await apiFetch('/api/notify/cancel', { method: 'POST', body: JSON.stringify({ tag }) });
+      // 任务被取消（simulateReply 已生成消息）→ 清掉持久化的待回复，避免被兜底逻辑重复补齐
+      try {
+        if (window.localforage) await localforage.removeItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply');
+      } catch (e) {}
     } catch (e) {
       console.warn('[pushNotify] cancel failed', e);
     }
   }
 
-  return { isSupported, getStatus, enable, disable, schedule, cancel, loadConfig, saveConfig, getConfig: () => config };
+  // 待回复补齐：检查持久化的 pendingReply，若已到点且消息尚未生成，则补调 simulateReply。
+  // 与通知对齐，修复"通知有、消息无"。幂等保障：simulateReply 内部用 _pendingReplyDone 哨兵确保同一轮只生成一次，
+  // 且生成后会 cancel → 清除 pendingReply，重复调用不会重复生成。
+  function flushPendingReplies() {
+    try {
+      if (window._pendingReplyDone) return; // 本轮已生成
+      if (!window._pendingPushTag) return; // 没有待回复任务
+      if (!window.localforage) return;
+      localforage.getItem((window.APP_PREFIX || 'CHAT_APP_V3_') + 'pendingReply').then(function (p) {
+        if (p && p.fireAt && Date.now() >= p.fireAt) {
+          if (typeof window.simulateReply === 'function') window.simulateReply();
+        }
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  // 自动触发补齐：切回前台 / App 启动 / 定时兜底（即使一直前台但前台 setTimeout 被系统节流也能补齐）
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') { try { flushPendingReplies(); } catch (e) {} }
+  });
+  window.addEventListener('load', function () {
+    setTimeout(function () { try { flushPendingReplies(); } catch (e) {} }, 800);
+  });
+  setInterval(function () { try { flushPendingReplies(); } catch (e) {} }, 20000);
+
+  return { isSupported, getStatus, enable, disable, schedule, cancel, loadConfig, saveConfig, getConfig: () => config, flushPendingReplies };
 })();
 
 // ---- 设置页里的开关/输入框接线 ----

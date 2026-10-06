@@ -1903,6 +1903,11 @@ if (!isBatchMode && type === 'normal') {
         })();
 
         window.simulateReply = function() {
+            // 幂等守卫：同一轮"待回复"只生成一条消息。
+            // 页面后台被杀时，本地 setTimeout 与 push-client 的 flush 兜底定时器都可能到点触发本函数，
+            // 若无此守卫会出现"通知有、消息生成了两条"。进入即置哨兵（JS 单线程，天然原子）。
+            if (window._pendingReplyDone) return;
+            window._pendingReplyDone = true;
             // 消息已经实际生成了，取消后台推送（避免重复通知）
             if (window.pushNotify && window._pendingPushTag) {
                 window.pushNotify.cancel(window._pendingPushTag);
