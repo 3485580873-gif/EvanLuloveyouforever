@@ -380,31 +380,62 @@
             b.style.animationPlayState = playing ? 'running' : 'paused';
         });
     }
-    // 启动双音频引擎
+    // ── 单飞锁：避免多路恢复事件(可见性/焦点/触摸/巡检/初始化)在同一时刻并发调用
+    //    play()/start()，多次并发会触发音频会话冲突并可能导致 PWA 被系统杀掉(闪退) ──
+    var _busy = false;
+    function _guarded(fn) {
+        if (_busy) return;
+        _busy = true;
+        var released = false;
+        function release(){ if (!released) { released = true; _busy = false; } }
+        try {
+            var r = fn();
+            if (r && typeof r.then === 'function') r.then(release, release);
+            else setTimeout(release, 0);
+        } catch (e) { release(); }
+    }
+    // 统一的恢复入口：所有事件都走这里，保证幂等且不并发
+    function _resumeIfNeeded() {
+        if (!_get() || _userPaused) return;
+        _guarded(function(){
+            _setupAudioSession();
+            if (_audio && (_audio.paused || _audio.ended)) {
+                var p = _audio.play();
+                if (p && typeof p.catch === 'function') p.catch(function(){});
+            }
+            _startWebAudio();
+        });
+    }
+    // 启动双音频引擎（幂等 + 单飞）
     function _startAll() {
-        _setupAudioSession();
-        var a = _createAudio();
-        var playPromise = a.play();
-        if (playPromise && playPromise.then) {
-            playPromise.catch(function(){
-                if (!_unlockBound) {
-                    _unlockBound = true;
-                    function unlock() {
-                        if (_get()) {
-                            _setupAudioSession();
-                            a.play().catch(function(){});
-                            _startWebAudio();
+        if (!_get() || _userPaused) return;
+        _guarded(function(){
+            _setupAudioSession();
+            var a = _createAudio();
+            var playPromise = a.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(function(){
+                    if (!_unlockBound) {
+                        _unlockBound = true;
+                        function unlock() {
+                            if (_get() && !_userPaused) {
+                                _setupAudioSession();
+                                a.play().catch(function(){});
+                                _startWebAudio();
+                            }
+                            _unlockBound = false;
                         }
-                        _unlockBound = false;
+                        document.addEventListener('touchstart', unlock, { once:true, passive:true });
+                        document.addEventListener('click', unlock, { once:true });
                     }
-                    document.addEventListener('touchstart', unlock, { once:true, passive:true });
-                    document.addEventListener('click', unlock, { once:true });
-                }
-            });
-        }
-        _startWebAudio();
-        _startPositionTimer();
-        _setUI(true);
+                    _startWebAudio();
+                });
+            }
+            _startWebAudio();
+            _startPositionTimer();
+            _setUI(true);
+            return playPromise;
+        });
     }
     // 关闭全部保活音频
     function _stopAll() {
@@ -433,53 +464,49 @@
             if (typeof showNotification === 'function') showNotification('保活已关闭', 'info', 1500);
         }
     };
-    // 2秒一次巡检，自动恢复被暂停的音频
+    // 2秒一次巡检：仅在主引擎异常暂停且用户未主动暂停时恢复（单飞，避免无脑重复 play 造成冲突）
     setInterval(function(){
-        if (!_get()) return;
-        _setupAudioSession();
-        if (_audio && _audio.paused && !_userPaused) _audio.play().catch(function(){});
-        if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume().catch(function(){});
-        var playing = _isPlaying();
-        var dot = document.getElementById('keepalive-dot');
-        if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
+        if (!_get() || _userPaused) return;
+        _guarded(function(){
+            _setupAudioSession();
+            if (_audio && (_audio.paused || _audio.ended)) {
+                var p = _audio.play();
+                if (p && typeof p.catch === 'function') p.catch(function(){ _startWebAudio(); });
+            }
+            var playing = _isPlaying();
+            var dot = document.getElementById('keepalive-dot');
+            if (dot) dot.className = 'keepalive-dot' + (playing ? ' alive' : '');
+        });
     }, 2000);
     // 切回页面恢复（回到页面视为用户想要保活继续，解除主动暂停锁定）
     document.addEventListener('visibilitychange', function(){
         if (document.visibilityState === 'visible') _userPaused = false;
-        if (_get() && document.visibilityState === 'visible') {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
-        }
+        _resumeIfNeeded();
     });
     // 窗口获得焦点恢复
     window.addEventListener('focus', function(){
         _userPaused = false;
-        if (_get()) {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
-        }
+        _resumeIfNeeded();
     });
     // 真正关闭/离开页面时：停止保活音频并清除控制中心卡片。
     // 注意：锁屏、切到后台不触发 pagehide，不影响整夜保活；
     // localStorage 开关状态保留，下次打开页面若开关仍为开会自动恢复。
     window.addEventListener('pagehide', function(){ _stopAll(); });
-    // 触摸/点击解锁播放（iOS浏览器兼容）
+    // 触摸/点击解锁播放（iOS浏览器兼容），统一走 _resumeIfNeeded 防止并发
     document.addEventListener('touchstart', function(){
         _userPaused = false;
-        if (_get()) {
-            _setupAudioSession();
-            if (_audio && _audio.paused) _audio.play().catch(function(){});
-            _startWebAudio();
-        }
+        _resumeIfNeeded();
     }, { passive: true });
-    // 页面加载初始化
-    document.addEventListener('DOMContentLoaded', function(){
+    // 页面加载初始化（仅一次；_busy 单飞保证不会重复启动；若脚本在 DOMContentLoaded 后才执行也可正确兜底）
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function(){
+            _setUI(false);
+            if (_get()) setTimeout(_startAll, 800);
+        });
+    } else {
         _setUI(false);
         if (_get()) setTimeout(_startAll, 800);
-    });
-    setTimeout(function(){ if (_get()) _startAll(); }, 2000);
+    }
 })();
 
 (function() {
