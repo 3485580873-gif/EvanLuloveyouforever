@@ -326,7 +326,7 @@ function _renderModernToolbar() {
                 <button class="gfp-btn ${_activeGroupFilter === 'ungrouped' ? 'gfp-active' : ''}" data-filter="ungrouped">
                     未分组 <span class="gfp-count">${ungroupedCount}</span>
                 </button>
-                ${ctx.groups.map(g => {
+                ${(_sortByColor ? _sortGroupsByColor(ctx.groups) : ctx.groups).map(g => {
                     const cnt = (g.items || []).filter(item => ctx.items.includes(item)).length;
                     return `<button class="gfp-btn ${_activeGroupFilter === g.id ? 'gfp-active' : ''} ${g.disabled ? 'gfp-disabled' : ''}"
                         data-filter="${g.id}"
@@ -1067,7 +1067,10 @@ function _showGroupManager() {
             ? `<div style="text-align:center;padding:32px 0;color:var(--text-secondary);font-size:13px;opacity:0.7;">
                     还没有分组<br><span style="font-size:11px;">点击下方按钮创建第一个分组</span>
                </div>`
-            : groups.map((g, i) => `
+            : (_sortByColor ? _sortGroupsByColor(groups) : groups).map(g => {
+                // 排序显示时索引必须映射回原数组，否则编辑/删除/屏蔽会作用在错误的分组上
+                const i = groups.indexOf(g);
+                return `
                 <div style="
                     display:flex;align-items:center;gap:10px;padding:12px 14px;
                     border-radius:13px;border:1.5px solid var(--border-color);
@@ -1094,7 +1097,8 @@ function _showGroupManager() {
                         display:flex;align-items:center;justify-content:center;
                     " title="删除">${ICONS.trash}</button>
                 </div>
-            `).join('');
+                `;
+            }).join('');
 
         panel.querySelectorAll('[data-action]').forEach(btn => {
             btn.onclick = () => {
@@ -1316,9 +1320,9 @@ function _showSingleItemGroupPicker(itemText, ctx) {
                 <input type="radio" name="sgp" value="" ${!currentGroup ? 'checked' : ''} style="accent-color:var(--accent-color);">
                 <span style="font-size:13px;color:var(--text-secondary);">不分组</span>
             </label>
-            ${groups.map((g, i) => `
+            ${(_sortByColor ? _sortGroupsByColor(groups) : groups).map(g => `
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid ${currentGroup?.id === g.id ? g.color : 'var(--border-color)'};background:${currentGroup?.id === g.id ? g.color + '10' : 'var(--primary-bg)'};">
-                    <input type="radio" name="sgp" value="${i}" ${currentGroup?.id === g.id ? 'checked' : ''} style="accent-color:${g.color};">
+                    <input type="radio" name="sgp" value="${groups.indexOf(g)}" ${currentGroup?.id === g.id ? 'checked' : ''} style="accent-color:${g.color};">
                     <span style="width:9px;height:9px;border-radius:50%;background:${g.color||'#aaa'};flex-shrink:0;"></span>
                     <span style="flex:1;font-size:13px;color:var(--text-primary);font-weight:600;">${g.name}</span>
                     <span style="font-size:11px;color:var(--text-secondary);">${(g.items||[]).length} 条</span>
@@ -1378,9 +1382,9 @@ function _showBatchGroupPicker() {
                 <input type="radio" name="bgp" value="" checked style="accent-color:var(--accent-color);">
                 <span style="font-size:13px;color:var(--text-secondary);">移出所有分组</span>
             </label>
-            ${groups.map((g, i) => `
+            ${(_sortByColor ? _sortGroupsByColor(groups) : groups).map(g => `
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:11px;border:1.5px solid var(--border-color);background:var(--primary-bg);">
-                    <input type="radio" name="bgp" value="${i}" style="accent-color:${g.color};">
+                    <input type="radio" name="bgp" value="${groups.indexOf(g)}" style="accent-color:${g.color};">
                     <span style="width:9px;height:9px;border-radius:50%;background:${g.color||'#aaa'};flex-shrink:0;"></span>
                     <span style="flex:1;font-size:13px;color:var(--text-primary);font-weight:600;">${g.name}</span>
                     <span style="font-size:11px;color:var(--text-secondary);">${(g.items||[]).length} 条</span>
@@ -2083,8 +2087,8 @@ function _showBatchAddDialog() {
             border:1.5px solid var(--accent-color);background:var(--accent-color);color:#fff;font-weight:700;
             flex-shrink:0;transition:all .15s;
         ">不分组</button>
-        ${groups.map((g, i) => `
-        <button class="ba-grp-pill" data-gidx="${i}" style="
+        ${(_sortByColor ? _sortGroupsByColor(groups) : groups).map(g => `
+        <button class="ba-grp-pill" data-gidx="${groups.indexOf(g)}" style="
             padding:5px 13px;border-radius:20px;font-size:12px;font-family:var(--font-family);cursor:pointer;
             border:1.5px solid ${g.color}44;background:${g.color}18;color:${g.color};font-weight:600;
             flex-shrink:0;transition:all .15s;
