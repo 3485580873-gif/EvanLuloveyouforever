@@ -213,16 +213,23 @@ const stickerInput = document.getElementById('sticker-file-input');
                 stickerInput.addEventListener('change', async (e) => {
                     const files = Array.from(e.target.files);
                     if (!files.length) return;
+                    e.target.value = '';
 
-                    const oversized = files.filter(f => f.size > 2 * 1024 * 1024);
-                    if (oversized.length > 0) {
-                        showNotification(oversized.length + ' 张图片超过 2MB 限制，已跳过', 'warning');
+                    const MAX_STICKER = 2 * 1024 * 1024;
+                    const validFiles = files.filter(f => f.size <= MAX_STICKER);
+                    const oversized = files.filter(f => f.size > MAX_STICKER);
+                    const oversizedNonGif = oversized.filter(f => f.type !== 'image/gif');
+                    const oversizedGif = oversized.filter(f => f.type === 'image/gif');
+                    if (oversizedGif.length > 0) {
+                        showNotification(oversizedGif.length + ' 张动态GIF超过2MB，无法自动压缩，已跳过', 'warning');
+                    }
+                    if (oversizedNonGif.length > 0) {
+                        showNotification(oversizedNonGif.length + ' 张图片超过2MB，正在自动压缩...', 'info');
                     }
 
-                    const validFiles = files.filter(f => f.size <= 2 * 1024 * 1024);
-                    if (!validFiles.length) return;
-
-                    showNotification('正在批量处理 ' + validFiles.length + ' 张图片...', 'info');
+                    const total = validFiles.length + oversizedNonGif.length;
+                    if (!total) return;
+                    showNotification('正在批量处理 ' + total + ' 张图片...', 'info');
 
                     let successCount = 0;
                     let failCount = 0;
@@ -230,6 +237,16 @@ const stickerInput = document.getElementById('sticker-file-input');
                     for (const file of validFiles) {
                         try {
                             const base64 = await optimizeSticker(file);
+                            stickerLibrary.push(base64);
+                            successCount++;
+                        } catch (err) {
+                            console.error(err);
+                            failCount++;
+                        }
+                    }
+                    for (const file of oversizedNonGif) {
+                        try {
+                            const base64 = await compressImageSmart(file, 1.8);
                             stickerLibrary.push(base64);
                             successCount++;
                         } catch (err) {
@@ -246,8 +263,6 @@ const stickerInput = document.getElementById('sticker-file-input');
                     } else {
                         showNotification('上传成功，共 ' + successCount + ' 张', 'success');
                     }
-
-                    e.target.value = '';
                 });
             }
 const myStickerQuickUpload = document.getElementById('my-sticker-quick-upload');
@@ -255,11 +270,16 @@ if (myStickerQuickUpload) {
     myStickerQuickUpload.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
-        const oversized = files.filter(f => f.size > 2 * 1024 * 1024);
-        if (oversized.length > 0) showNotification(oversized.length + ' 张图片超过 2MB，已跳过', 'warning');
-        const validFiles = files.filter(f => f.size <= 2 * 1024 * 1024);
-        if (!validFiles.length) return;
-        showNotification('正在处理 ' + validFiles.length + ' 张...', 'info');
+        e.target.value = '';
+        const MAX_STICKER = 2 * 1024 * 1024;
+        const validFiles = files.filter(f => f.size <= MAX_STICKER);
+        const oversizedNonGif = files.filter(f => f.size > MAX_STICKER && f.type !== 'image/gif');
+        const oversizedGif = files.filter(f => f.size > MAX_STICKER && f.type === 'image/gif');
+        if (oversizedGif.length > 0) showNotification(oversizedGif.length + ' 张动态GIF超过2MB，无法自动压缩，已跳过', 'warning');
+        if (oversizedNonGif.length > 0) showNotification(oversizedNonGif.length + ' 张图片超过2MB，正在自动压缩...', 'info');
+        const total = validFiles.length + oversizedNonGif.length;
+        if (!total) return;
+        showNotification('正在处理 ' + total + ' 张...', 'info');
         let ok = 0, fail = 0;
         for (const file of validFiles) {
             try {
@@ -268,10 +288,16 @@ if (myStickerQuickUpload) {
                 ok++;
             } catch(err) { fail++; }
         }
+        for (const file of oversizedNonGif) {
+            try {
+                const base64 = await compressImageSmart(file, 1.8);
+                myStickerLibrary.push(base64);
+                ok++;
+            } catch(err) { fail++; }
+        }
         throttledSaveData();
         if (typeof renderComboContent === 'function') renderComboContent('my-sticker');
         showNotification(fail > 0 ? `上传完成：${ok} 成功 ${fail} 失败` : `✓ 已添加 ${ok} 张到我的表情库`, fail > 0 ? 'warning' : 'success');
-        e.target.value = '';
     });
 }
 

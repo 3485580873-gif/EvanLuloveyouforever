@@ -1581,7 +1581,20 @@ const addMessage = (message) => {
             DOMElements.messageInput.value = '';
             DOMElements.messageInput.style.height = '46px';
             if (imageFile && imageFile.size > MAX_IMAGE_SIZE) {
-                showNotification('图片大小不能超过5MB', 'error'); DOMElements.imageInput.value = ''; return;
+                // 超过5MB：不再直接拒绝，先自动压缩到限制内再发送（保透明；GIF动画无法压缩则提示）
+                const oversized = imageFile;
+                DOMElements.imageInput.value = '';
+                if (oversized.type === 'image/gif') {
+                    showNotification('动态GIF超过5MB，无法自动压缩，请先手动压缩后再发送', 'error');
+                    return;
+                }
+                showNotification('图片超过5MB，正在自动压缩...', 'info', 2500);
+                compressImageSmart(oversized, 4.5).then(src => {
+                    createMessage(src);
+                }).catch(() => {
+                    showNotification('图片压缩失败，请换一张试试', 'error');
+                });
+                return;
             }
 
             const createMessage = (imgSrc = null) => {
@@ -1841,12 +1854,21 @@ if (!isBatchMode && type === 'normal') {
                 batchImgInput.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    if (file.size > MAX_IMAGE_SIZE) { showNotification('图片超过5MB限制', 'warning'); return; }
+                    e.target.value = '';
+                    if (file.size > MAX_IMAGE_SIZE) {
+                        // 超过5MB：自动压缩到限制内再加入批量（GIF动画无法压缩则提示）
+                        if (file.type === 'image/gif') { showNotification('动态GIF超过5MB，无法自动压缩，请先手动压缩', 'warning'); return; }
+                        showNotification('图片超过5MB，正在自动压缩...', 'info', 2500);
+                        try {
+                            const base64 = await compressImageSmart(file, 4.5, 600);
+                            addToBatch(base64);
+                        } catch (err) { showNotification('图片压缩失败，请换一张试试', 'error'); }
+                        return;
+                    }
                     try {
                         const base64 = await optimizeImage(file, 600, 0.8);
                         addToBatch(base64);
                     } catch(err) { showNotification('图片处理失败', 'error'); }
-                    e.target.value = '';
                 });
             }
         }

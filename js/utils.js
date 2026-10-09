@@ -127,6 +127,54 @@ function deduplicateContentArray(arr, baseSystemArray = []) {
             });
         }
 
+// 智能图片压缩：把超过限制的图自动压到限制内，且保留透明通道（头像框/贴图必需）。
+// 与 compressImageToLimit 的区别：那个导出 JPEG 会丢透明；这个优先 image/webp（有损+保透明），
+// 浏览器不支持导出 webp 时（旧版 iOS Safari）自动回落 PNG 并靠缩尺寸压体积。
+// GIF 例外：canvas 压缩会丢动画，直接 reject('GIF_UNSUPPORTED')，由调用方提示。
+// sizeLimitMB: 目标体积上限(MB)；maxSide: 最大边长上限(px)，默认 1280。
+function compressImageSmart(file, sizeLimitMB = 1, maxSide = 1280) {
+    return new Promise((resolve, reject) => {
+        const limit = sizeLimitMB * 1024 * 1024;
+        if (file.type === 'image/gif') { reject(new Error('GIF_UNSUPPORTED')); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const side0 = Math.max(img.width, img.height) || 1;
+                    const start = (side, q) => {
+                        const s = Math.min(1, side / side0);
+                        const cw = Math.max(1, Math.round(img.width * s));
+                        const ch = Math.max(1, Math.round(img.height * s));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = cw; canvas.height = ch;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, cw, ch);
+                        let out = canvas.toDataURL('image/webp', q);
+                        if (!out.startsWith('data:image/webp')) {
+                            // 当前浏览器不支持导出 webp：回落 PNG（无损，靠缩尺寸压体积）
+                            out = canvas.toDataURL('image/png');
+                            if (out.length <= limit || side <= 200) return resolve(out);
+                            return start(Math.round(side * 0.7), 0.9);
+                        }
+                        // 注：dataURL 为 base64 文本，length 略大于实际字节数，比较偏保守（产物更小），安全
+                        if (out.length <= limit || side <= 200) return resolve(out);
+                        if (q > 0.4) return start(side, +(q - 0.1).toFixed(2));
+                        return start(Math.round(side * 0.8), 0.5);
+                    };
+                    start(Math.min(side0, maxSide), 0.85);
+                } catch (err) { reject(err); }
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
         function exportDataToMobileOrPC(dataString, fileName) {
             if (navigator.share && navigator.canShare) {
                 try {

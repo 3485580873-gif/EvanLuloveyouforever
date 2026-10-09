@@ -63,15 +63,32 @@ function applyAvatarShapeToDOM(type, shape) {
                 uploadBtn.addEventListener('click', () => fileInput && fileInput.click());
                 if (fileInput) fileInput.addEventListener('change', (e) => {
                     const file = e.target.files[0]; if (!file) return;
-                    if (file.size > 1024 * 1024) { showNotification('图片大小不能超过1MB', 'error'); return; }
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
+                    const applyDataUrl2 = (dataUrl) => {
                         if (!settings[settingsKey]) settings[settingsKey] = { size: 100, offsetX: 0, offsetY: 0 };
-                        settings[settingsKey].src = ev.target.result;
+                        settings[settingsKey].src = dataUrl;
                         applyAvatarFrame(avatarContainer, settings[settingsKey]);
                         updateControls2(); throttledSaveData();
+                        showNotification('✓ 头像框已更新', 'success');
                     };
+                    if (file.size > 1024 * 1024) {
+                        // 超过1MB：自动压缩到1MB内（保透明；GIF动画无法压缩则明确提示）
+                        if (file.type === 'image/gif') {
+                            showNotification('动态GIF超过1MB，无法自动压缩，请先手动压缩后再上传', 'error');
+                            e.target.value = '';
+                            return;
+                        }
+                        showNotification('图片超过1MB，正在自动压缩...', 'info', 2500);
+                        compressImageSmart(file, 1).then(applyDataUrl2).catch(() => {
+                            showNotification('图片处理失败，请换一张试试', 'error');
+                        });
+                        e.target.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => applyDataUrl2(ev.target.result);
+                    reader.onerror = () => showNotification('图片读取失败', 'error');
                     reader.readAsDataURL(file);
+                    e.target.value = '';
                 });
                 if (removeBtn) removeBtn.addEventListener('click', () => {
                     settings[settingsKey] = null;
